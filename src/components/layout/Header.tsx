@@ -40,7 +40,7 @@ export const Header = () => {
     }
   };
   return (
-    <header className="py-3 safe-area-pt bg-transparent border-b border-pink-100/50">
+    <header className="py-3 safe-area-pt bg-transparent">
       <div className="flex items-center justify-center relative">
         <motion.h1 
           key={currentTab}

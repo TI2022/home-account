@@ -7,7 +7,7 @@ import { Transaction } from '@/types';
 import { format, isSameDay, startOfMonth, endOfMonth } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { motion } from 'framer-motion';
-import { Plus, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
+import { Plus, ArrowUpCircle, ArrowDownCircle, Trash2 } from 'lucide-react';
 import { QuickTransactionForm } from './QuickTransactionForm';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -19,6 +19,8 @@ import { PickersDay } from '@mui/x-date-pickers/PickersDay';
 // カスタムスタイルの定義
 const StyledDateCalendar = styled(DateCalendar)(({ theme }) => ({
   width: '100%',
+  minHeight: '450px',
+  height: '450px',
   '& .MuiPickersCalendarHeader-root': {
     display: 'flex',
     alignItems: 'center',
@@ -55,7 +57,8 @@ const StyledDateCalendar = styled(DateCalendar)(({ theme }) => ({
     },
   },
   '& .MuiPickersSlideTransition-root': {
-    minHeight: '300px',
+    minHeight: '450px',
+    height: '450px',
   },
 }));
 
@@ -120,7 +123,7 @@ export const CalendarPage = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
-  const { transactions, fetchTransactions } = useTransactionStore();
+  const { transactions, fetchTransactions, deleteTransaction } = useTransactionStore();
 
   useEffect(() => {
     fetchTransactions();
@@ -155,6 +158,17 @@ export const CalendarPage = () => {
     fetchTransactions();
   };
 
+  const handleDelete = async (transactionId: string) => {
+    if (window.confirm('この収支を削除してもよろしいですか？')) {
+      try {
+        await deleteTransaction(transactionId);
+        fetchTransactions();
+      } catch (error) {
+        alert('削除に失敗しました');
+      }
+    }
+  };
+
   return (
     <motion.div 
       className="pb-20 space-y-6"
@@ -162,14 +176,6 @@ export const CalendarPage = () => {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.6 }}
     >
-      <motion.div 
-        className="text-center mb-4"
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-      >
-        <p className="text-gray-600 text-sm">日付をタップして収支を記録</p>
-      </motion.div>
 
       {/* Calendar */}
       <motion.div
@@ -179,7 +185,7 @@ export const CalendarPage = () => {
         className="w-full max-w-[100vw] flex justify-center"
       >
         <Card className="w-full max-w-4xl">
-          <CardContent className="p-2 sm:p-4 w-full">
+          <CardContent className="p-2 sm:p-4 w-full min-h-[450px]" style={{ overflowY: 'hidden' }}>
             <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ja}>
               <StyledDateCalendar
                 value={selectedDate}
@@ -294,11 +300,20 @@ export const CalendarPage = () => {
                       )}
                       <span className="text-sm">{transaction.category}</span>
                     </div>
-                    <span className={`text-sm font-medium ${
-                      transaction.type === 'income' ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      {transaction.type === 'income' ? '+' : '-'}¥{formatAmount(transaction.amount)}
-                    </span>
+                    <div className="flex items-center space-x-2">
+                      <span className={`text-sm font-medium ${
+                        transaction.type === 'income' ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {transaction.type === 'income' ? '+' : '-'}¥{formatAmount(transaction.amount)}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDelete(transaction.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>

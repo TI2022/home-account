@@ -139,47 +139,6 @@ export const QuickTransactionForm = ({
 
   return (
     <div className="space-y-4 bg-white p-4 rounded shadow">
-      {/* 既存のトランザクション一覧 */}
-      {existingTransactions.length > 0 && (
-        <div className="space-y-2">
-          {existingTransactions.map((transaction) => (
-            <div key={transaction.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-              <div className="flex items-center space-x-2">
-                <span className={`text-sm ${
-                  transaction.type === 'income' ? 'text-green-600' : 'text-red-600'
-                }`}>
-                  {transaction.category}
-                </span>
-                {transaction.memo && (
-                  <span className="text-xs text-gray-500">({transaction.memo})</span>
-                )}
-              </div>
-              <div className="flex items-center space-x-2">
-                <span className={`text-sm font-medium ${
-                  transaction.type === 'income' ? 'text-green-600' : 'text-red-600'
-                }`}>
-                  {transaction.type === 'income' ? '+' : '-'}¥{transaction.amount.toLocaleString()}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleEdit(transaction)}
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleDelete(transaction)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
       {/* フォーム */}
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">

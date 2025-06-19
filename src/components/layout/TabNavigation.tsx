@@ -11,7 +11,7 @@ export const TabNavigation = () => {
     { id: 'calendar' as const, label: 'カレンダー', icon: Calendar },
     { id: 'add' as const, label: '記録', icon: Plus },
     { id: 'history' as const, label: '履歴', icon: History },
-    { id: 'settings' as const, label: '設定', icon: Settings },
+    { id: 'settings' as const, label: '収支設定', icon: Settings },
   ];
 
   return (
