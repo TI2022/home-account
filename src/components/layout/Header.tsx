@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useAppStore } from '@/store/useAppStore';
-import { Menu, LogOut, User, Palette } from 'lucide-react';
+import { Menu, LogOut, User, Palette, Home } from 'lucide-react';
 
 export const Header = () => {
   const { signOut, user } = useAuthStore();
@@ -21,14 +21,19 @@ export const Header = () => {
     setIsMenuOpen(false);
   };
 
+  const handleStatus = () => {
+    setCurrentTab('home');
+    setIsMenuOpen(false);
+  };
+
   const getPageTitle = () => {
     switch (currentTab) {
       case 'home':
-        return 'ホーム';
+        return 'ステータス';
       case 'calendar':
         return 'カレンダー';
       case 'add':
-        return '支出の記録';
+        return '収支の記録';
       case 'history':
         return '履歴';
       case 'settings':
@@ -36,7 +41,7 @@ export const Header = () => {
       case 'background':
         return '背景設定';
       default:
-        return 'ホーム';
+        return 'ステータス';
     }
   };
   return (
@@ -82,6 +87,14 @@ export const Header = () => {
 
               {/* Menu Items */}
               <div className="space-y-2">
+                <Button
+                  variant="ghost"
+                  onClick={handleStatus}
+                  className="w-full justify-start text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                >
+                  <Home className="h-4 w-4 mr-3" />
+                  ステータス
+                </Button>
                 <Button
                   variant="ghost"
                   onClick={handleBackgroundSettings}

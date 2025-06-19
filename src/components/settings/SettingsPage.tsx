@@ -1,6 +1,4 @@
 import { motion } from 'framer-motion';
-import { MonthSelector } from '../history/MonthSelector';
-import { BudgetSettings } from './BudgetSettings';
 import { RecurringIncomeSettings } from './RecurringIncomeSettings';
 import { RecurringExpenseSettings } from './RecurringExpenseSettings';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -18,17 +16,12 @@ export const SettingsPage = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
       >
-        <Tabs defaultValue="budget" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="budget">予算設定</TabsTrigger>
-            <TabsTrigger value="income">定期収入</TabsTrigger>
+        <Tabs defaultValue="expense" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="expense">定期支出</TabsTrigger>
+            <TabsTrigger value="income">定期収入</TabsTrigger>
+            
           </TabsList>
-          
-          <TabsContent value="budget" className="space-y-4">
-            <MonthSelector />
-            <BudgetSettings />
-          </TabsContent>
           
           <TabsContent value="income" className="space-y-4">
             <RecurringIncomeSettings />

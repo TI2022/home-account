@@ -8,7 +8,7 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>((set) => ({
-  currentTab: 'home',
+  currentTab: 'calendar',
   selectedMonth: new Date().toISOString().slice(0, 7),
   setCurrentTab: (tab) => set({ currentTab: tab }),
   setSelectedMonth: (month) => set({ selectedMonth: month }),

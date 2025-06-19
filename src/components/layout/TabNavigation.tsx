@@ -1,13 +1,12 @@
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import { useAppStore } from '@/store/useAppStore';
-import { Home, Plus, History, Settings, Calendar } from 'lucide-react';
+import { Plus, History, Settings, Calendar } from 'lucide-react';
 
 export const TabNavigation = () => {
   const { currentTab, setCurrentTab } = useAppStore();
 
   const tabs = [
-    { id: 'home' as const, label: 'ホーム', icon: Home },
     { id: 'calendar' as const, label: 'カレンダー', icon: Calendar },
     { id: 'add' as const, label: '記録', icon: Plus },
     { id: 'history' as const, label: '履歴', icon: History },

@@ -76,7 +76,6 @@ export const ThemeCustomizer = () => {
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-gray-800 mb-2">背景テーマ</h2>
         <p className="text-gray-600 text-sm">気分に合わせて背景を変更できます</p>
       </div>
 

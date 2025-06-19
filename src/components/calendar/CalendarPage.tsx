@@ -242,9 +242,9 @@ export const CalendarPage = () => {
                     sum + (t.type === 'income' ? t.amount : -t.amount), 0
                   ) >= 0 ? 'text-blue-600' : 'text-orange-600'
                 }`}>
-                  ¥{formatAmount(Math.abs(monthTransactions.reduce((sum, t) => 
+                  ¥{formatAmount(monthTransactions.reduce((sum, t) => 
                     sum + (t.type === 'income' ? t.amount : -t.amount), 0
-                  )))}
+                  ))}
                 </div>
                 <div className={`text-sm font-medium ${
                   monthTransactions.reduce((sum, t) => 

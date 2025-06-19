@@ -27,6 +27,7 @@ export const TransactionList = () => {
     amount: '',
     category: '',
     memo: '',
+    date: '',
   });
 
   const filteredTransactions = transactions.filter(t => 
@@ -48,6 +49,7 @@ export const TransactionList = () => {
       amount: transaction.amount.toString(),
       category: transaction.category,
       memo: transaction.memo || '',
+      date: transaction.date,
     });
     setIsDialogOpen(true);
   };
@@ -73,10 +75,10 @@ export const TransactionList = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.amount || !formData.category || !editingTransaction) {
+    if (!formData.amount || !formData.category || !editingTransaction || !formData.date) {
       toast({
         title: 'エラー',
-        description: '金額とカテゴリーを入力してください',
+        description: '金額・カテゴリー・日付を入力してください',
         variant: 'destructive',
       });
       return;
@@ -89,6 +91,7 @@ export const TransactionList = () => {
         amount: Number(formData.amount),
         category: formData.category,
         memo: formData.memo,
+        date: formData.date,
       });
       
       toast({
@@ -199,7 +202,7 @@ export const TransactionList = () => {
         ))}
 
       {/* 編集ダイアログ */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      <Dialog open={isDialogOpen} onOpenChange={handleCancel}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
@@ -261,6 +264,17 @@ export const TransactionList = () => {
                 value={formData.memo}
                 onChange={(e) => setFormData({ ...formData, memo: e.target.value })}
                 placeholder="メモを入力（任意）"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="date">日付</Label>
+              <Input
+                id="date"
+                type="date"
+                value={formData.date}
+                onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
+                required
               />
             </div>
 
