@@ -14,15 +14,13 @@ import { Transaction } from '@/types';
 interface QuickTransactionFormProps {
   selectedDate: Date;
   onTransactionAdded: () => void;
-  existingTransactions?: Transaction[];
 }
 
 export const QuickTransactionForm = ({ 
   selectedDate, 
-  onTransactionAdded,
-  existingTransactions = []
+  onTransactionAdded
 }: QuickTransactionFormProps) => {
-  const { addTransaction, updateTransaction, deleteTransaction } = useTransactionStore();
+  const { addTransaction, updateTransaction } = useTransactionStore();
   const { toast } = useToast();
   const [formData, setFormData] = useState({
     type: 'expense' as 'income' | 'expense',
@@ -100,29 +98,6 @@ export const QuickTransactionForm = ({
         description: '操作に失敗しました',
         variant: 'destructive',
       });
-    }
-  };
-
-  const handleEdit = (transaction: Transaction) => {
-    setEditingTransaction(transaction);
-  };
-
-  const handleDelete = async (transaction: Transaction) => {
-    if (window.confirm('この収支を削除してもよろしいですか？')) {
-      try {
-        await deleteTransaction(transaction.id);
-        toast({
-          title: '削除完了',
-          description: '収支を削除しました',
-        });
-        onTransactionAdded();
-      } catch (error) {
-        toast({
-          title: 'エラー',
-          description: '削除に失敗しました',
-          variant: 'destructive',
-        });
-      }
     }
   };
 
