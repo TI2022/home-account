@@ -7,6 +7,7 @@ import { BadgeNotification } from '@/components/ui/badge-notification';
 import { useGameStore } from '@/store/useGameStore';
 import { useTransactionStore } from '@/store/useTransactionStore';
 import { Trophy, Star, Flame, Target } from 'lucide-react';
+import type { Badge } from '@/store/useGameStore';
 
 export const GameDashboard = () => {
   const {
@@ -24,7 +25,7 @@ export const GameDashboard = () => {
   const { transactions, budgets } = useTransactionStore();
   
   const [showBadgeNotification, setShowBadgeNotification] = useState(false);
-  const [newBadge, setNewBadge] = useState<any>(null);
+  const [newBadge] = useState<Badge | null>(null);
 
   useEffect(() => {
     checkAchievements(transactions, budgets);

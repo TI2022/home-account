@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useTransactionStore } from '@/store/useTransactionStore';
 import { useToast } from '@/hooks/use-toast';
 import { EXPENSE_CATEGORIES } from '@/types';
+import type { RecurringExpense } from '@/types';
 import { Plus, Edit, Trash2, Receipt, Calendar, Clock } from 'lucide-react';
 
 // Predefined expense templates with payment schedules
@@ -186,7 +187,7 @@ export const RecurringExpenseSettings = () => {
 
       resetForm();
       setIsDialogOpen(false);
-    } catch (error) {
+    } catch {
       toast({
         title: 'エラー',
         description: '保存に失敗しました',
@@ -197,7 +198,7 @@ export const RecurringExpenseSettings = () => {
     }
   };
 
-  const handleEdit = (expense: any) => {
+  const handleEdit = (expense: RecurringExpense) => {
     setFormData({
       name: expense.name,
       amount: expense.amount.toString(),
@@ -221,7 +222,7 @@ export const RecurringExpenseSettings = () => {
         title: '削除完了',
         description: '定期支出を削除しました',
       });
-    } catch (error) {
+    } catch {
       toast({
         title: 'エラー',
         description: '削除に失敗しました',
@@ -237,7 +238,7 @@ export const RecurringExpenseSettings = () => {
         title: '更新完了',
         description: `定期支出を${isActive ? '有効' : '無効'}にしました`,
       });
-    } catch (error) {
+    } catch {
       toast({
         title: 'エラー',
         description: '更新に失敗しました',
@@ -297,7 +298,7 @@ export const RecurringExpenseSettings = () => {
     return amount.toLocaleString('ja-JP');
   };
 
-  const formatPaymentSchedule = (expense: any) => {
+  const formatPaymentSchedule = (expense: RecurringExpense) => {
     const months = expense.payment_months || [];
     if (months.length === 12) {
       return '毎月';
@@ -490,7 +491,6 @@ export const RecurringExpenseSettings = () => {
 
               <div className="flex items-center space-x-2">
                 <Switch
-                  id="active"
                   checked={formData.is_active}
                   onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_active: checked }))}
                 />
@@ -574,7 +574,6 @@ export const RecurringExpenseSettings = () => {
                           <Switch
                             checked={expense.is_active}
                             onCheckedChange={(checked) => handleToggleActive(expense.id, checked)}
-                            size="sm"
                           />
                           <Button
                             variant="ghost"
