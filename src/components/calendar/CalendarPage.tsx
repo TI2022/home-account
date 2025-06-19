@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useTransactionStore } from '@/store/useTransactionStore';
-import { Transaction } from '@/types';
 import { format, isSameDay, startOfMonth, endOfMonth } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { motion } from 'framer-motion';
@@ -13,7 +12,6 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { DateCalendar } from '@mui/x-date-pickers/DateCalendar';
 import { styled } from '@mui/material/styles';
-import { Paper } from '@mui/material';
 import { PickersDay } from '@mui/x-date-pickers/PickersDay';
 
 // カスタムスタイルの定義

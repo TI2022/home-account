@@ -9,7 +9,6 @@ import { useTransactionStore } from '@/store/useTransactionStore';
 import { useToast } from '@/hooks/use-toast';
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '@/types';
 import { format } from 'date-fns';
-import { Pencil, Trash2 } from 'lucide-react';
 import { Transaction } from '@/types';
 
 interface QuickTransactionFormProps {

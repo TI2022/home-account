@@ -1,9 +1,9 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Card, CardProps } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
-interface CuteCardProps extends CardProps {
+interface CuteCardProps extends React.ComponentPropsWithoutRef<typeof Card> {
   children: React.ReactNode;
   variant?: 'default' | 'pink' | 'green' | 'blue' | 'purple';
   hover?: boolean;
