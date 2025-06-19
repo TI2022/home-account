@@ -1,4 +1,3 @@
-import React from 'react';
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import { useEffect, useState } from 'react';
 

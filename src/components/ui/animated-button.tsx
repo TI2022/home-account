@@ -19,10 +19,13 @@ export const AnimatedButton = React.forwardRef<HTMLButtonElement, AnimatedButton
     return (
       <motion.div
         animate={sparkle ? { scale: [1, 1.02, 1] } : {}}
-        transition={sparkle ? { duration: 3, repeat: Infinity, ease: "easeInOut" } : {}}
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
-        transition={{ type: "spring", stiffness: 400, damping: 17 }}
+        transition={
+          sparkle
+            ? { duration: 3, repeat: Infinity, ease: "easeInOut", type: "spring", stiffness: 400, damping: 17 }
+            : { type: "spring", stiffness: 400, damping: 17 }
+        }
       >
         <Button
           ref={ref}
