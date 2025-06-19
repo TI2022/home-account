@@ -57,7 +57,7 @@ export const BudgetSettings = () => {
         title: '保存完了',
         description: `${category}の予算を更新しました`,
       });
-    } catch (error) {
+    } catch {
       toast({
         title: 'エラー',
         description: '予算の保存に失敗しました',

@@ -60,7 +60,7 @@ export const TransactionList = () => {
           title: '削除完了',
           description: '収支を削除しました',
         });
-      } catch (error) {
+      } catch {
         toast({
           title: 'エラー',
           description: '削除に失敗しました',
@@ -98,7 +98,7 @@ export const TransactionList = () => {
       
       setIsDialogOpen(false);
       setEditingTransaction(null);
-    } catch (error) {
+    } catch {
       toast({
         title: 'エラー',
         description: '更新に失敗しました',

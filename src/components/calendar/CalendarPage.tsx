@@ -12,7 +12,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { DateCalendar } from '@mui/x-date-pickers/DateCalendar';
 import { styled } from '@mui/material/styles';
-import { PickersDay } from '@mui/x-date-pickers/PickersDay';
+import { PickersDay, PickersDayProps } from '@mui/x-date-pickers/PickersDay';
 
 // カスタムスタイルの定義
 const StyledDateCalendar = styled(DateCalendar)(({ theme }) => ({
@@ -61,7 +61,7 @@ const StyledDateCalendar = styled(DateCalendar)(({ theme }) => ({
 }));
 
 // カスタムの日付セルコンポーネント
-const CustomDay = (props: any) => {
+const CustomDay = (props: PickersDayProps) => {
   const { day, ...other } = props;
   const { transactions } = useTransactionStore();
   const isToday = isSameDay(day, new Date());
@@ -161,7 +161,7 @@ export const CalendarPage = () => {
       try {
         await deleteTransaction(transactionId);
         fetchTransactions();
-      } catch (error) {
+      } catch {
         alert('削除に失敗しました');
       }
     }
@@ -322,7 +322,6 @@ export const CalendarPage = () => {
           <QuickTransactionForm
             selectedDate={selectedDate}
             onTransactionAdded={handleTransactionAdded}
-            existingTransactions={selectedDateTransactions}
           />
         </DialogContent>
       </Dialog>

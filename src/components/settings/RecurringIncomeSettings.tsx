@@ -85,7 +85,7 @@ export const RecurringIncomeSettings = () => {
 
       resetForm();
       setIsDialogOpen(false);
-    } catch (error) {
+    } catch {
       toast({
         title: 'エラー',
         description: '保存に失敗しました',
@@ -96,7 +96,7 @@ export const RecurringIncomeSettings = () => {
     }
   };
 
-  const handleEdit = (income: any) => {
+  const handleEdit = (income: { id: string; name: string; amount: number; category: string; day_of_month: number; is_active: boolean; }) => {
     setFormData({
       name: income.name,
       amount: income.amount.toString(),
@@ -117,7 +117,7 @@ export const RecurringIncomeSettings = () => {
         title: '削除完了',
         description: '定期収入を削除しました',
       });
-    } catch (error) {
+    } catch {
       toast({
         title: 'エラー',
         description: '削除に失敗しました',
@@ -133,7 +133,7 @@ export const RecurringIncomeSettings = () => {
         title: '更新完了',
         description: `定期収入を${isActive ? '有効' : '無効'}にしました`,
       });
-    } catch (error) {
+    } catch {
       toast({
         title: 'エラー',
         description: '更新に失敗しました',
@@ -296,7 +296,6 @@ export const RecurringIncomeSettings = () => {
                     <Switch
                       checked={income.is_active}
                       onCheckedChange={(checked) => handleToggleActive(income.id, checked)}
-                      size="sm"
                     />
                     <Button
                       variant="ghost"

@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { motion, AnimatePresence, useAnimation } from 'framer-motion';
-import { Coins } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface CoinAnimationProps {
   trigger: boolean;

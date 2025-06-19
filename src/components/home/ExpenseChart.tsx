@@ -35,7 +35,7 @@ export const ExpenseChart = () => {
     return `¥${value.toLocaleString('ja-JP')}`;
   };
 
-  const CustomTooltip = ({ active, payload }: any) => {
+  const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: { payload: CategorySummary }[] }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
@@ -92,7 +92,7 @@ export const ExpenseChart = () => {
           </ResponsiveContainer>
         </div>
         <div className="mt-4 space-y-2">
-          {categoryData.map((item, index) => (
+          {categoryData.map((item) => (
             <div key={item.category} className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <div 

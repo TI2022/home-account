@@ -9,20 +9,6 @@ interface CharacterReactionProps {
   character?: 'cat' | 'rabbit' | 'bear' | 'fox';
 }
 
-const characterEmojis = {
-  happy: '😊',
-  excited: '🎉',
-  proud: '🌟',
-  encouraging: '💪'
-};
-
-const backgroundColors = {
-  happy: 'from-yellow-100 to-orange-100 border-yellow-300',
-  excited: 'from-pink-100 to-purple-100 border-pink-300',
-  proud: 'from-blue-100 to-indigo-100 border-blue-300',
-  encouraging: 'from-green-100 to-emerald-100 border-green-300'
-};
-
 export const CharacterReaction = ({ show, message, type, character = 'cat' }: CharacterReactionProps) => {
   const [currentCharacter, setCurrentCharacter] = useState(character);
   const controls = useAnimation();

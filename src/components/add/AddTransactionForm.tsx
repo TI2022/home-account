@@ -86,7 +86,7 @@ export const AddTransactionForm = () => {
       setCategory('');
       setMemo('');
       setDate(format(new Date(), 'yyyy-MM-dd'));
-    } catch (error) {
+    } catch {
       toast({
         title: 'エラー',
         description: '記録に失敗しました',
@@ -194,7 +194,6 @@ export const AddTransactionForm = () => {
 
                 <AnimatedButton
                   type="submit"
-                  variant="cute"
                   size="lg"
                   className={`w-full py-3 text-lg font-bold ${
                     type === 'expense'

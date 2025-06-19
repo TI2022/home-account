@@ -11,7 +11,7 @@ interface AuthState {
   initialize: () => Promise<void>;
 }
 
-export const useAuthStore = create<AuthState>((set, get) => ({
+export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   loading: true,
 
@@ -28,7 +28,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       set({ user: data.user });
       return {};
-    } catch (error) {
+    } catch {
       return { error: 'ログインに失敗しました' };
     }
   },
@@ -46,7 +46,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       set({ user: data.user });
       return {};
-    } catch (error) {
+    } catch {
       return { error: 'アカウント作成に失敗しました' };
     }
   },
@@ -64,7 +64,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       supabase.auth.onAuthStateChange((event, session) => {
         set({ user: session?.user ?? null, loading: false });
       });
-    } catch (error) {
+    } catch {
       set({ loading: false });
     }
   },

@@ -36,7 +36,7 @@ export const AuthForm = () => {
           description: 'TT家計簿へようこそ！',
         });
       }
-    } catch (error) {
+    } catch {
       toast({
         title: 'エラー',
         description: '予期しないエラーが発生しました',

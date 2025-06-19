@@ -30,9 +30,8 @@ export const HomePage = () => {
         transition={{ duration: 0.8, delay: 0.4, ease: "easeOut" }}
       >
         <AnimatedButton
-          variant="cute"
           onClick={() => setCurrentTab('add')}
-          className="px-8 py-3 rounded-full shadow-lg"
+          className="px-8 py-3 rounded-full shadow-lg bg-gradient-to-r from-pink-400 via-pink-500 to-rose-500 hover:from-pink-500 hover:via-pink-600 hover:to-rose-600 text-white"
           size="lg"
           sparkle
         >

@@ -50,7 +50,7 @@ interface GameState {
   // Actions
   addExperience: (amount: number) => void;
   recordTransaction: () => void;
-  checkAchievements: (transactions: any[], budgets: any[]) => void;
+  checkAchievements: (transactions: { date: string; type: string; amount: number }[], budgets: { month: string; amount: number }[]) => void;
   waterPlant: () => void;
   unlockBadge: (badgeId: string) => void;
   levelUp: () => void;
@@ -188,7 +188,10 @@ export const useGameStore = create<GameState>()(
         }
       },
       
-      checkAchievements: (transactions: any[], budgets: any[]) => {
+      checkAchievements: (
+        transactions: { date: string; type: string; amount: number }[],
+        budgets: { month: string; amount: number }[]
+      ) => {
         const state = get();
         const currentMonth = new Date().toISOString().slice(0, 7);
         

@@ -92,7 +92,7 @@ export const QuickTransactionForm = ({
       });
       setEditingTransaction(null);
       onTransactionAdded();
-    } catch (error) {
+    } catch {
       toast({
         title: 'エラー',
         description: '操作に失敗しました',
