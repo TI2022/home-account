@@ -12,6 +12,7 @@ import { HistoryPage } from '@/components/history/HistoryPage';
 import { SettingsPage } from '@/components/settings/SettingsPage';
 import { BackgroundSettingsPage } from '@/components/background/BackgroundSettingsPage';
 import { Toaster } from '@/components/ui/sonner';
+import { SavingsPage } from '@/components/savings/SavingsPage';
 import './App.css';
 
 function App() {
@@ -58,6 +59,8 @@ function App() {
         return <SettingsPage />;
       case 'background':
         return <BackgroundSettingsPage />;
+      case 'savings':
+        return <SavingsPage />;
       default:
         return <HomePage />;
     }

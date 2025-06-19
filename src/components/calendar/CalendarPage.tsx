@@ -6,7 +6,7 @@ import { useTransactionStore } from '@/store/useTransactionStore';
 import { format, isSameDay, startOfMonth, endOfMonth } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { motion } from 'framer-motion';
-import { Plus, ArrowUpCircle, ArrowDownCircle, Trash2 } from 'lucide-react';
+import { ArrowUpCircle, ArrowDownCircle, Trash2 } from 'lucide-react';
 import { QuickTransactionForm } from './QuickTransactionForm';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -258,21 +258,6 @@ export const CalendarPage = () => {
           </CardContent>
         </Card>
       </motion.div>
-
-      {/* Quick Add Button */}
-      <div className="flex justify-center">
-        <Button
-          onClick={() => {
-            setSelectedDate(new Date());
-            setIsDialogOpen(true);
-          }}
-          className="bg-green-500 hover:bg-green-600 text-white px-8 py-3 rounded-full shadow-lg"
-          size="lg"
-        >
-          <Plus className="h-5 w-5 mr-2" />
-          今日の収支を記録
-        </Button>
-      </div>
 
       {/* Transaction Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import { useAppStore } from '@/store/useAppStore';
-import { Plus, History, Settings, Calendar } from 'lucide-react';
+import { Plus, History, Settings, Calendar, PiggyBank } from 'lucide-react';
 
 export const TabNavigation = () => {
   const { currentTab, setCurrentTab } = useAppStore();
@@ -11,6 +11,7 @@ export const TabNavigation = () => {
     { id: 'add' as const, label: '記録', icon: Plus },
     { id: 'history' as const, label: '履歴', icon: History },
     { id: 'settings' as const, label: '収支設定', icon: Settings },
+    { id: 'savings' as const, label: '貯蓄', icon: PiggyBank },
   ];
 
   return (

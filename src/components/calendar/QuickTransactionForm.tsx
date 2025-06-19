@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '@/types';
 import { format } from 'date-fns';
 import { Transaction } from '@/types';
+import { CoinAnimation } from '@/components/ui/coin-animation';
 
 interface QuickTransactionFormProps {
   selectedDate: Date;
@@ -29,6 +30,7 @@ export const QuickTransactionForm = ({
     memo: '',
   });
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [showCoinAnimation, setShowCoinAnimation] = useState(false);
 
   // 編集モードの場合、フォームに既存のデータをセット
   useEffect(() => {
@@ -81,6 +83,7 @@ export const QuickTransactionForm = ({
           title: '追加完了',
           description: '収支を追加しました',
         });
+        setShowCoinAnimation(true);
       }
 
       // フォームをリセット
@@ -113,6 +116,10 @@ export const QuickTransactionForm = ({
 
   return (
     <div className="space-y-4 bg-white p-4 rounded shadow">
+      <CoinAnimation
+        trigger={showCoinAnimation}
+        onComplete={() => setShowCoinAnimation(false)}
+      />
       {/* フォーム */}
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">

@@ -1,9 +1,9 @@
 import { create } from 'zustand';
 
 interface AppState {
-  currentTab: 'home' | 'calendar' | 'add' | 'history' | 'settings' | 'background';
+  currentTab: 'home' | 'calendar' | 'add' | 'history' | 'settings' | 'background' | 'savings';
   selectedMonth: string; // YYYY-MM format
-  setCurrentTab: (tab: 'home' | 'calendar' | 'add' | 'history' | 'settings' | 'background') => void;
+  setCurrentTab: (tab: 'home' | 'calendar' | 'add' | 'history' | 'settings' | 'background' | 'savings') => void;
   setSelectedMonth: (month: string) => void;
 }
 
