@@ -1,13 +1,18 @@
 import { useTransactionStore } from '@/store/useTransactionStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useEffect } from 'react';
 
 export const SavingsPage = () => {
-  const { transactions } = useTransactionStore();
+  const { transactions, autoReflectRecurring } = useTransactionStore();
 
   // 収入合計・支出合計・貯蓄額
   const totalIncome = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
   const totalExpense = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
   const savings = totalIncome - totalExpense;
+
+  useEffect(() => {
+    autoReflectRecurring();
+  }, []);
 
   return (
     <div className="pb-20">

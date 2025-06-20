@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
 import { Transaction, Budget, RecurringIncome, RecurringExpense } from '@/types';
+import { format } from 'date-fns';
 
 interface TransactionState {
   transactions: Transaction[];
@@ -22,6 +23,7 @@ interface TransactionState {
   deleteRecurringExpense: (id: string) => Promise<void>;
   updateTransaction: (transaction: Transaction) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
+  autoReflectRecurring: () => Promise<void>;
 }
 
 export const useTransactionStore = create<TransactionState>((set, get) => ({
@@ -323,6 +325,64 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
     } catch (error) {
       console.error('Error deleting transaction:', error);
       throw error;
+    }
+  },
+
+  autoReflectRecurring: async () => {
+    const { recurringIncomes, recurringExpenses, transactions, addTransaction, fetchRecurringIncomes, fetchRecurringExpenses, fetchTransactions } = get();
+    
+    // 最新データを取得
+    await fetchRecurringIncomes();
+    await fetchRecurringExpenses();
+    await fetchTransactions();
+
+    const today = new Date();
+    const todayStr = format(today, 'yyyy-MM-dd');
+    const month = today.getMonth() + 1;
+    const day = today.getDate();
+
+    // 定期収入 - forEachをfor...ofに変更
+    const currentIncomes = get().recurringIncomes || [];
+    for (const inc of currentIncomes) {
+      if (inc.is_active && inc.day_of_month === day) {
+        const exists = (get().transactions || []).some(t =>
+          t.date === todayStr &&
+          t.amount === inc.amount &&
+          t.category === inc.category &&
+          t.type === 'income'
+        );
+        if (!exists) {
+          await addTransaction({
+            type: 'income',
+            amount: inc.amount,
+            category: inc.category,
+            date: todayStr,
+            memo: inc.name,
+          });
+        }
+      }
+    }
+
+    // 定期支出 - forEachをfor...ofに変更
+    const currentExpenses = get().recurringExpenses || [];
+    for (const exp of currentExpenses) {
+      if (exp.is_active && (exp.payment_months || []).includes(month) && exp.day_of_month === day) {
+        const exists = (get().transactions || []).some(t =>
+          t.date === todayStr &&
+          t.amount === exp.amount &&
+          t.category === exp.category &&
+          t.type === 'expense'
+        );
+        if (!exists) {
+          await addTransaction({
+            type: 'expense',
+            amount: exp.amount,
+            category: exp.category,
+            date: todayStr,
+            memo: exp.name,
+          });
+        }
+      }
     }
   },
 }));

@@ -13,12 +13,14 @@ import { SettingsPage } from '@/components/settings/SettingsPage';
 import { BackgroundSettingsPage } from '@/components/background/BackgroundSettingsPage';
 import { Toaster } from '@/components/ui/sonner';
 import { SavingsPage } from '@/components/savings/SavingsPage';
+import { useTransactionStore } from '@/store/useTransactionStore';
 import './App.css';
 
 function App() {
   const { user, loading, initialize } = useAuthStore();
   const { currentTab } = useAppStore();
   const { currentTheme, getThemeById } = useThemeStore();
+  const { autoReflectRecurring } = useTransactionStore();
 
   useEffect(() => {
     initialize();
@@ -32,6 +34,10 @@ function App() {
       document.body.style.backgroundAttachment = 'fixed';
     }
   }, [currentTheme, getThemeById]);
+
+  useEffect(() => {
+    autoReflectRecurring();
+  }, [autoReflectRecurring]);
 
   if (loading) {
     return (
