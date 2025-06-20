@@ -130,11 +130,11 @@ export const AddTransactionForm = () => {
                     className="flex space-x-6"
                   >
                     <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="expense" id="expense" />
+                      <RadioGroupItem className="bg-white" value="expense" id="expense" />
                       <Label htmlFor="expense" className="text-red-600 font-medium">支出</Label>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="income" id="income" />
+                      <RadioGroupItem className="bg-white" value="income" id="income" />
                       <Label htmlFor="income" className="text-green-600 font-medium">収入</Label>
                     </div>
                   </RadioGroup>
@@ -150,14 +150,14 @@ export const AddTransactionForm = () => {
                     onChange={(e) => setAmount(e.target.value)}
                     required
                     min="1"
-                    className="text-lg"
+                    className="text-lg bg-white"
                   />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="category">カテゴリ</Label>
                   <Select value={category} onValueChange={setCategory} required>
-                    <SelectTrigger>
+                    <SelectTrigger className="bg-white">
                       <SelectValue placeholder="カテゴリを選択" />
                     </SelectTrigger>
                     <SelectContent>
@@ -178,6 +178,7 @@ export const AddTransactionForm = () => {
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
                     required
+                    className="bg-white"
                   />
                 </div>
 
@@ -189,6 +190,7 @@ export const AddTransactionForm = () => {
                     value={memo}
                     onChange={(e) => setMemo(e.target.value)}
                     rows={3}
+                    className="bg-white"
                   />
                 </div>
 

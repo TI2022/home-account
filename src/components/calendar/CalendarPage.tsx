@@ -13,6 +13,7 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { DateCalendar } from '@mui/x-date-pickers/DateCalendar';
 import { styled } from '@mui/material/styles';
 import { PickersDay, PickersDayProps } from '@mui/x-date-pickers/PickersDay';
+import bearImg from '@/assets/bear-guide.png'; // 画像が存在すること！
 
 // カスタムスタイルの定義
 const StyledDateCalendar = styled(DateCalendar)(({ theme }) => ({
@@ -60,6 +61,8 @@ const StyledDateCalendar = styled(DateCalendar)(({ theme }) => ({
   },
 }));
 
+const MotionPickersDay = motion(PickersDay);
+
 // カスタムの日付セルコンポーネント
 const CustomDay = (props: PickersDayProps) => {
   const { day, ...other } = props;
@@ -85,8 +88,36 @@ const CustomDay = (props: PickersDayProps) => {
 
   const dayTotal = getDayTotal(day);
 
+  // バウンス状態管理
+  const [isBouncing, setIsBouncing] = useState(false);
+
+  useEffect(() => {
+    // ランダムな間隔でバウンス
+    const min = 2000, max = 6000; // 2〜6秒の間隔
+    let timeout: NodeJS.Timeout;
+    let active = true;
+
+    const triggerBounce = () => {
+      if (!active) return;
+      setIsBouncing(true);
+      setTimeout(() => {
+        setIsBouncing(false);
+        if (active) {
+          timeout = setTimeout(triggerBounce, Math.random() * (max - min) + min);
+        }
+      }, 350); // バウンス時間
+    };
+
+    timeout = setTimeout(triggerBounce, Math.random() * (max - min) + min);
+
+    return () => {
+      active = false;
+      clearTimeout(timeout);
+    };
+  }, []);
+
   return (
-    <PickersDay
+    <MotionPickersDay
       {...other}
       day={day}
       sx={{
@@ -94,7 +125,19 @@ const CustomDay = (props: PickersDayProps) => {
         height: '100%',
         margin: 0,
         padding: '4px',
+        cursor: 'pointer',
+        boxShadow: '0 1px 4px 0 #e0e7ef',
+        borderRadius: '0.75rem',
+        backgroundColor: '#fff',
+        transition: 'box-shadow 0.2s, background 0.2s',
+        '&:hover, &:focus': {
+          backgroundColor: '#e0f2fe',
+          boxShadow: '0 4px 12px 0 #bae6fd',
+        },
       }}
+      animate={isBouncing ? { scale: [1, 1.18, 0.92, 1.08, 1] } : { scale: 1 }}
+      transition={{ duration: 0.35, type: "spring", stiffness: 400, damping: 20 }}
+      whileTap={{ scale: 0.85 }}
     >
       <div className="relative w-full h-full flex flex-col items-center justify-start p-1 min-h-[4rem]">
         <span className={`text-sm font-medium ${isToday ? 'text-blue-600' : ''}`}>
@@ -103,28 +146,85 @@ const CustomDay = (props: PickersDayProps) => {
         <div className="w-full mt-1 space-y-0.5 flex flex-col items-center min-h-[2rem]">
           {dayTotal.income > 0 && (
             <div className="text-xs text-green-600 font-medium leading-none">
-              +{dayTotal.income}
+              {dayTotal.income}
             </div>
           )}
           {dayTotal.expense > 0 && (
             <div className="text-xs text-red-600 font-medium leading-none">
-              -{dayTotal.expense}
+              {dayTotal.expense}
             </div>
           )}
         </div>
       </div>
-    </PickersDay>
+    </MotionPickersDay>
   );
 };
+
+const BearGuide = ({
+  onClose,
+  dontShowNext,
+  setDontShowNext,
+}: {
+  onClose: () => void;
+  dontShowNext: boolean;
+  setDontShowNext: (v: boolean) => void;
+}) => (
+  <div className="relative">
+    <div
+      className="rounded-xl shadow-lg px-4 py-2 text-base font-bold text-brown-700 border border-yellow-200 flex flex-col items-center gap-2 min-w-[260px]"
+      style={{ background: 'rgba(255,255,255,0.9)' }}
+    >
+      <div className="flex items-center w-full justify-between">
+        <div className="flex items-center">
+          <input
+            id="dontShowNext"
+            type="checkbox"
+            checked={dontShowNext}
+            onChange={e => setDontShowNext(e.target.checked)}
+            className="mr-1 accent-yellow-400"
+          />
+          <label htmlFor="dontShowNext" className="text-xs text-gray-600 select-none">
+            次回から表示しない
+          </label>
+        </div>
+        <button
+          onClick={onClose}
+          className="ml-2 bg-white rounded-full border border-gray-300 w-6 h-6 flex items-center justify-center text-gray-500 hover:text-gray-700 shadow"
+          aria-label="ガイドを閉じる"
+          tabIndex={0}
+        >
+          ×
+        </button>
+      </div>
+      <img
+        src={bearImg}
+        alt="くま"
+        className="w-16 h-16 drop-shadow-lg my-1"
+        style={{ filter: 'drop-shadow(0 2px 8px #fbbf24)' }}
+      />
+      <div>日付をタップして記録できます！</div>
+    </div>
+    <div className="flex justify-center mt-1 animate-bounce">
+      <svg width="24" height="24" viewBox="0 0 24 24">
+        <path d="M12 4v14m0 0l-6-6m6 6l6-6" stroke="#fbbf24" strokeWidth="2" fill="none" strokeLinecap="round"/>
+      </svg>
+    </div>
+  </div>
+);
 
 export const CalendarPage = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
   const { transactions, fetchTransactions, deleteTransaction } = useTransactionStore();
+  const [showGuide, setShowGuide] = useState(false);
+  const [dontShowNext, setDontShowNext] = useState(false);
 
   useEffect(() => {
     fetchTransactions();
+    if (localStorage.getItem('calendarGuideShown') !== '1') {
+      setShowGuide(true);
+    }
   }, [fetchTransactions]);
 
   // Get transactions for the current month
@@ -167,6 +267,15 @@ export const CalendarPage = () => {
     }
   };
 
+  const handleCloseGuide = () => {
+    setShowGuide(false);
+    if (dontShowNext) {
+      localStorage.setItem('calendarGuideShown', '1');
+    } else {
+      localStorage.removeItem('calendarGuideShown');
+    }
+  };
+
   return (
     <motion.div 
       className="pb-20 space-y-6"
@@ -174,8 +283,20 @@ export const CalendarPage = () => {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.6 }}
     >
-
-      {/* Calendar */}
+      {showGuide && (
+        <div
+          className="fixed inset-0 flex items-start justify-center z-[100] pointer-events-none"
+          style={{ top: '60px' }}
+        >
+          <div className="pointer-events-auto" style={{ marginTop: '0.5rem' }}>
+            <BearGuide
+              onClose={handleCloseGuide}
+              dontShowNext={dontShowNext}
+              setDontShowNext={setDontShowNext}
+            />
+          </div>
+        </div>
+      )}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
