@@ -17,7 +17,7 @@ interface SavingsPlanState {
   upsertPlan: (plan: Omit<SavingsPlan, 'id' | 'user_id' | 'created_at'>) => Promise<void>;
 }
 
-export const useSavingsPlanStore = create<SavingsPlanState>((set, get) => ({
+export const useSavingsPlanStore = create<SavingsPlanState>((set) => ({
   plan: null,
   loading: false,
 
@@ -42,7 +42,7 @@ export const useSavingsPlanStore = create<SavingsPlanState>((set, get) => ({
     if (!user.user) return;
     const { data, error } = await supabase
       .from('savings_plan')
-      .upsert([{ ...plan, user_id: user.user.id }], { onConflict: ['user_id'] })
+      .upsert([{ ...plan, user_id: user.user.id }], { onConflict: 'user_id' })
       .select()
       .single();
     if (!error && data) {

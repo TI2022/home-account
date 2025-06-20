@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
 export const SavingsPlan = () => {
-  const { plan, fetchPlan, upsertPlan, loading } = useSavingsPlanStore();
+  const { plan, fetchPlan, upsertPlan } = useSavingsPlanStore();
   const { savingsAmount } = useSavingsStore();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [form, setForm] = useState({
@@ -62,14 +62,32 @@ export const SavingsPlan = () => {
       <CardContent>
         {plan ? (
           <div>
-            <div className="mb-2">目標額：<span className="font-bold text-blue-600">¥{goal.toLocaleString()}</span></div>
-            <div className="mb-2">毎月の目標額：<span className="font-bold text-green-600">¥{monthly.toLocaleString()}</span></div>
+            <div className="mb-2 flex">
+              <div className="w-32 text-right pr-2">目標額：</div>
+              <span className="font-bold text-blue-600">¥{goal.toLocaleString()}</span>
+            </div>
+            <div className="mb-2 flex">
+              <div className="w-32 text-right pr-2">毎月の目標額：</div>
+              <span className="font-bold text-green-600">¥{monthly.toLocaleString()}</span>
+            </div>
             {plan.target_date && (
-              <div className="mb-2">目標日：<span className="font-bold">{plan.target_date}</span></div>
+              <div className="mb-2 flex">
+                <div className="w-32 text-right pr-2">目標日：</div>
+                <span className="font-bold">{plan.target_date}</span>
+              </div>
             )}
-            <div className="mb-2">進捗：<span className="font-bold">{progress.toFixed(1)}%</span></div>
-            <div className="mb-2">残り金額：<span className="font-bold text-orange-600">¥{remain.toLocaleString()}</span></div>
-            <div className="mb-2">このペースだと達成予定：<span className="font-bold">{expectedDate || '-'}</span></div>
+            <div className="mb-2 flex">
+              <div className="w-32 text-right pr-2">進捗：</div>
+              <span className="font-bold">{progress.toFixed(1)}%</span>
+            </div>
+            <div className="mb-2 flex">
+              <div className="w-32 text-right pr-2">残り金額：</div>
+              <span className="font-bold text-orange-600">¥{remain.toLocaleString()}</span>
+            </div>
+            <div className="mb-2 flex">
+              <div className="w-32 text-right pr-2">達成予定：</div>
+              <span className="font-bold">{expectedDate || '-'}</span>
+            </div>
             <Button onClick={() => setIsDialogOpen(true)} className="mt-2">計画を編集</Button>
           </div>
         ) : (

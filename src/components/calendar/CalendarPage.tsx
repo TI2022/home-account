@@ -61,10 +61,14 @@ const StyledDateCalendar = styled(DateCalendar)(({ theme }) => ({
   },
 }));
 
-const MotionPickersDay = motion(PickersDay);
+// MotionPickersDayの型を明示
+const MotionPickersDay = motion(PickersDay) as any;
+
+// PickersDayPropsからonAnimationStartを除外
+type CustomDayProps = Omit<PickersDayProps, 'onAnimationStart'>;
 
 // カスタムの日付セルコンポーネント
-const CustomDay = (props: PickersDayProps) => {
+const CustomDay = (props: CustomDayProps) => {
   const { day, ...other } = props;
   const { transactions } = useTransactionStore();
   const isToday = isSameDay(day, new Date());
@@ -138,6 +142,7 @@ const CustomDay = (props: PickersDayProps) => {
       animate={isBouncing ? { scale: [1, 1.18, 0.92, 1.08, 1] } : { scale: 1 }}
       transition={{ duration: 0.35, type: "spring", stiffness: 400, damping: 20 }}
       whileTap={{ scale: 0.85 }}
+      {...({} as any)}
     >
       <div className="relative w-full h-full flex flex-col items-center justify-start p-1 min-h-[4rem]">
         <span className={`text-sm font-medium ${isToday ? 'text-blue-600' : ''}`}>

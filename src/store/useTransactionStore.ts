@@ -329,7 +329,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
   },
 
   autoReflectRecurring: async () => {
-    const { recurringIncomes, recurringExpenses, transactions, addTransaction, fetchRecurringIncomes, fetchRecurringExpenses, fetchTransactions } = get();
+    const { addTransaction, fetchRecurringIncomes, fetchRecurringExpenses, fetchTransactions } = get();
     
     // 最新データを取得
     await fetchRecurringIncomes();

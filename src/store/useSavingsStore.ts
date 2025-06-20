@@ -8,7 +8,7 @@ interface SavingsState {
   setSavingsAmount: (amount: number) => Promise<void>;
 }
 
-export const useSavingsStore = create<SavingsState>((set, get) => ({
+export const useSavingsStore = create<SavingsState>((set) => ({
   savingsAmount: 0,
   loading: false,
 
@@ -34,9 +34,10 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
     // upsertでユーザーごとに1レコード
     const { data, error } = await supabase
       .from('savings')
-      .upsert([
-        { user_id: user.user.id, amount }
-      ], { onConflict: ['user_id'] })
+      .upsert(
+        [{ user_id: user.user.id, amount }],
+        { onConflict: 'user_id' }
+      )
       .select()
       .single();
     if (!error && data) {

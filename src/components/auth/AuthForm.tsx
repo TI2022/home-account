@@ -14,6 +14,7 @@ export const AuthForm = () => {
   const [loading, setLoading] = useState(false);
   const { signIn, signUp } = useAuthStore();
   const { toast } = useToast();
+  const [errorMessage, setErrorMessage] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,18 +26,21 @@ export const AuthForm = () => {
         : await signIn(email, password);
 
       if (result.error) {
+        setErrorMessage(result.error);
         toast({
           title: 'エラー',
           description: result.error,
           variant: 'destructive',
         });
       } else {
+        setErrorMessage('');
         toast({
           title: isSignUp ? 'アカウント作成完了' : 'ログイン完了',
           description: 'TT家計簿へようこそ！',
         });
       }
     } catch {
+      setErrorMessage('予期しないエラーが発生しました');
       toast({
         title: 'エラー',
         description: '予期しないエラーが発生しました',
@@ -106,6 +110,9 @@ export const AuthForm = () => {
               >
                 {loading ? '処理中...' : (isSignUp ? 'アカウント作成' : 'ログイン')}
               </Button>
+              {errorMessage && (
+                <div className="mt-2 text-red-600 text-sm text-center">{errorMessage}</div>
+              )}
             </form>
             
             <div className="mt-6 text-center">
