@@ -338,7 +338,6 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
     await fetchTransactions();
 
     const today = new Date();
-    const todayStr = format(today, 'yyyy-MM-dd');
     const currentMonth = today.getMonth() + 1;
     const currentDay = today.getDate();
 
