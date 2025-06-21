@@ -101,7 +101,8 @@ export const RecurringExpenseSettings = () => {
     fetchRecurringExpenses, 
     addRecurringExpense, 
     updateRecurringExpense, 
-    deleteRecurringExpense 
+    deleteRecurringExpense,
+    autoReflectRecurringForDate
   } = useTransactionStore();
   const { toast } = useToast();
   
@@ -172,7 +173,19 @@ export const RecurringExpenseSettings = () => {
       };
 
       if (editingExpense) {
+        const oldExpense = recurringExpenses.find(e => e.id === editingExpense);
+        const oldDayOfMonth = oldExpense?.day_of_month;
+        
         await updateRecurringExpense(editingExpense, expenseData);
+        
+        if (oldExpense) {
+          const updatedExpense = {
+            ...oldExpense,
+            ...expenseData,
+          };
+          await autoReflectRecurringForDate(updatedExpense, oldDayOfMonth);
+        }
+        
         toast({
           title: '更新完了',
           description: '定期支出を更新しました',

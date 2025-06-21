@@ -1,14 +1,13 @@
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import { useAppStore } from '@/store/useAppStore';
-import { Plus, Settings, Calendar, PiggyBank } from 'lucide-react';
+import { Settings, Calendar, PiggyBank } from 'lucide-react';
 
 export const TabNavigation = () => {
   const { currentTab, setCurrentTab } = useAppStore();
 
   const tabs = [
     { id: 'calendar' as const, label: 'カレンダー', icon: Calendar },
-    { id: 'add' as const, label: '記録', icon: Plus },
     { id: 'settings' as const, label: '収支設定', icon: Settings },
     { id: 'savings' as const, label: '貯蓄', icon: PiggyBank },
   ];
@@ -24,29 +23,17 @@ export const TabNavigation = () => {
           >
             <Button
               variant="ghost"
-              size="sm"
-              onClick={() => setCurrentTab(tab.id)}
-              className={`w-full h-16 flex flex-col items-center justify-center space-y-1 rounded-none relative ${
+              className={`w-full h-16 rounded-none ${
                 currentTab === tab.id
-                  ? 'text-pink-600'
-                  : 'text-gray-600 hover:text-pink-500'
+                  ? 'bg-pink-50 text-pink-600 border-t-2 border-pink-500'
+                  : 'text-gray-600 hover:text-pink-600 hover:bg-pink-50'
               }`}
+              onClick={() => setCurrentTab(tab.id)}
             >
-              {currentTab === tab.id && (
-                <motion.div
-                  layoutId="activeTab"
-                  className="absolute inset-0 bg-gradient-to-t from-pink-50 to-transparent"
-                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                />
-              )}
-              <motion.div
-                animate={currentTab === tab.id ? { scale: 1.1 } : { scale: 1 }}
-                transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                className="relative z-10"
-              >
+              <div className="flex flex-col items-center space-y-1">
                 <tab.icon className="h-5 w-5" />
-              </motion.div>
-              <span className="text-xs whitespace-nowrap relative z-10">{tab.label}</span>
+                <span className="text-xs font-medium">{tab.label}</span>
+              </div>
             </Button>
           </motion.div>
         ))}

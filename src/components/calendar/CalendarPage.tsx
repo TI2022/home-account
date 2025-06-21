@@ -221,16 +221,17 @@ export const CalendarPage = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
-  const { transactions, fetchTransactions, deleteTransaction } = useTransactionStore();
+  const { transactions, fetchTransactions, deleteTransaction, autoReflectRecurring } = useTransactionStore();
   const [showGuide, setShowGuide] = useState(false);
   const [dontShowNext, setDontShowNext] = useState(false);
 
   useEffect(() => {
     fetchTransactions();
+    autoReflectRecurring();
     if (localStorage.getItem('calendarGuideShown') !== '1') {
       setShowGuide(true);
     }
-  }, [fetchTransactions]);
+  }, [fetchTransactions, autoReflectRecurring]);
 
   // Get transactions for the current month
   const monthStart = startOfMonth(currentMonth);

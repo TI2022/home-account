@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useAppStore } from '@/store/useAppStore';
-import { Menu, LogOut, User, Palette, Home, History } from 'lucide-react';
+import { Menu, LogOut, User, Palette, Home, History, Plus } from 'lucide-react';
 
 export const Header = () => {
   const { signOut, user } = useAuthStore();
@@ -26,6 +26,16 @@ export const Header = () => {
     setIsMenuOpen(false);
   };
 
+  const handleAddRecord = () => {
+    setCurrentTab('add');
+    setIsMenuOpen(false);
+  };
+
+  const handleHistory = () => {
+    setCurrentTab('history');
+    setIsMenuOpen(false);
+  };
+
   const getPageTitle = () => {
     switch (currentTab) {
       case 'home':
@@ -40,10 +50,13 @@ export const Header = () => {
         return '収支設定';
       case 'background':
         return '背景設定';
+      case 'savings':
+        return '貯蓄';
       default:
         return 'ステータス';
     }
   };
+
   return (
     <header className="py-3 safe-area-pt bg-transparent">
       <div className="flex items-center justify-center relative">
@@ -95,6 +108,25 @@ export const Header = () => {
                   <Home className="h-4 w-4 mr-3" />
                   ステータス
                 </Button>
+                
+                <Button
+                  variant="ghost"
+                  onClick={handleAddRecord}
+                  className="w-full justify-start text-green-600 hover:text-green-700 hover:bg-green-50"
+                >
+                  <Plus className="h-4 w-4 mr-3" />
+                  収支を記録
+                </Button>
+                
+                <Button
+                  variant="ghost"
+                  onClick={handleHistory}
+                  className="w-full justify-start text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
+                >
+                  <History className="h-4 w-4 mr-3" />
+                  履歴
+                </Button>
+                
                 <Button
                   variant="ghost"
                   onClick={handleBackgroundSettings}
@@ -103,17 +135,7 @@ export const Header = () => {
                   <Palette className="h-4 w-4 mr-3" />
                   背景設定
                 </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    setCurrentTab('history');
-                    setIsMenuOpen(false);
-                  }}
-                  className="w-full justify-start text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
-                >
-                  <History className="h-4 w-4 mr-3" />
-                  履歴
-                </Button>
+                
                 <div className="border-t border-gray-200 pt-4">
                   <Button
                     variant="ghost"

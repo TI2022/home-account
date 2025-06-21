@@ -33,7 +33,7 @@ export const Wishlist = () => {
         continue;
       }
       if (price <= current) {
-        results[item.id] = 'すぐ達成！';
+        results[item.id] = '達成！';
         current -= price; // 次のアイテムのために減算
         continue;
       }

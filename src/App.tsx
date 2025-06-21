@@ -36,8 +36,10 @@ function App() {
   }, [currentTheme, getThemeById]);
 
   useEffect(() => {
-    autoReflectRecurring();
-  }, [autoReflectRecurring]);
+    if (user && !loading) {
+      autoReflectRecurring();
+    }
+  }, [user, loading, autoReflectRecurring]);
 
   if (loading) {
     return (
