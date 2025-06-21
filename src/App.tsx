@@ -14,6 +14,7 @@ import { BackgroundSettingsPage } from '@/components/background/BackgroundSettin
 import { Toaster } from '@/components/ui/sonner';
 import { SavingsPage } from '@/components/savings/SavingsPage';
 import { useTransactionStore } from '@/store/useTransactionStore';
+import { GraphPage } from '@/components/graph/GraphPage';
 import './App.css';
 
 function App() {
@@ -69,6 +70,8 @@ function App() {
         return <BackgroundSettingsPage />;
       case 'savings':
         return <SavingsPage />;
+      case 'graph':
+        return <GraphPage />;
       default:
         return <HomePage />;
     }

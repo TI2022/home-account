@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { format, parseISO } from 'date-fns';
+import { ja } from 'date-fns/locale';
 import { useSavingsPlanStore } from '@/store/useSavingsPlanStore';
 import { useSavingsStore } from '@/store/useSavingsStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -32,17 +34,6 @@ export const SavingsPlan = () => {
   const goal = Number(plan?.goal_amount || 0);
   const monthly = Number(plan?.monthly_target || 0);
   const current = Number(savingsAmount || 0);
-  const remain = Math.max(goal - current, 0);
-  const progress = goal > 0 ? Math.min((current / goal) * 100, 100) : 0;
-  const monthsLeft = monthly > 0 ? Math.ceil(remain / monthly) : 0;
-
-  // 達成予定日計算
-  let expectedDate = '';
-  if (monthsLeft > 0) {
-    const now = new Date();
-    now.setMonth(now.getMonth() + monthsLeft);
-    expectedDate = `${now.getFullYear()}年${now.getMonth() + 1}月`;
-  }
 
   const handleSave = async () => {
     if (!form.goal_amount || !form.monthly_target) return;
@@ -62,32 +53,11 @@ export const SavingsPlan = () => {
       <CardContent>
         {plan ? (
           <div>
-            <div className="mb-2 flex">
-              <div className="w-32 text-right pr-2">目標額：</div>
-              <span className="font-bold text-blue-600">¥{goal.toLocaleString()}</span>
-            </div>
-            <div className="mb-2 flex">
-              <div className="w-32 text-right pr-2">毎月の目標額：</div>
-              <span className="font-bold text-green-600">¥{monthly.toLocaleString()}</span>
-            </div>
+            <div className="mb-2">目標額：<span className="font-bold text-blue-600">¥{goal.toLocaleString()}</span></div>
+            <div className="mb-2">毎月の目標額：<span className="font-bold text-green-600">¥{monthly.toLocaleString()}</span></div>
             {plan.target_date && (
-              <div className="mb-2 flex">
-                <div className="w-32 text-right pr-2">目標日：</div>
-                <span className="font-bold">{plan.target_date}</span>
-              </div>
+              <div className="mb-2">目標日：<span className="font-bold">{format(parseISO(plan.target_date), 'yyyy年M月d日', { locale: ja })}</span></div>
             )}
-            <div className="mb-2 flex">
-              <div className="w-32 text-right pr-2">進捗：</div>
-              <span className="font-bold">{progress.toFixed(1)}%</span>
-            </div>
-            <div className="mb-2 flex">
-              <div className="w-32 text-right pr-2">残り金額：</div>
-              <span className="font-bold text-orange-600">¥{remain.toLocaleString()}</span>
-            </div>
-            <div className="mb-2 flex">
-              <div className="w-32 text-right pr-2">達成予定：</div>
-              <span className="font-bold">{expectedDate || '-'}</span>
-            </div>
             <Button onClick={() => setIsDialogOpen(true)} className="mt-2">計画を編集</Button>
           </div>
         ) : (

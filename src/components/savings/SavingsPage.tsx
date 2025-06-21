@@ -66,9 +66,8 @@ export const SavingsPage = () => {
           </div>
         </div>
       )}
-      
-      <SavingsPlan />
       <Wishlist />
+      <SavingsPlan />
     </div>
   );
 }; 

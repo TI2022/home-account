@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useAppStore } from '@/store/useAppStore';
-import { Menu, LogOut, User, Palette, Home, History, Plus } from 'lucide-react';
+import { Menu, LogOut, User, Palette, Home, History, Plus, BarChart3 } from 'lucide-react';
 
 export const Header = () => {
   const { signOut, user } = useAuthStore();
@@ -36,6 +36,11 @@ export const Header = () => {
     setIsMenuOpen(false);
   };
 
+  const handleGraph = () => {
+    setCurrentTab('graph');
+    setIsMenuOpen(false);
+  };
+
   const getPageTitle = () => {
     switch (currentTab) {
       case 'home':
@@ -52,6 +57,8 @@ export const Header = () => {
         return '背景設定';
       case 'savings':
         return '貯蓄';
+      case 'graph':
+        return 'グラフ';
       default:
         return 'ステータス';
     }
@@ -134,6 +141,15 @@ export const Header = () => {
                 >
                   <Palette className="h-4 w-4 mr-3" />
                   背景設定
+                </Button>
+                
+                <Button
+                  variant="ghost"
+                  onClick={handleGraph}
+                  className="w-full justify-start text-cyan-600 hover:text-cyan-700 hover:bg-cyan-50"
+                >
+                  <BarChart3 className="h-4 w-4 mr-3" />
+                  グラフ
                 </Button>
                 
                 <div className="border-t border-gray-200 pt-4">
