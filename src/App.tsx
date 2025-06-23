@@ -13,7 +13,6 @@ import { SettingsPage } from '@/components/settings/SettingsPage';
 import { BackgroundSettingsPage } from '@/components/background/BackgroundSettingsPage';
 import { Toaster } from '@/components/ui/sonner';
 import { SavingsPage } from '@/components/savings/SavingsPage';
-import { useTransactionStore } from '@/store/useTransactionStore';
 import { GraphPage } from '@/components/graph/GraphPage';
 import './App.css';
 

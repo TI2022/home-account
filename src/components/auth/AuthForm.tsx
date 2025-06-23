@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useToast } from '@/hooks/use-toast';
 import { Calculator } from 'lucide-react';
@@ -12,7 +11,6 @@ export const AuthForm = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const { signIn, signUp } = useAuthStore();
   const { toast } = useToast();
@@ -25,7 +23,7 @@ export const AuthForm = () => {
     try {
       const result = isSignUp 
         ? await signUp(email, password)
-        : await signIn(email, password, rememberMe);
+        : await signIn(email, password);
 
       if (result.error) {
         setErrorMessage(result.error);
@@ -105,18 +103,6 @@ export const AuthForm = () => {
                   className="w-full"
                 />
               </div>
-              {!isSignUp && (
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="rememberMe"
-                    checked={rememberMe}
-                    onCheckedChange={(checked) => setRememberMe(checked as boolean)}
-                  />
-                  <Label htmlFor="rememberMe" className="text-sm text-gray-600">
-                    ログインしたままにする
-                  </Label>
-                </div>
-              )}
               <Button 
                 type="submit" 
                 className="w-full bg-green-500 hover:bg-green-600"

@@ -26,7 +26,7 @@ export const RecurringExpenseSettings = () => {
     addRecurringExpense, 
     updateRecurringExpense, 
     deleteRecurringExpense,
-    autoReflectRecurringForDate,
+    reflectRecurringExpensesForPeriod,
   } = useTransactionStore();
   const { toast } = useToast();
   
@@ -95,29 +95,31 @@ export const RecurringExpenseSettings = () => {
 
     setLoading(true);
     try {
+      // payment_scheduleからday_of_month, payment_months, payment_frequencyを生成
+      const months = formData.payment_schedule.map(s => s.month).sort((a, b) => a - b);
+      const payment_months = months;
+      const payment_frequency = (months.length === 12
+        ? 'monthly'
+        : months.length === 4
+        ? 'quarterly'
+        : months.length === 1
+        ? 'yearly'
+        : 'custom') as 'monthly' | 'quarterly' | 'yearly' | 'custom';
+      const day_of_month = formData.payment_schedule.length > 0 ? formData.payment_schedule[0].day : 25;
       const expenseData = {
         name: formData.name,
         amount: parseInt(formData.amount),
         category: formData.category,
         payment_schedule: formData.payment_schedule,
+        payment_months,
+        payment_frequency,
+        day_of_month,
         description: formData.description || undefined,
         is_active: formData.is_active,
       };
 
       if (editingExpense) {
-        const oldExpense = recurringExpenses.find(e => e.id === editingExpense);
-        const oldDayOfMonth = oldExpense?.day_of_month;
-        
         await updateRecurringExpense(editingExpense, expenseData);
-        
-        if (oldExpense) {
-          const updatedExpense = {
-            ...oldExpense,
-            ...expenseData,
-          };
-          await autoReflectRecurringForDate(updatedExpense, oldDayOfMonth);
-        }
-        
         toast({
           title: '更新完了',
           description: '定期支出を更新しました',

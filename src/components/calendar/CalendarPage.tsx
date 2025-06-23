@@ -64,9 +64,6 @@ const StyledDateCalendar = styled(DateCalendar)(({ theme }) => ({
 // PickersDayPropsからonAnimationStartを除外
 type CustomDayProps = Omit<PickersDayProps, 'onAnimationStart'>;
 
-// MotionPickersDayの型を明示
-const MotionPickersDay = motion(PickersDay) as any;
-
 // カスタムの日付セルコンポーネント
 const CustomDay = (props: CustomDayProps) => {
   const { day, ...other } = props;
@@ -92,36 +89,8 @@ const CustomDay = (props: CustomDayProps) => {
 
   const dayTotal = getDayTotal(day);
 
-  // バウンス状態管理
-  const [isBouncing, setIsBouncing] = useState(false);
-
-  useEffect(() => {
-    // ランダムな間隔でバウンス
-    const min = 2000, max = 6000; // 2〜6秒の間隔
-    let timeout: NodeJS.Timeout;
-    let active = true;
-
-    const triggerBounce = () => {
-      if (!active) return;
-      setIsBouncing(true);
-      setTimeout(() => {
-        setIsBouncing(false);
-        if (active) {
-          timeout = setTimeout(triggerBounce, Math.random() * (max - min) + min);
-        }
-      }, 350); // バウンス時間
-    };
-
-    timeout = setTimeout(triggerBounce, Math.random() * (max - min) + min);
-
-    return () => {
-      active = false;
-      clearTimeout(timeout);
-    };
-  }, []);
-
   return (
-    <MotionPickersDay
+    <PickersDay
       {...other}
       day={day}
       sx={{
@@ -139,9 +108,6 @@ const CustomDay = (props: CustomDayProps) => {
           boxShadow: '0 4px 12px 0 #bae6fd',
         },
       }}
-      animate={isBouncing ? { scale: [1, 1.18, 0.92, 1.08, 1] } : { scale: 1 }}
-      transition={{ duration: 0.35, type: "spring", stiffness: 400, damping: 20 }}
-      whileTap={{ scale: 0.85 }}
     >
       <div className="relative w-full h-full flex flex-col items-center justify-start p-1 min-h-[4rem]">
         <span className={`text-sm font-medium ${isToday ? 'text-blue-600' : ''}`}>
@@ -160,7 +126,7 @@ const CustomDay = (props: CustomDayProps) => {
           )}
         </div>
       </div>
-    </MotionPickersDay>
+    </PickersDay>
   );
 };
 

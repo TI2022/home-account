@@ -6,13 +6,12 @@ import { useTransactionStore } from '@/store/useTransactionStore';
 import { useAppStore } from '@/store/useAppStore';
 
 export const HomePage = () => {
-  const { fetchTransactions, loading, autoReflectRecurring } = useTransactionStore();
+  const { fetchTransactions, loading } = useTransactionStore();
   const { setCurrentTab } = useAppStore();
 
   useEffect(() => {
     fetchTransactions();
-    autoReflectRecurring();
-  }, [fetchTransactions, autoReflectRecurring]);
+  }, [fetchTransactions]);
 
   return (
     <div className="pb-20 space-y-6">
