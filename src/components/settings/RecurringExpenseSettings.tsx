@@ -14,82 +14,6 @@ import { EXPENSE_CATEGORIES } from '@/types';
 import type { RecurringExpense } from '@/types';
 import { Plus, Edit, Trash2, Receipt, Calendar, Clock } from 'lucide-react';
 
-// Predefined expense templates with payment schedules
-const EXPENSE_TEMPLATES = [
-  {
-    name: '住民税',
-    category: '住民税',
-    amount: 30000,
-    frequency: 'quarterly' as const,
-    months: [6, 8, 10, 1], // 6月、8月、10月、1月
-    day: 30,
-    description: '年4回の分割納付'
-  },
-  {
-    name: '所得税（予定納税）',
-    category: '予定納税',
-    amount: 50000,
-    frequency: 'custom' as const,
-    months: [7, 11], // 7月、11月
-    day: 31,
-    description: '第1期・第2期予定納税'
-  },
-  {
-    name: '固定資産税',
-    category: '固定資産税',
-    amount: 40000,
-    frequency: 'quarterly' as const,
-    months: [4, 7, 12, 2], // 4月、7月、12月、2月
-    day: 30,
-    description: '年4回の分割納付'
-  },
-  {
-    name: '自動車税',
-    category: '自動車税',
-    amount: 35000,
-    frequency: 'yearly' as const,
-    months: [5], // 5月
-    day: 31,
-    description: '年1回の納付'
-  },
-  {
-    name: '国民健康保険',
-    category: '健康保険',
-    amount: 25000,
-    frequency: 'monthly' as const,
-    months: [1,2,3,4,5,6,7,8,9,10,11,12],
-    day: 25,
-    description: '毎月の保険料'
-  },
-  {
-    name: '国民年金',
-    category: '国民年金',
-    amount: 16590,
-    frequency: 'monthly' as const,
-    months: [1,2,3,4,5,6,7,8,9,10,11,12],
-    day: 25,
-    description: '毎月の年金保険料'
-  },
-  {
-    name: '事業税',
-    category: '事業税',
-    amount: 20000,
-    frequency: 'custom' as const,
-    months: [8, 11], // 8月、11月
-    day: 31,
-    description: '第1期・第2期事業税'
-  },
-  {
-    name: '事務所家賃',
-    category: '事務所家賃',
-    amount: 80000,
-    frequency: 'monthly' as const,
-    months: [1,2,3,4,5,6,7,8,9,10,11,12],
-    day: 25,
-    description: '毎月の事務所賃料'
-  }
-];
-
 const MONTH_NAMES = [
   '1月', '2月', '3月', '4月', '5月', '6月',
   '7月', '8月', '9月', '10月', '11月', '12月'
@@ -102,7 +26,7 @@ export const RecurringExpenseSettings = () => {
     addRecurringExpense, 
     updateRecurringExpense, 
     deleteRecurringExpense,
-    autoReflectRecurringForDate
+    autoReflectRecurringForDate,
   } = useTransactionStore();
   const { toast } = useToast();
   
@@ -112,13 +36,25 @@ export const RecurringExpenseSettings = () => {
     name: '',
     amount: '',
     category: '',
-    day_of_month: '25',
-    payment_frequency: 'monthly' as 'monthly' | 'quarterly' | 'yearly' | 'custom',
-    payment_months: [1,2,3,4,5,6,7,8,9,10,11,12] as number[],
+    payment_schedule: [] as { month: number; day: number }[],
     description: '',
     is_active: true,
   });
   const [loading, setLoading] = useState(false);
+  const [allMonthsChecked, setAllMonthsChecked] = useState(false);
+  const [periodStartDate, setPeriodStartDate] = useState(() => {
+    const d = new Date();
+    d.setDate(1);
+    return d.toISOString().slice(0, 10);
+  });
+  const [periodEndDate, setPeriodEndDate] = useState(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() + 1);
+    d.setDate(0);
+    return d.toISOString().slice(0, 10);
+  });
+  const [reflectLoading, setReflectLoading] = useState(false);
+  const [isReflectDialogOpen, setIsReflectDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchRecurringExpenses();
@@ -129,9 +65,7 @@ export const RecurringExpenseSettings = () => {
       name: '',
       amount: '',
       category: '',
-      day_of_month: '25',
-      payment_frequency: 'monthly',
-      payment_months: [1,2,3,4,5,6,7,8,9,10,11,12],
+      payment_schedule: [],
       description: '',
       is_active: true,
     });
@@ -150,7 +84,7 @@ export const RecurringExpenseSettings = () => {
       return;
     }
 
-    if (formData.payment_months.length === 0) {
+    if (formData.payment_schedule.length === 0) {
       toast({
         title: 'エラー',
         description: '支払月を少なくとも1つ選択してください',
@@ -165,9 +99,7 @@ export const RecurringExpenseSettings = () => {
         name: formData.name,
         amount: parseInt(formData.amount),
         category: formData.category,
-        day_of_month: parseInt(formData.day_of_month),
-        payment_frequency: formData.payment_frequency,
-        payment_months: formData.payment_months,
+        payment_schedule: formData.payment_schedule,
         description: formData.description || undefined,
         is_active: formData.is_active,
       };
@@ -216,9 +148,7 @@ export const RecurringExpenseSettings = () => {
       name: expense.name,
       amount: expense.amount.toString(),
       category: expense.category,
-      day_of_month: expense.day_of_month.toString(),
-      payment_frequency: expense.payment_frequency || 'monthly',
-      payment_months: expense.payment_months || [1,2,3,4,5,6,7,8,9,10,11,12],
+      payment_schedule: expense.payment_schedule || [],
       description: expense.description || '',
       is_active: expense.is_active,
     });
@@ -260,53 +190,6 @@ export const RecurringExpenseSettings = () => {
     }
   };
 
-  const handleTemplateSelect = (template: typeof EXPENSE_TEMPLATES[0]) => {
-    setFormData({
-      name: template.name,
-      amount: template.amount.toString(),
-      category: template.category,
-      day_of_month: template.day.toString(),
-      payment_frequency: template.frequency,
-      payment_months: template.months,
-      description: template.description,
-      is_active: true,
-    });
-  };
-
-  const handleFrequencyChange = (frequency: 'monthly' | 'quarterly' | 'yearly' | 'custom') => {
-    let months: number[] = [];
-    
-    switch (frequency) {
-      case 'monthly':
-        months = [1,2,3,4,5,6,7,8,9,10,11,12];
-        break;
-      case 'quarterly':
-        months = [3,6,9,12]; // 四半期末
-        break;
-      case 'yearly':
-        months = [12]; // 年末
-        break;
-      case 'custom':
-        months = []; // ユーザーが選択
-        break;
-    }
-    
-    setFormData(prev => ({
-      ...prev,
-      payment_frequency: frequency,
-      payment_months: months
-    }));
-  };
-
-  const handleMonthToggle = (month: number, checked: boolean) => {
-    setFormData(prev => ({
-      ...prev,
-      payment_months: checked 
-        ? [...prev.payment_months, month].sort((a, b) => a - b)
-        : prev.payment_months.filter(m => m !== month)
-    }));
-  };
-
   const formatAmount = (amount: number) => {
     return amount.toLocaleString('ja-JP');
   };
@@ -343,6 +226,53 @@ export const RecurringExpenseSettings = () => {
 
   return (
     <div className="space-y-4">
+      <div>
+        <Button className="bg-green-500 hover:bg-green-600" onClick={() => setIsReflectDialogOpen(true)}>
+          一括反映
+        </Button>
+        <Dialog open={isReflectDialogOpen} onOpenChange={setIsReflectDialogOpen}>
+          <DialogContent className="sm:max-w-xs">
+            <DialogHeader>
+              <DialogTitle>定期支出の一括反映</DialogTitle>
+            </DialogHeader>
+            <div className="flex flex-col gap-2">
+              <div>
+                <Label>反映開始日</Label>
+                <input
+                  type="date"
+                  className="border rounded px-2 py-1 w-full"
+                  value={periodStartDate}
+                  onChange={e => setPeriodStartDate(e.target.value)}
+                  max={periodEndDate}
+                />
+              </div>
+              <div>
+                <Label>反映終了日</Label>
+                <input
+                  type="date"
+                  className="border rounded px-2 py-1 w-full"
+                  value={periodEndDate}
+                  onChange={e => setPeriodEndDate(e.target.value)}
+                  min={periodStartDate}
+                />
+              </div>
+              <Button
+                className="bg-green-500 hover:bg-green-600 mt-2"
+                disabled={reflectLoading || periodEndDate < periodStartDate}
+                onClick={async () => {
+                  setReflectLoading(true);
+                  await reflectRecurringExpensesForPeriod(periodStartDate, periodEndDate);
+                  setReflectLoading(false);
+                  setIsReflectDialogOpen(false);
+                  toast({ title: '反映完了', description: '指定期間の定期支出を反映しました' });
+                }}
+              >
+                {reflectLoading ? '反映中...' : '定期支出を反映'}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-gray-900">定期支出設定</h3>
         <Dialog open={isDialogOpen} onOpenChange={(open) => {
@@ -362,33 +292,6 @@ export const RecurringExpenseSettings = () => {
               </DialogTitle>
             </DialogHeader>
             
-            {/* Quick Templates */}
-            {!editingExpense && (
-              <div className="mb-4">
-                <Label className="text-sm font-medium text-gray-700 mb-2 block">
-                  よく使われる支出テンプレート
-                </Label>
-                <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto">
-                  {EXPENSE_TEMPLATES.map((template, index) => (
-                    <Button
-                      key={index}
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleTemplateSelect(template)}
-                      className="text-xs p-3 h-auto flex justify-between items-center"
-                    >
-                      <div className="flex flex-col items-start">
-                        <span className="font-medium">{template.name}</span>
-                        <span className="text-gray-500">{template.description}</span>
-                      </div>
-                      <span className="text-red-600 font-bold">¥{formatAmount(template.amount)}</span>
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            )}
-
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name">支出名</Label>
@@ -435,60 +338,79 @@ export const RecurringExpenseSettings = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="frequency">支払頻度</Label>
-                <Select 
-                  value={formData.payment_frequency} 
-                  onValueChange={handleFrequencyChange}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="monthly">毎月</SelectItem>
-                    <SelectItem value="quarterly">四半期（3ヶ月毎）</SelectItem>
-                    <SelectItem value="yearly">年1回</SelectItem>
-                    <SelectItem value="custom">カスタム</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Payment Months Selection */}
-              <div className="space-y-2">
-                <Label>支払月</Label>
-                <div className="grid grid-cols-4 gap-2">
-                  {MONTH_NAMES.map((month, index) => (
-                    <div key={index} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`month-${index + 1}`}
-                        checked={formData.payment_months.includes(index + 1)}
-                        onCheckedChange={(checked) => handleMonthToggle(index + 1, checked as boolean)}
-                        disabled={formData.payment_frequency !== 'custom' && formData.payment_frequency !== 'monthly'}
-                      />
-                      <Label htmlFor={`month-${index + 1}`} className="text-sm">
-                        {month}
-                      </Label>
-                    </div>
-                  ))}
+                <div className="flex items-center space-x-2">
+                  <Label>月ごとの支払日</Label>
+                  <Checkbox
+                    id="all-months-check"
+                    checked={allMonthsChecked}
+                    onCheckedChange={checked => {
+                      setAllMonthsChecked(checked as boolean);
+                      setFormData(prev => {
+                        if (checked) {
+                          // 全月ON: 既存の値を維持しつつ、未設定月は25日で追加
+                          const newSchedule = [...Array(12)].map((_, idx) => {
+                            const exist = prev.payment_schedule.find(s => s.month === idx + 1);
+                            return exist ? { ...exist } : { month: idx + 1, day: 25 };
+                          });
+                          return { ...prev, payment_schedule: newSchedule };
+                        } else {
+                          // 全月OFF: 全て解除
+                          return { ...prev, payment_schedule: [] };
+                        }
+                      });
+                    }}
+                  />
+                  <span className="text-xs text-gray-600">全月一括</span>
                 </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="day">支払日</Label>
-                <Select 
-                  value={formData.day_of_month} 
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, day_of_month: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
-                      <SelectItem key={day} value={day.toString()}>
-                        {day}日
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {MONTH_NAMES.map((month, idx) => {
+                    const schedule = formData.payment_schedule.find(s => s.month === idx + 1);
+                    return (
+                      <div key={idx} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`month-check-${idx + 1}`}
+                          checked={!!schedule}
+                          onCheckedChange={checked => {
+                            setFormData(prev => {
+                              const newSchedule = prev.payment_schedule ? [...prev.payment_schedule] : [];
+                              const i = newSchedule.findIndex(s => s.month === idx + 1);
+                              if (!checked) {
+                                if (i !== -1) newSchedule.splice(i, 1);
+                              } else {
+                                if (i === -1) newSchedule.push({ month: idx + 1, day: 25 });
+                              }
+                              // 全月一括チェック状態も更新
+                              setAllMonthsChecked(newSchedule.length === 12);
+                              return { ...prev, payment_schedule: newSchedule };
+                            });
+                          }}
+                        />
+                        <span className="text-sm w-8">{month}</span>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={31}
+                          placeholder="日"
+                          value={schedule ? schedule.day : ''}
+                          onChange={e => {
+                            const day = parseInt(e.target.value);
+                            setFormData(prev => {
+                              const newSchedule = prev.payment_schedule ? [...prev.payment_schedule] : [];
+                              const i = newSchedule.findIndex(s => s.month === idx + 1);
+                              if (i !== -1 && !isNaN(day)) {
+                                newSchedule[i].day = day;
+                              }
+                              return { ...prev, payment_schedule: newSchedule };
+                            });
+                          }}
+                          className="w-16"
+                          disabled={!schedule}
+                        />
+                        <span className="text-xs text-gray-400">日</span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
 
               <div className="space-y-2">

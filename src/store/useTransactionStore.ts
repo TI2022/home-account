@@ -23,8 +23,8 @@ interface TransactionState {
   deleteRecurringExpense: (id: string) => Promise<void>;
   updateTransaction: (transaction: Transaction) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
-  autoReflectRecurring: () => Promise<void>;
-  autoReflectRecurringForDate: (expense: RecurringExpense, oldDayOfMonth?: number) => Promise<void>;
+  reflectRecurringExpensesForPeriod: (startDate: string, endDate: string) => Promise<void>;
+  reflectRecurringIncomesForPeriod: (startDate: string, endDate: string) => Promise<void>;
 }
 
 export const useTransactionStore = create<TransactionState>((set, get) => ({
@@ -329,136 +329,85 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
     }
   },
 
-  autoReflectRecurring: async () => {
-    const { addTransaction, fetchRecurringIncomes, fetchRecurringExpenses, fetchTransactions } = get();
-    
-    // 最新データを取得
-    await fetchRecurringIncomes();
+  reflectRecurringExpensesForPeriod: async (startDate: string, endDate: string) => {
+    const { addTransaction, fetchRecurringExpenses, fetchTransactions } = get();
     await fetchRecurringExpenses();
     await fetchTransactions();
-
-    const today = new Date();
-    const currentMonth = today.getMonth() + 1;
-    const currentDay = today.getDate();
-
-    // ★定期収入の自動反映（今日以前の日付分も含む）
-    const currentIncomes = get().recurringIncomes || [];
-    for (const inc of currentIncomes) {
-      if (inc.is_active && inc.day_of_month <= currentDay) {
-        // 今月の支払日を計算
-        const paymentDate = new Date(today.getFullYear(), today.getMonth(), inc.day_of_month);
-        const paymentDateStr = format(paymentDate, 'yyyy-MM-dd');
-        
-        // 既に同じ記録が存在するかチェック
-        const exists = (get().transactions || []).some(t =>
-          t.date === paymentDateStr &&
-          t.amount === inc.amount &&
-          t.category === inc.category &&
-          t.type === 'income'
-        );
-        
-        if (!exists) {
-          await addTransaction({
-            type: 'income',
-            amount: inc.amount,
-            category: inc.category,
-            date: paymentDateStr,
-            memo: inc.name,
-          });
-        }
-      }
-    }
-
-    // ★定期支出の自動反映（今日以前の日付分も含む）
+    const start = new Date(startDate);
+    const end = new Date(endDate);
     const currentExpenses = get().recurringExpenses || [];
     for (const exp of currentExpenses) {
-      if (exp.is_active && (exp.payment_months || []).includes(currentMonth) && exp.day_of_month <= currentDay) {
-        // 今月の支払日を計算
-        const paymentDate = new Date(today.getFullYear(), today.getMonth(), exp.day_of_month);
-        const paymentDateStr = format(paymentDate, 'yyyy-MM-dd');
-        
-        // 既に同じ記録が存在するかチェック
-        const exists = (get().transactions || []).some(t =>
-          t.date === paymentDateStr &&
-          t.amount === exp.amount &&
-          t.category === exp.category &&
-          t.type === 'expense'
-        );
-        
-        if (!exists) {
-          await addTransaction({
-            type: 'expense',
-            amount: exp.amount,
-            category: exp.category,
-            date: paymentDateStr,
-            memo: exp.name,
-          });
+      if (!exp.is_active) continue;
+      const d = new Date(start);
+      while (d <= end) {
+        const month = d.getMonth() + 1;
+        const year = d.getFullYear();
+        let paymentDay: number | undefined = undefined;
+        if (exp.payment_schedule) {
+          const schedule = exp.payment_schedule.find(s => s.month === month);
+          if (schedule) paymentDay = schedule.day;
         }
+        if (paymentDay !== undefined) {
+          const paymentDate = new Date(year, month - 1, paymentDay);
+          if (paymentDate >= start && paymentDate <= end) {
+            const paymentDateStr = format(paymentDate, 'yyyy-MM-dd');
+            const exists = (get().transactions || []).some(t =>
+              t.date === paymentDateStr &&
+              t.amount === exp.amount &&
+              t.category === exp.category &&
+              t.type === 'expense'
+            );
+            if (!exists) {
+              await addTransaction({
+                type: 'expense',
+                amount: exp.amount,
+                category: exp.category,
+                date: paymentDateStr,
+                memo: exp.name,
+              });
+            }
+          }
+        }
+        d.setMonth(d.getMonth() + 1);
+        d.setDate(1); // 月初に調整
       }
     }
   },
 
-  // ★新機能: 定期支出編集時の過去日付自動反映
-  autoReflectRecurringForDate: async (expense: RecurringExpense, oldDayOfMonth?: number) => {
-    const { addTransaction, fetchTransactions } = get();
-    
-    // 最新の取引データを取得
+  reflectRecurringIncomesForPeriod: async (startDate: string, endDate: string) => {
+    const { addTransaction, fetchRecurringIncomes, fetchTransactions } = get();
+    await fetchRecurringIncomes();
     await fetchTransactions();
-
-    const today = new Date();
-    const currentMonth = today.getMonth() + 1;
-    const currentDay = today.getDate();
-
-    // 支払月をチェック
-    if (!expense.is_active || !(expense.payment_months || []).includes(currentMonth)) {
-      return;
-    }
-
-    // 新しい支払日が今日以前の場合、自動反映
-    if (expense.day_of_month <= currentDay) {
-      const paymentDate = new Date(today.getFullYear(), today.getMonth(), expense.day_of_month);
-      const paymentDateStr = format(paymentDate, 'yyyy-MM-dd');
-      
-      // 既に同じ記録が存在するかチェック
-      const exists = (get().transactions || []).some(t =>
-        t.date === paymentDateStr &&
-        t.amount === expense.amount &&
-        t.category === expense.category &&
-        t.type === 'expense'
-      );
-
-      if (!exists) {
-        await addTransaction({
-          type: 'expense',
-          amount: expense.amount,
-          category: expense.category,
-          date: paymentDateStr,
-          memo: expense.name,
-        });
-      }
-    }
-
-    // 過去の日付に変更された場合、今月の過去日付分も反映
-    if (oldDayOfMonth && expense.day_of_month < oldDayOfMonth && expense.day_of_month <= currentDay) {
-      const pastDate = new Date(today.getFullYear(), today.getMonth(), expense.day_of_month);
-      const pastDateStr = format(pastDate, 'yyyy-MM-dd');
-      
-      // 過去日付の記録が存在するかチェック
-      const exists = (get().transactions || []).some(t =>
-        t.date === pastDateStr &&
-        t.amount === expense.amount &&
-        t.category === expense.category &&
-        t.type === 'expense'
-      );
-
-      if (!exists) {
-        await addTransaction({
-          type: 'expense',
-          amount: expense.amount,
-          category: expense.category,
-          date: pastDateStr,
-          memo: expense.name,
-        });
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const currentIncomes = get().recurringIncomes || [];
+    for (const inc of currentIncomes) {
+      if (!inc.is_active) continue;
+      const d = new Date(start);
+      while (d <= end) {
+        const month = d.getMonth() + 1;
+        const year = d.getFullYear();
+        const paymentDate = new Date(year, month - 1, inc.day_of_month);
+        if (paymentDate >= start && paymentDate <= end) {
+          const paymentDateStr = format(paymentDate, 'yyyy-MM-dd');
+          const exists = (get().transactions || []).some(t =>
+            t.date === paymentDateStr &&
+            t.amount === inc.amount &&
+            t.category === inc.category &&
+            t.type === 'income'
+          );
+          if (!exists) {
+            await addTransaction({
+              type: 'income',
+              amount: inc.amount,
+              category: inc.category,
+              date: paymentDateStr,
+              memo: inc.name,
+            });
+          }
+        }
+        d.setMonth(d.getMonth() + 1);
+        d.setDate(1);
       }
     }
   },

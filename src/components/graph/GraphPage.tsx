@@ -80,7 +80,7 @@ export const GraphPage = () => {
     // 月順に並べて残高を累積計算
     const sorted = Object.entries(map).sort(([a], [b]) => a.localeCompare(b));
     let balance = 0;
-    const result = sorted.map(([key, { month, income, expense }]) => {
+    const result = sorted.map(([, { month, income, expense }]) => {
       balance += income - expense;
       return { month, balance };
     });
@@ -192,23 +192,23 @@ export const GraphPage = () => {
           {categoryData.length === 0 ? (
             <div className="text-center text-gray-500">支出データがありません</div>
           ) : (
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie
                   data={categoryData}
-                  dataKey="amount"
-                  nameKey="category"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={100}
+                dataKey="amount"
+                nameKey="category"
+                cx="50%"
+                cy="50%"
+                outerRadius={100}
                   label={({ category, percent }) =>
                     `${category} ${(percent * 100).toFixed(0)}%`
                   }
-                >
+              >
                   {categoryData.map((entry, idx) => (
                     <Cell key={entry.category} fill={COLORS[idx % COLORS.length]} />
                   ))}
-                </Pie>
+              </Pie>
                 <Tooltip
                   formatter={(value: number) => `¥${value.toLocaleString()}`}
                 />

@@ -2,13 +2,11 @@ import { useEffect, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { useSavingsPlanStore } from '@/store/useSavingsPlanStore';
-import { useSavingsStore } from '@/store/useSavingsStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
 export const SavingsPlan = () => {
   const { plan, fetchPlan, upsertPlan } = useSavingsPlanStore();
-  const { savingsAmount } = useSavingsStore();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [form, setForm] = useState({
     goal_amount: plan?.goal_amount?.toString() || '',
@@ -33,7 +31,6 @@ export const SavingsPlan = () => {
   // 達成率・残り金額・残り月数計算
   const goal = Number(plan?.goal_amount || 0);
   const monthly = Number(plan?.monthly_target || 0);
-  const current = Number(savingsAmount || 0);
 
   const handleSave = async () => {
     if (!form.goal_amount || !form.monthly_target) return;

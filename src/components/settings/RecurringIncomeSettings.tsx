@@ -17,7 +17,8 @@ export const RecurringIncomeSettings = () => {
     fetchRecurringIncomes, 
     addRecurringIncome, 
     updateRecurringIncome, 
-    deleteRecurringIncome 
+    deleteRecurringIncome,
+    reflectRecurringIncomesForPeriod
   } = useTransactionStore();
   const { toast } = useToast();
   
@@ -31,6 +32,19 @@ export const RecurringIncomeSettings = () => {
     is_active: true,
   });
   const [loading, setLoading] = useState(false);
+  const [periodStartDate, setPeriodStartDate] = useState(() => {
+    const d = new Date();
+    d.setDate(1);
+    return d.toISOString().slice(0, 10);
+  });
+  const [periodEndDate, setPeriodEndDate] = useState(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() + 1);
+    d.setDate(0);
+    return d.toISOString().slice(0, 10);
+  });
+  const [reflectLoading, setReflectLoading] = useState(false);
+  const [isReflectDialogOpen, setIsReflectDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchRecurringIncomes();
@@ -148,6 +162,54 @@ export const RecurringIncomeSettings = () => {
 
   return (
     <div className="space-y-4">
+      {/* 一括反映ボタンとモーダル */}
+      <div>
+        <Button className="bg-green-500 hover:bg-green-600" onClick={() => setIsReflectDialogOpen(true)}>
+          一括反映
+        </Button>
+        <Dialog open={isReflectDialogOpen} onOpenChange={setIsReflectDialogOpen}>
+          <DialogContent className="sm:max-w-xs">
+            <DialogHeader>
+              <DialogTitle>定期収入の一括反映</DialogTitle>
+            </DialogHeader>
+            <div className="flex flex-col gap-2">
+              <div>
+                <Label>反映開始日</Label>
+                <input
+                  type="date"
+                  className="border rounded px-2 py-1 w-full"
+                  value={periodStartDate}
+                  onChange={e => setPeriodStartDate(e.target.value)}
+                  max={periodEndDate}
+                />
+              </div>
+              <div>
+                <Label>反映終了日</Label>
+                <input
+                  type="date"
+                  className="border rounded px-2 py-1 w-full"
+                  value={periodEndDate}
+                  onChange={e => setPeriodEndDate(e.target.value)}
+                  min={periodStartDate}
+                />
+              </div>
+              <Button
+                className="bg-green-500 hover:bg-green-600 mt-2"
+                disabled={reflectLoading || periodEndDate < periodStartDate}
+                onClick={async () => {
+                  setReflectLoading(true);
+                  await reflectRecurringIncomesForPeriod(periodStartDate, periodEndDate);
+                  setReflectLoading(false);
+                  setIsReflectDialogOpen(false);
+                  toast({ title: '反映完了', description: '指定期間の定期収入を反映しました' });
+                }}
+              >
+                {reflectLoading ? '反映中...' : '定期収入を反映'}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-gray-900">定期収入設定</h3>
         <Dialog open={isDialogOpen} onOpenChange={(open) => {
@@ -319,6 +381,29 @@ export const RecurringIncomeSettings = () => {
           ))
         )}
       </div>
+
+      {/* 年間定期収入合計カード */}
+      {recurringIncomes.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          <Card className="bg-green-50 border-green-200">
+            <CardContent className="p-4">
+              <div className="text-center">
+                <p className="text-sm text-green-700 font-medium mb-1">年間定期収入合計</p>
+                <p className="text-2xl font-bold text-green-600">
+                  ¥{formatAmount(
+                    recurringIncomes
+                      .filter(income => income.is_active)
+                      .reduce((sum, income) => sum + income.amount * 12, 0)
+                  )}
+                </p>
+                <p className="text-xs text-green-600 mt-1">
+                  有効な定期収入: {recurringIncomes.filter(i => i.is_active).length}件
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 };

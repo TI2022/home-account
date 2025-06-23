@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 interface AuthState {
   user: User | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error?: string }>;
+  signIn: (email: string, password: string, rememberMe?: boolean) => Promise<{ error?: string }>;
   signUp: (email: string, password: string) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
   initialize: () => Promise<void>;
@@ -15,11 +15,15 @@ export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   loading: true,
 
-  signIn: async (email: string, password: string) => {
+  signIn: async (email: string, password: string, rememberMe = false) => {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
+        options: {
+          // rememberMeがtrueの場合は1年、falseの場合は1時間のセッション有効期限を設定
+          expiresIn: rememberMe ? 365 * 24 * 60 * 60 : 60 * 60, // 1年 or 1時間（秒単位）
+        }
       });
 
       if (error) {

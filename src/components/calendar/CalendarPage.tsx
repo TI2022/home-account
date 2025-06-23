@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useTransactionStore } from '@/store/useTransactionStore';
 import { format, isSameDay, startOfMonth, endOfMonth } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { motion } from 'framer-motion';
-import { ArrowUpCircle, ArrowDownCircle, Trash2 } from 'lucide-react';
+import { ArrowUpCircle, ArrowDownCircle, Trash2, Wallet } from 'lucide-react';
 import { QuickTransactionForm } from './QuickTransactionForm';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -61,11 +61,11 @@ const StyledDateCalendar = styled(DateCalendar)(({ theme }) => ({
   },
 }));
 
-// MotionPickersDayの型を明示
-const MotionPickersDay = motion(PickersDay) as any;
-
 // PickersDayPropsからonAnimationStartを除外
 type CustomDayProps = Omit<PickersDayProps, 'onAnimationStart'>;
+
+// MotionPickersDayの型を明示
+const MotionPickersDay = motion(PickersDay) as any;
 
 // カスタムの日付セルコンポーネント
 const CustomDay = (props: CustomDayProps) => {
@@ -142,7 +142,6 @@ const CustomDay = (props: CustomDayProps) => {
       animate={isBouncing ? { scale: [1, 1.18, 0.92, 1.08, 1] } : { scale: 1 }}
       transition={{ duration: 0.35, type: "spring", stiffness: 400, damping: 20 }}
       whileTap={{ scale: 0.85 }}
-      {...({} as any)}
     >
       <div className="relative w-full h-full flex flex-col items-center justify-start p-1 min-h-[4rem]">
         <span className={`text-sm font-medium ${isToday ? 'text-blue-600' : ''}`}>
@@ -221,17 +220,16 @@ export const CalendarPage = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
-  const { transactions, fetchTransactions, deleteTransaction, autoReflectRecurring } = useTransactionStore();
+  const { transactions, fetchTransactions, deleteTransaction } = useTransactionStore();
   const [showGuide, setShowGuide] = useState(false);
   const [dontShowNext, setDontShowNext] = useState(false);
 
   useEffect(() => {
     fetchTransactions();
-    autoReflectRecurring();
     if (localStorage.getItem('calendarGuideShown') !== '1') {
       setShowGuide(true);
     }
-  }, [fetchTransactions, autoReflectRecurring]);
+  }, [fetchTransactions]);
 
   // Get transactions for the current month
   const monthStart = startOfMonth(currentMonth);
@@ -332,48 +330,50 @@ export const CalendarPage = () => {
         transition={{ delay: 0.3 }}
       >
         <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">
-              {format(currentMonth, 'yyyy年M月', { locale: ja })}の概要
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200">
-                <div className="text-2xl font-bold text-green-600">
-                  ¥{formatAmount(monthTransactions
+          <CardContent className="p-2 sm:p-4">
+            <div className="flex flex-col gap-1 w-full">
+              <div className="text-center py-2 bg-green-50 rounded-lg border border-green-200">
+                <div className="flex items-center justify-center gap-1 text-base sm:text-xl font-bold text-green-600 truncate">
+                  <ArrowUpCircle className="inline-block w-5 h-5 text-green-500 mr-1" />
+                  <span>¥{formatAmount(monthTransactions
                     .filter(t => t.type === 'income')
                     .reduce((sum, t) => sum + t.amount, 0)
-                  )}
+                  )}</span>
                 </div>
-                <div className="text-sm text-green-700 font-medium">収入</div>
+                <div className="text-xs sm:text-sm text-green-700 font-medium">収入</div>
               </div>
-              <div className="text-center p-4 bg-red-50 rounded-lg border border-red-200">
-                <div className="text-2xl font-bold text-red-600">
-                  ¥{formatAmount(monthTransactions
+              <div className="text-center py-2 bg-red-50 rounded-lg border border-red-200">
+                <div className="flex items-center justify-center gap-1 text-base sm:text-xl font-bold text-red-600 truncate">
+                  <ArrowDownCircle className="inline-block w-5 h-5 text-red-500 mr-1" />
+                  <span>¥{formatAmount(monthTransactions
                     .filter(t => t.type === 'expense')
                     .reduce((sum, t) => sum + t.amount, 0)
-                  )}
+                  )}</span>
                 </div>
-                <div className="text-sm text-red-700 font-medium">支出</div>
+                <div className="text-xs sm:text-sm text-red-700 font-medium">支出</div>
               </div>
-              <div className={`text-center p-4 rounded-lg border ${
+              <div className={`text-center py-2 rounded-lg border ${
                 monthTransactions.reduce((sum, t) => 
                   sum + (t.type === 'income' ? t.amount : -t.amount), 0
                 ) >= 0 
                   ? 'bg-blue-50 border-blue-200' 
                   : 'bg-orange-50 border-orange-200'
               }`}>
-                <div className={`text-2xl font-bold ${
+                <div className={`flex items-center justify-center gap-1 text-base sm:text-xl font-bold truncate ${
                   monthTransactions.reduce((sum, t) => 
                     sum + (t.type === 'income' ? t.amount : -t.amount), 0
                   ) >= 0 ? 'text-blue-600' : 'text-orange-600'
                 }`}>
-                  ¥{formatAmount(monthTransactions.reduce((sum, t) => 
+                  <Wallet className={`inline-block w-5 h-5 mr-1 ${
+                    monthTransactions.reduce((sum, t) => 
+                      sum + (t.type === 'income' ? t.amount : -t.amount), 0
+                    ) >= 0 ? 'text-blue-500' : 'text-orange-500'
+                  }`} />
+                  <span>¥{formatAmount(monthTransactions.reduce((sum, t) => 
                     sum + (t.type === 'income' ? t.amount : -t.amount), 0
-                  ))}
+                  ))}</span>
                 </div>
-                <div className={`text-sm font-medium ${
+                <div className={`text-xs sm:text-sm font-medium ${
                   monthTransactions.reduce((sum, t) => 
                     sum + (t.type === 'income' ? t.amount : -t.amount), 0
                   ) >= 0 ? 'text-blue-700' : 'text-orange-700'
@@ -381,6 +381,9 @@ export const CalendarPage = () => {
                   残高
                 </div>
               </div>
+            </div>
+            <div className="text-xs text-gray-500 text-center mt-2">
+              {format(currentMonth, 'yyyy年M月', { locale: ja })}の概要
             </div>
           </CardContent>
         </Card>

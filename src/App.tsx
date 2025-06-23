@@ -21,7 +21,6 @@ function App() {
   const { user, loading, initialize } = useAuthStore();
   const { currentTab } = useAppStore();
   const { currentTheme, getThemeById } = useThemeStore();
-  const { autoReflectRecurring } = useTransactionStore();
 
   useEffect(() => {
     initialize();
@@ -35,12 +34,6 @@ function App() {
       document.body.style.backgroundAttachment = 'fixed';
     }
   }, [currentTheme, getThemeById]);
-
-  useEffect(() => {
-    if (user && !loading) {
-      autoReflectRecurring();
-    }
-  }, [user, loading, autoReflectRecurring]);
 
   if (loading) {
     return (
