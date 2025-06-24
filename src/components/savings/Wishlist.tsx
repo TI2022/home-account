@@ -95,7 +95,7 @@ export const Wishlist = () => {
           {sortedWishlist.map(item => (
             <div key={item.id} className="flex items-center justify-between bg-white rounded shadow p-3">
               <div>
-                <div className="font-bold">{item.name}</div>
+                <div className="font-bold text-left">{item.name}</div>
                 <div className="text-sm text-gray-500">
                   ¥{Number(item.price).toLocaleString()} / 優先度: {item.priority}
                 </div>

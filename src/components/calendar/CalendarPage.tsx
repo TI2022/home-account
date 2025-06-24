@@ -377,7 +377,7 @@ export const CalendarPage = () => {
                       ) : (
                         <ArrowDownCircle className="h-4 w-4 text-red-600" />
                       )}
-                      <span className="text-sm">{transaction.category}</span>
+                      <span className="text-sm">{transaction.memo || transaction.category}</span>
                     </div>
                     <div className="flex items-center space-x-2">
                       <span className={`text-sm font-medium ${

@@ -38,10 +38,8 @@ export interface RecurringExpense {
   name: string;
   amount: number;
   category: string;
-  day_of_month: number;
-  payment_months: number[];
   payment_frequency: 'monthly' | 'quarterly' | 'yearly' | 'custom';
-  payment_schedule?: { month: number; day: number }[];
+  payment_schedule: { month: number; day: number }[];
   next_payment_date?: string;
   description?: string;
   is_active: boolean;

@@ -87,7 +87,14 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      set({ recurringExpenses: data || [] });
+      // payment_scheduleがstringの場合はパース
+      const fixed = (data || []).map((item: RecurringExpense) => ({
+        ...item,
+        payment_schedule: typeof item.payment_schedule === 'string'
+          ? JSON.parse(item.payment_schedule)
+          : item.payment_schedule || [],
+      }));
+      set({ recurringExpenses: fixed });
     } catch (error) {
       console.error('Error fetching recurring expenses:', error);
     }
@@ -234,6 +241,8 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
           {
             ...expense,
             user_id: user.user.id,
+            payment_schedule: JSON.stringify(expense.payment_schedule),
+            description: expense.description || null,
           }
         ])
         .select()
@@ -241,8 +250,15 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
 
       if (error) throw error;
 
-      const currentExpenses = get().recurringExpenses;
-      set({ recurringExpenses: [data, ...currentExpenses] });
+      set({ recurringExpenses: [
+        {
+          ...data,
+          payment_schedule: typeof data.payment_schedule === 'string'
+            ? JSON.parse(data.payment_schedule)
+            : data.payment_schedule || [],
+        },
+        ...get().recurringExpenses
+      ] });
     } catch (error) {
       console.error('Error adding recurring expense:', error);
       throw error;
@@ -253,18 +269,29 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
     try {
       const { data, error } = await supabase
         .from('recurring_expenses')
-        .update(expense)
+        .update({
+          ...expense,
+          payment_schedule: expense.payment_schedule
+            ? JSON.stringify(expense.payment_schedule)
+            : undefined,
+          description: expense.description || null,
+        })
         .eq('id', id)
         .select()
         .single();
 
       if (error) throw error;
 
-      const currentExpenses = get().recurringExpenses;
-      const updatedExpenses = currentExpenses.map(item => 
-        item.id === id ? data : item
-      );
-      set({ recurringExpenses: updatedExpenses });
+      set({ recurringExpenses: get().recurringExpenses.map(item =>
+        item.id === id
+          ? {
+              ...data,
+              payment_schedule: typeof data.payment_schedule === 'string'
+                ? JSON.parse(data.payment_schedule)
+                : data.payment_schedule || [],
+            }
+          : item
+      ) });
     } catch (error) {
       console.error('Error updating recurring expense:', error);
       throw error;

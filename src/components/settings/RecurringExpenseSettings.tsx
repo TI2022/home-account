@@ -95,9 +95,8 @@ export const RecurringExpenseSettings = () => {
 
     setLoading(true);
     try {
-      // payment_scheduleからday_of_month, payment_months, payment_frequencyを生成
+      // payment_scheduleからfrequencyとday_of_monthを自動算出
       const months = formData.payment_schedule.map(s => s.month).sort((a, b) => a - b);
-      const payment_months = months;
       const payment_frequency = (months.length === 12
         ? 'monthly'
         : months.length === 4
@@ -111,7 +110,6 @@ export const RecurringExpenseSettings = () => {
         amount: parseInt(formData.amount),
         category: formData.category,
         payment_schedule: formData.payment_schedule,
-        payment_months,
         payment_frequency,
         day_of_month,
         description: formData.description || undefined,
@@ -196,22 +194,9 @@ export const RecurringExpenseSettings = () => {
     return amount.toLocaleString('ja-JP');
   };
 
-  const formatPaymentSchedule = (expense: RecurringExpense) => {
-    const months = expense.payment_months || [];
-    if (months.length === 12) {
-      return '毎月';
-    } else if (months.length === 4) {
-      return '四半期';
-    } else if (months.length === 1) {
-      return '年1回';
-    } else {
-      return `${months.map((m: number) => MONTH_NAMES[m-1]).join('、')}`;
-    }
-  };
-
   // Group expenses by frequency for better organization
   const groupedExpenses = recurringExpenses.reduce((groups, expense) => {
-    const frequency = expense.payment_frequency || 'monthly';
+    const frequency = expense.payment_schedule.length > 0 ? 'monthly' : 'custom';
     if (!groups[frequency]) {
       groups[frequency] = [];
     }
@@ -221,8 +206,6 @@ export const RecurringExpenseSettings = () => {
 
   const frequencyLabels = {
     monthly: '毎月の支出',
-    quarterly: '四半期の支出',
-    yearly: '年間の支出',
     custom: 'その他の支出'
   };
 
@@ -496,9 +479,20 @@ export const RecurringExpenseSettings = () => {
                           <div className="flex items-center space-x-4 text-sm text-gray-600">
                             <div className="flex items-center space-x-1">
                               <Calendar className="h-3 w-3" />
-                              <span>{formatPaymentSchedule(expense)}</span>
+                              <span>
+                                {expense.payment_schedule && expense.payment_schedule.length > 0 ? (
+                                  expense.payment_schedule.length === 12 ? (
+                                    // 毎月
+                                    `毎月${expense.payment_schedule[0].day}日`
+                                  ) : (
+                                    // 四半期・年1回・カスタム
+                                    expense.payment_schedule
+                                      .sort((a, b) => a.month - b.month)
+                                      .map(s => `${s.month}/${s.day}`).join('、')
+                                  )
+                                ) : ''}
+                              </span>
                             </div>
-                            <span>毎月{expense.day_of_month}日</span>
                           </div>
                           {expense.description && (
                             <p className="text-xs text-gray-500 mt-1">{expense.description}</p>
@@ -548,7 +542,7 @@ export const RecurringExpenseSettings = () => {
                 <p className="text-2xl font-bold text-red-600">
                   ¥{formatAmount(
                     recurringExpenses
-                      .filter(expense => expense.is_active && (expense.payment_months || []).includes(new Date().getMonth() + 1))
+                      .filter(expense => expense.is_active && (expense.payment_schedule || []).some(s => s.month === new Date().getMonth() + 1))
                       .reduce((sum, expense) => sum + expense.amount, 0)
                   )}
                 </p>
@@ -568,7 +562,7 @@ export const RecurringExpenseSettings = () => {
                     recurringExpenses
                       .filter(expense => expense.is_active)
                       .reduce((sum, expense) => {
-                        const monthsCount = (expense.payment_months || []).length;
+                        const monthsCount = (expense.payment_schedule || []).length;
                         return sum + (expense.amount * monthsCount);
                       }, 0)
                   )}
