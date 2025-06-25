@@ -60,8 +60,8 @@ export const AuthForm = () => {
               <Calculator className="h-6 w-6 text-white" />
             </div>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900">TT家計簿</h1>
-          <p className="text-gray-600 mt-2">シンプルで使いやすい家計管理アプリ</p>
+          <h1 className="text-3xl font-bold text-gray-900">どこ？マネ</h1>
+          <p className="text-gray-600 mt-2">お金のモヤモヤ、毎日ちょっとずつ晴れていく。</p>
         </div>
 
         <Card className="shadow-lg">
@@ -129,6 +129,9 @@ export const AuthForm = () => {
             </div>
           </CardContent>
         </Card>
+        <div className="mt-6 text-center text-xs text-gray-500">
+          <a href="/terms" target="_blank" rel="noopener noreferrer" className="underline hover:text-green-600">利用規約</a> をご確認ください。
+        </div>
       </div>
     </div>
   );
