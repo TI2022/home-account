@@ -6,7 +6,7 @@ import { useTransactionStore } from '@/store/useTransactionStore';
 import { format, isSameDay, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { motion } from 'framer-motion';
-import { ArrowUpCircle, ArrowDownCircle, Trash2, Wallet } from 'lucide-react';
+import { ArrowUpCircle, ArrowDownCircle, Trash2, Wallet, Edit } from 'lucide-react';
 import { QuickTransactionForm } from './QuickTransactionForm';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -15,6 +15,7 @@ import { styled } from '@mui/material/styles';
 import { PickersDay, PickersDayProps } from '@mui/x-date-pickers/PickersDay';
 import { useSwipeable } from 'react-swipeable';
 import bearImg from '@/assets/bear-guide.png';
+import { Transaction } from '@/types';
 
 // カスタムスタイルの定義
 const StyledDateCalendar = styled(DateCalendar)(({ theme }) => ({
@@ -244,6 +245,7 @@ export const CalendarPage = () => {
   const { transactions, fetchTransactions, deleteTransaction } = useTransactionStore();
   const [showGuide, setShowGuide] = useState(false);
   const [dontShowNext, setDontShowNext] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
   useEffect(() => {
     fetchTransactions();
@@ -437,11 +439,13 @@ export const CalendarPage = () => {
                       <span className="text-sm">{transaction.memo || transaction.category}</span>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <span className={`text-sm font-medium ${
-                        transaction.type === 'income' ? 'text-green-600' : 'text-red-600'
-                      }`}>
-                        {transaction.type === 'income' ? '+' : '-'}¥{formatAmount(transaction.amount)}
-                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setEditingTransaction(transaction)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -460,6 +464,8 @@ export const CalendarPage = () => {
           <QuickTransactionForm
             selectedDate={selectedDate}
             onTransactionAdded={handleTransactionAdded}
+            editingTransaction={editingTransaction}
+            onEditCancel={() => setEditingTransaction(null)}
           />
         </DialogContent>
       </Dialog>

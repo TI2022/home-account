@@ -165,7 +165,7 @@ export const RecurringIncomeSettings = () => {
       {/* 一括反映ボタンとモーダル */}
       <div>
         <Button className="bg-green-500 hover:bg-green-600" onClick={() => setIsReflectDialogOpen(true)}>
-          一括反映
+          収入一括反映
         </Button>
         <Dialog open={isReflectDialogOpen} onOpenChange={setIsReflectDialogOpen}>
           <DialogContent className="sm:max-w-xs">

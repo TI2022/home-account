@@ -13,6 +13,8 @@ import { useToast } from '@/hooks/use-toast';
 import { EXPENSE_CATEGORIES } from '@/types';
 import type { RecurringExpense } from '@/types';
 import { Plus, Edit, Trash2, Receipt, Calendar, Clock } from 'lucide-react';
+import Papa from 'papaparse';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const MONTH_NAMES = [
   '1月', '2月', '3月', '4月', '5月', '6月',
@@ -55,6 +57,7 @@ export const RecurringExpenseSettings = () => {
   });
   const [reflectLoading, setReflectLoading] = useState(false);
   const [isReflectDialogOpen, setIsReflectDialogOpen] = useState(false);
+  const [rakutenLoading, setRakutenLoading] = useState(false);
 
   useEffect(() => {
     fetchRecurringExpenses();
@@ -209,55 +212,134 @@ export const RecurringExpenseSettings = () => {
     custom: 'その他の支出'
   };
 
+  // 楽天明細インポート処理
+  const handleRakutenCsvImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setRakutenLoading(true);
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results: Papa.ParseResult<Record<string, string>>) => {
+        const rows = results.data;
+        let success = 0;
+        let fail = 0;
+        for (const row of rows) {
+          const name = row['利用店名・商品名']?.trim() || '';
+          const amountKey = Object.keys(row).find(k => k.includes('支払金額'));
+          const amountStr = amountKey ? row[amountKey]?.replace(/,/g, '').trim() : '';
+          const dateStr = row['利用日']?.trim();
+          if (!name || !amountStr || !dateStr) { fail++; continue; }
+          const amount = Number(amountStr);
+          if (isNaN(amount)) { fail++; continue; }
+          let date = '';
+          try {
+            date = dateStr.replace(/\//g, '-');
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('日付形式エラー');
+          } catch { fail++; continue; }
+          let category = 'その他';
+          for (const cat of EXPENSE_CATEGORIES) {
+            if (name.includes(cat)) { category = cat; break; }
+          }
+          try {
+            await useTransactionStore.getState().addTransaction({
+              type: 'expense',
+              amount,
+              category,
+              date,
+              memo: name,
+            });
+            success++;
+          } catch {
+            fail++;
+          }
+        }
+        useTransactionStore.getState().fetchTransactions();
+        setRakutenLoading(false);
+        if (success > 0) {
+          toast({
+            title: '楽天明細インポート完了',
+            description: `登録件数: ${success}件、失敗: ${fail}件`,
+            variant: fail === 0 ? 'default' : 'destructive',
+          });
+        } else {
+          toast({
+            title: 'インポート失敗',
+            description: '明細の取り込みに失敗しました',
+            variant: 'destructive',
+          });
+        }
+      },
+      error: () => {
+        setRakutenLoading(false);
+        toast({ title: 'CSV読み込みエラー', description: 'ファイルの解析に失敗しました', variant: 'destructive' });
+      },
+    });
+    e.target.value = '';
+  };
+
   return (
     <div className="space-y-4">
-      <div>
-        <Button className="bg-green-500 hover:bg-green-600" onClick={() => setIsReflectDialogOpen(true)}>
-          一括反映
+      <div className="flex flex-row items-center gap-2">
+        <Button className="bg-red-500 hover:bg-red-600" onClick={() => setIsReflectDialogOpen(true)}>
+          支出一括反映
         </Button>
-        <Dialog open={isReflectDialogOpen} onOpenChange={setIsReflectDialogOpen}>
-          <DialogContent className="sm:max-w-xs">
-            <DialogHeader>
-              <DialogTitle>定期支出の一括反映</DialogTitle>
-            </DialogHeader>
-            <div className="flex flex-col gap-2">
-              <div>
-                <Label>反映開始日</Label>
-                <input
-                  type="date"
-                  className="border rounded px-2 py-1 w-full"
-                  value={periodStartDate}
-                  onChange={e => setPeriodStartDate(e.target.value)}
-                  max={periodEndDate}
-                />
-              </div>
-              <div>
-                <Label>反映終了日</Label>
-                <input
-                  type="date"
-                  className="border rounded px-2 py-1 w-full"
-                  value={periodEndDate}
-                  onChange={e => setPeriodEndDate(e.target.value)}
-                  min={periodStartDate}
-                />
-              </div>
-              <Button
-                className="bg-green-500 hover:bg-green-600 mt-2"
-                disabled={reflectLoading || periodEndDate < periodStartDate}
-                onClick={async () => {
-                  setReflectLoading(true);
-                  await reflectRecurringExpensesForPeriod(periodStartDate, periodEndDate);
-                  setReflectLoading(false);
-                  setIsReflectDialogOpen(false);
-                  toast({ title: '反映完了', description: '指定期間の定期支出を反映しました' });
-                }}
-              >
-                {reflectLoading ? '反映中...' : '定期支出を反映'}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        {/* 楽天明細インポートボタン */}
+        <label className="inline-flex items-center gap-2 cursor-pointer">
+          <Button asChild disabled={rakutenLoading}>
+            <span>楽天明細インポート</span>
+          </Button>
+          <input
+            type="file"
+            accept=".csv"
+            className="hidden"
+            onChange={handleRakutenCsvImport}
+          />
+          {rakutenLoading && <Skeleton className="w-6 h-6 ml-2" />}
+        </label>
       </div>
+      <Dialog open={isReflectDialogOpen} onOpenChange={setIsReflectDialogOpen}>
+        <DialogContent className="sm:max-w-xs">
+          <DialogHeader>
+            <DialogTitle>定期支出の一括反映</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-2">
+            <div>
+              <Label>反映開始日</Label>
+              <input
+                type="date"
+                className="border rounded px-2 py-1 w-full"
+                value={periodStartDate}
+                onChange={e => setPeriodStartDate(e.target.value)}
+                max={periodEndDate}
+              />
+            </div>
+            <div>
+              <Label>反映終了日</Label>
+              <input
+                type="date"
+                className="border rounded px-2 py-1 w-full"
+                value={periodEndDate}
+                onChange={e => setPeriodEndDate(e.target.value)}
+                min={periodStartDate}
+              />
+            </div>
+            <Button
+              className="bg-green-500 hover:bg-green-600 mt-2"
+              disabled={reflectLoading || periodEndDate < periodStartDate}
+              onClick={async () => {
+                setReflectLoading(true);
+                await reflectRecurringExpensesForPeriod(periodStartDate, periodEndDate);
+                setReflectLoading(false);
+                setIsReflectDialogOpen(false);
+                toast({ title: '反映完了', description: '指定期間の定期支出を反映しました' });
+              }}
+            >
+              {reflectLoading ? '反映中...' : '定期支出を反映'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-gray-900">定期支出設定</h3>
         <Dialog open={isDialogOpen} onOpenChange={(open) => {

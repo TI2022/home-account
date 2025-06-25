@@ -15,11 +15,15 @@ import { CoinAnimation } from '@/components/ui/coin-animation';
 interface QuickTransactionFormProps {
   selectedDate: Date;
   onTransactionAdded: () => void;
+  editingTransaction?: Transaction | null;
+  onEditCancel?: () => void;
 }
 
 export const QuickTransactionForm = ({ 
   selectedDate, 
-  onTransactionAdded
+  onTransactionAdded,
+  editingTransaction: externalEditingTransaction = null,
+  onEditCancel
 }: QuickTransactionFormProps) => {
   const { addTransaction, updateTransaction } = useTransactionStore();
   const { toast } = useToast();
@@ -31,6 +35,21 @@ export const QuickTransactionForm = ({
   });
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [showCoinAnimation, setShowCoinAnimation] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [lastSubmitted, setLastSubmitted] = useState<{
+    date: string;
+    type: 'income' | 'expense';
+    amount: string;
+    category: string;
+    memo: string;
+  } | null>(null);
+
+  // 外部からeditingTransactionが渡されたら内部stateに反映
+  useEffect(() => {
+    if (externalEditingTransaction) {
+      setEditingTransaction(externalEditingTransaction);
+    }
+  }, [externalEditingTransaction]);
 
   // 編集モードの場合、フォームに既存のデータをセット
   useEffect(() => {
@@ -46,7 +65,7 @@ export const QuickTransactionForm = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+    if (isSubmitting) return;
     if (!formData.amount || !formData.category) {
       toast({
         title: 'エラー',
@@ -55,10 +74,28 @@ export const QuickTransactionForm = ({
       });
       return;
     }
-
+    const submitData = {
+      date: format(selectedDate, 'yyyy-MM-dd'),
+      type: formData.type,
+      amount: formData.amount,
+      category: formData.category,
+      memo: formData.memo,
+    };
+    if (
+      lastSubmitted &&
+      lastSubmitted.date === submitData.date &&
+      lastSubmitted.type === submitData.type &&
+      lastSubmitted.amount === submitData.amount &&
+      lastSubmitted.category === submitData.category &&
+      lastSubmitted.memo === submitData.memo
+    ) {
+      // 直前と同じ内容なら無視
+      return;
+    }
+    setIsSubmitting(true);
+    setLastSubmitted(submitData);
     try {
       if (editingTransaction) {
-        // 既存のトランザクションを更新
         await updateTransaction({
           ...editingTransaction,
           type: formData.type,
@@ -71,13 +108,12 @@ export const QuickTransactionForm = ({
           description: '収支を更新しました',
         });
       } else {
-        // 新しいトランザクションを追加
         await addTransaction({
-          date: format(selectedDate, 'yyyy-MM-dd'),
-          type: formData.type,
-          amount: Number(formData.amount),
-          category: formData.category,
-          memo: formData.memo,
+          date: submitData.date,
+          type: submitData.type,
+          amount: Number(submitData.amount),
+          category: submitData.category,
+          memo: submitData.memo,
         });
         toast({
           title: '追加完了',
@@ -85,8 +121,6 @@ export const QuickTransactionForm = ({
         });
         setShowCoinAnimation(true);
       }
-
-      // フォームをリセット
       setFormData({
         type: 'expense',
         amount: '',
@@ -101,6 +135,8 @@ export const QuickTransactionForm = ({
         description: '操作に失敗しました',
         variant: 'destructive',
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -112,6 +148,7 @@ export const QuickTransactionForm = ({
       category: '',
       memo: '',
     });
+    if (onEditCancel) onEditCancel();
   };
 
   return (
@@ -188,7 +225,7 @@ export const QuickTransactionForm = ({
               キャンセル
             </Button>
           )}
-          <Button type="submit">
+          <Button type="submit" disabled={isSubmitting}>
             {editingTransaction ? '更新' : '追加'}
           </Button>
         </div>
