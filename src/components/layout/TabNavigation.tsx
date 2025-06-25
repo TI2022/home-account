@@ -9,7 +9,7 @@ export const TabNavigation = () => {
   const tabs = [
     { id: 'calendar' as const, label: 'カレンダー', icon: Calendar },
     { id: 'settings' as const, label: '収支設定', icon: Settings },
-    { id: 'savings' as const, label: '貯蓄', icon: PiggyBank },
+    { id: 'savings' as const, label: '貯金', icon: PiggyBank },
   ];
 
   return (

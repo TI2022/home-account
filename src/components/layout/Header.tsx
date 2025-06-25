@@ -56,7 +56,7 @@ export const Header = () => {
       case 'background':
         return '背景設定';
       case 'savings':
-        return '貯蓄';
+        return '貯金';
       case 'graph':
         return 'グラフ';
       default:
