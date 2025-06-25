@@ -1,5 +1,3 @@
-import React from 'react';
-
 const TermsPage = () => (
   <div className="max-w-2xl mx-auto py-10 px-4">
     <h1 className="text-2xl font-bold mb-6">利用規約</h1>
@@ -23,7 +21,7 @@ const TermsPage = () => (
     </section>
     <section className="mb-6">
       <h2 className="text-lg font-semibold mb-2">第4条（禁止事項）</h2>
-      <ul className="list-disc pl-6">
+      <ul className="list-none pl-6">
         <li>法令または公序良俗に違反する行為</li>
         <li>本サービスの運営を妨害する行為</li>
         <li>他のユーザーまたは第三者に不利益・損害を与える行為</li>

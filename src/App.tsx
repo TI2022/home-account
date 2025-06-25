@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { useAuthStore } from '@/store/useAuthStore';
-import { useAppStore } from '@/store/useAppStore';
 import { useThemeStore } from '@/store/useThemeStore';
 import { AuthForm } from '@/components/auth/AuthForm';
 import { Header } from '@/components/layout/Header';
@@ -14,11 +14,12 @@ import { BackgroundSettingsPage } from '@/components/background/BackgroundSettin
 import { Toaster } from '@/components/ui/sonner';
 import { SavingsPage } from '@/components/savings/SavingsPage';
 import { GraphPage } from '@/components/graph/GraphPage';
+import TermsPage from '@/pages/TermsPage';
+import { useAppStore } from '@/store/useAppStore';
 import './App.css';
 
 function App() {
   const { user, loading, initialize } = useAuthStore();
-  const { currentTab } = useAppStore();
   const { currentTheme, getThemeById } = useThemeStore();
 
   useEffect(() => {
@@ -42,10 +43,18 @@ function App() {
     );
   }
 
-  if (!user) {
-    return <AuthForm />;
-  }
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/terms" element={<TermsPage />} />
+        <Route path="*" element={user ? <MainApp /> : <AuthForm />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
 
+function MainApp() {
+  const { currentTab } = useAppStore();
   const renderCurrentPage = () => {
     switch (currentTab) {
       case 'home':
@@ -68,7 +77,6 @@ function App() {
         return <HomePage />;
     }
   };
-
   return (
     <div className="min-h-screen">
       <Header />
