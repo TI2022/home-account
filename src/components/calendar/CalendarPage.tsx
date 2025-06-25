@@ -3,7 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useTransactionStore } from '@/store/useTransactionStore';
-import { format, isSameDay, startOfMonth, endOfMonth } from 'date-fns';
+import { format, isSameDay, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { motion } from 'framer-motion';
 import { ArrowUpCircle, ArrowDownCircle, Trash2, Wallet } from 'lucide-react';
@@ -13,13 +13,14 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { DateCalendar } from '@mui/x-date-pickers/DateCalendar';
 import { styled } from '@mui/material/styles';
 import { PickersDay, PickersDayProps } from '@mui/x-date-pickers/PickersDay';
-import bearImg from '@/assets/bear-guide.png'; // 画像が存在すること！
+import { useSwipeable } from 'react-swipeable';
+import bearImg from '@/assets/bear-guide.png';
 
 // カスタムスタイルの定義
 const StyledDateCalendar = styled(DateCalendar)(({ theme }) => ({
   width: '100%',
-  minHeight: '450px',
-  height: '450px',
+  minHeight: '500px',
+  height: '500px',
   '& .MuiPickersCalendarHeader-root': {
     display: 'flex',
     alignItems: 'center',
@@ -56,8 +57,8 @@ const StyledDateCalendar = styled(DateCalendar)(({ theme }) => ({
     },
   },
   '& .MuiPickersSlideTransition-root': {
-    minHeight: '450px',
-    height: '450px',
+    minHeight: '500px',
+    height: '500px',
   },
 }));
 
@@ -182,6 +183,60 @@ const BearGuide = ({
   </div>
 );
 
+// スワイプ機能付きカレンダーコンポーネント
+const SwipeableCalendar = ({ 
+  selectedDate, 
+  onDateSelect, 
+  onMonthChange, 
+  currentMonth 
+}: {
+  selectedDate: Date;
+  onDateSelect: (date: Date | null) => void;
+  onMonthChange: (date: Date) => void;
+  currentMonth: Date;
+}) => {
+  const swipeHandlers = useSwipeable({
+    onSwipedLeft: () => {
+      console.log('Swiped left - next month');
+      onMonthChange(addMonths(currentMonth, 1));
+    },
+    onSwipedRight: () => {
+      console.log('Swiped right - prev month');
+      onMonthChange(subMonths(currentMonth, 1));
+    },
+    onTouchStartOrOnMouseDown: () => {
+      console.log('Touch or Mouse Down');
+    },
+    onTouchEndOrOnMouseUp: () => {
+      console.log('Touch or Mouse Up');
+    },
+    delta: 30,
+    swipeDuration: 1000,
+    preventScrollOnSwipe: true,
+    trackMouse: true,
+    trackTouch: true,
+  });
+
+  return (
+    <div
+      {...swipeHandlers}
+      className="w-full h-full touch-pan-y"
+      style={{ touchAction: 'pan-y' }}
+    >
+      <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ja}>
+        <StyledDateCalendar
+          value={selectedDate}
+          onChange={onDateSelect}
+          onMonthChange={onMonthChange}
+          slots={{
+            day: CustomDay
+          }}
+        />
+      </LocalizationProvider>
+    </div>
+  );
+};
+
 export const CalendarPage = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -246,6 +301,12 @@ export const CalendarPage = () => {
     }
   };
 
+  // スワイプで月を切り替えたときにカレンダーもその月を表示するようにする
+  const handleMonthChange = (date: Date) => {
+    setCurrentMonth(date);
+    setSelectedDate(date); // カレンダーの表示月も切り替える
+  };
+
   return (
     <motion.div 
       className="pb-20 space-y-6"
@@ -275,16 +336,12 @@ export const CalendarPage = () => {
       >
         <Card className="w-full max-w-4xl">
           <CardContent className="p-2 sm:p-4 w-full min-h-[450px]" style={{ overflowY: 'hidden' }}>
-            <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ja}>
-              <StyledDateCalendar
-                value={selectedDate}
-                onChange={handleDateSelect}
-                onMonthChange={setCurrentMonth}
-                slots={{
-                  day: CustomDay
-                }}
-              />
-            </LocalizationProvider>
+            <SwipeableCalendar
+              selectedDate={selectedDate}
+              onDateSelect={handleDateSelect}
+              onMonthChange={handleMonthChange}
+              currentMonth={currentMonth}
+            />
           </CardContent>
         </Card>
       </motion.div>

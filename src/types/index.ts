@@ -90,6 +90,9 @@ export const EXPENSE_CATEGORIES = [
   '保険料（事業）',
   'リース料',
   'サブスクリプション',
+  // 教育・学習関連
+  '新聞図書費',
+  '研修費',
   'その他'
 ] as const;
 
