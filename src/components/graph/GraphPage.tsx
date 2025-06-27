@@ -201,9 +201,6 @@ export const GraphPage = () => {
                 cx="50%"
                 cy="50%"
                 outerRadius={100}
-                  label={({ category, percent }) =>
-                    `${category} ${(percent * 100).toFixed(0)}%`
-                  }
               >
                   {categoryData.map((entry, idx) => (
                     <Cell key={entry.category} fill={COLORS[idx % COLORS.length]} />

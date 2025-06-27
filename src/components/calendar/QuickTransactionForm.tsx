@@ -51,6 +51,19 @@ export const QuickTransactionForm = ({
     }
   }, [externalEditingTransaction]);
 
+  // externalEditingTransactionがnullになったらフォームをリセット
+  useEffect(() => {
+    if (externalEditingTransaction === null) {
+      setEditingTransaction(null);
+      setFormData({
+        type: 'expense',
+        amount: '',
+        category: '',
+        memo: '',
+      });
+    }
+  }, [externalEditingTransaction]);
+
   // 編集モードの場合、フォームに既存のデータをセット
   useEffect(() => {
     if (editingTransaction) {
@@ -139,7 +152,7 @@ export const QuickTransactionForm = ({
   };
 
   return (
-    <div className="space-y-4 bg-white p-4 rounded shadow">
+    <div className={`space-y-4 p-4 rounded shadow transition-all duration-200 ${editingTransaction ? 'bg-yellow-50 border-2 border-yellow-400' : 'bg-white border border-gray-200'}`}>
       <CoinAnimation
         trigger={showCoinAnimation}
         onComplete={() => setShowCoinAnimation(false)}
@@ -154,26 +167,33 @@ export const QuickTransactionForm = ({
       {/* フォーム */}
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
-          <Label>種類</Label>
-          <RadioGroup
-            value={formData.type}
-            onValueChange={(value) => setFormData({ ...formData, type: value as 'income' | 'expense' })}
-            className="flex space-x-4"
-          >
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="expense" id="expense" />
-              <Label htmlFor="expense">支出</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="income" id="income" />
-              <Label htmlFor="income">収入</Label>
-            </div>
-          </RadioGroup>
+          <div className="flex items-center justify-between">
+            <RadioGroup
+              value={formData.type}
+              onValueChange={(value) => setFormData({ ...formData, type: value as 'income' | 'expense' })}
+              className="flex space-x-4"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem className="bg-white" value="expense" id="expense" />
+                <Label htmlFor="expense">支出</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem className="bg-white" value="income" id="income" />
+                <Label htmlFor="income">収入</Label>
+              </div>
+            </RadioGroup>
+            {editingTransaction && (
+              <span className="ml-4 px-2 py-1 rounded text-xs font-bold bg-yellow-200 text-yellow-800 border border-yellow-400 flex items-center">
+                <span className="mr-1">📝</span>編集モード
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="space-y-2">
           <Label>金額</Label>
           <Input
+            className="bg-white"
             type="number"
             value={formData.amount}
             onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
@@ -187,7 +207,7 @@ export const QuickTransactionForm = ({
             value={formData.category}
             onValueChange={(value) => setFormData({ ...formData, category: value })}
           >
-            <SelectTrigger>
+            <SelectTrigger className="bg-white">
               <SelectValue placeholder="カテゴリーを選択" />
             </SelectTrigger>
             <SelectContent>
@@ -203,6 +223,7 @@ export const QuickTransactionForm = ({
         <div className="space-y-2">
           <Label>メモ</Label>
           <Textarea
+            className="bg-white"
             value={formData.memo}
             onChange={(e) => setFormData({ ...formData, memo: e.target.value })}
             placeholder="メモを入力（任意）"

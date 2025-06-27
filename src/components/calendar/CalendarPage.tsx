@@ -6,7 +6,7 @@ import { useTransactionStore } from '@/store/useTransactionStore';
 import { format, isSameDay, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { motion } from 'framer-motion';
-import { ArrowUpCircle, ArrowDownCircle, Trash2, Wallet, Edit, Loader2 } from 'lucide-react';
+import { ArrowUpCircle, ArrowDownCircle, Trash2, Wallet, Edit, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { QuickTransactionForm } from './QuickTransactionForm';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -251,6 +251,7 @@ export const CalendarPage = () => {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const { showSnackbar } = useSnackbar();
   const [rakutenLoading, setRakutenLoading] = useState(false);
+  const [showAllTransactions, setShowAllTransactions] = useState(false);
 
   useEffect(() => {
     fetchTransactions();
@@ -402,6 +403,20 @@ export const CalendarPage = () => {
     e.target.value = '';
   };
 
+  // モーダルが開いた時はトランザクション一覧を展開状態にする
+  useEffect(() => {
+    if (isDialogOpen) {
+      setShowAllTransactions(true);
+    }
+  }, [isDialogOpen]);
+
+  // モーダルが閉じた時は編集モードを解除
+  useEffect(() => {
+    if (!isDialogOpen) {
+      setEditingTransaction(null);
+    }
+  }, [isDialogOpen]);
+
   return (
     <motion.div 
       className="pb-20 space-y-6"
@@ -546,9 +561,23 @@ export const CalendarPage = () => {
           
           {/* Existing transactions for the day */}
           {selectedDateTransactions.length > 0 && (
-            <div className="mb-4">
-              <h4 className="text-sm font-medium text-gray-700 mb-2">この日の記録</h4>
-              <div className="space-y-2 max-h-32 overflow-y-auto">
+            <div>
+              <div className="flex items-center mb-2">
+                <h4 className="text-sm font-medium text-gray-700 flex-1">この日の記録</h4>
+                {selectedDateTransactions.length > 2 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowAllTransactions(v => !v)}
+                    className="px-2 py-1 ml-2"
+                    aria-label={showAllTransactions ? '閉じる' : 'もっと見る'}
+                    title={showAllTransactions ? '閉じる' : 'もっと見る'}
+                  >
+                    {showAllTransactions ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                  </Button>
+                )}
+              </div>
+              <div className={`space-y-2 overflow-auto transition-all duration-200 ${showAllTransactions ? 'max-h-[40vh] min-h-[4rem]' : 'max-h-[96px] min-h-[96px]'}`}>
                 {selectedDateTransactions.map((transaction) => (
                   <div key={transaction.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                     <div className="flex items-center space-x-2 flex-1">
@@ -568,7 +597,11 @@ export const CalendarPage = () => {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setEditingTransaction(transaction)}
+                        onClick={() =>
+                          editingTransaction?.id === transaction.id
+                            ? setEditingTransaction(null)
+                            : setEditingTransaction(transaction)
+                        }
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
