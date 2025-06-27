@@ -6,7 +6,7 @@ import { useTransactionStore } from '@/store/useTransactionStore';
 import { format, isSameDay, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { motion } from 'framer-motion';
-import { ArrowUpCircle, ArrowDownCircle, Trash2, Wallet, Edit } from 'lucide-react';
+import { ArrowUpCircle, ArrowDownCircle, Trash2, Wallet, Edit, Loader2 } from 'lucide-react';
 import { QuickTransactionForm } from './QuickTransactionForm';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -16,6 +16,9 @@ import { PickersDay, PickersDayProps } from '@mui/x-date-pickers/PickersDay';
 import { useSwipeable } from 'react-swipeable';
 import bearImg from '@/assets/bear-guide.png';
 import { Transaction } from '@/types';
+import { useSnackbar } from '@/hooks/use-toast';
+import Papa from 'papaparse';
+import { EXPENSE_CATEGORIES } from '@/types';
 
 // カスタムスタイルの定義
 const StyledDateCalendar = styled(DateCalendar)(({ theme }) => ({
@@ -246,6 +249,8 @@ export const CalendarPage = () => {
   const [showGuide, setShowGuide] = useState(false);
   const [dontShowNext, setDontShowNext] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const { showSnackbar } = useSnackbar();
+  const [rakutenLoading, setRakutenLoading] = useState(false);
 
   useEffect(() => {
     fetchTransactions();
@@ -278,11 +283,6 @@ export const CalendarPage = () => {
     }
   };
 
-  const handleTransactionAdded = () => {
-    setIsDialogOpen(false);
-    fetchTransactions();
-  };
-
   const handleDelete = async (transactionId: string) => {
     if (window.confirm('この収支を削除してもよろしいですか？')) {
       try {
@@ -307,6 +307,99 @@ export const CalendarPage = () => {
   const handleMonthChange = (date: Date) => {
     setCurrentMonth(date);
     setSelectedDate(date); // カレンダーの表示月も切り替える
+  };
+
+  // 楽天明細インポート処理
+  const handleRakutenCsvImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setRakutenLoading(true);
+    showSnackbar('楽天明細のインポートを開始します');
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results: Papa.ParseResult<Record<string, string>>) => {
+        const rows = results.data;
+        let success = 0;
+        let fail = 0;
+        
+        // CSV内の最新月を特定して、その翌月27日を全明細の引き落とし日とする
+        let latestYear = 0;
+        let latestMonth = 0;
+        
+        // まずCSV内の最新月を特定
+        for (const row of rows) {
+          const dateStr = row['利用日']?.trim();
+          if (!dateStr) continue;
+          try {
+            const [y, m] = dateStr.replace(/\//g, '-').split('-');
+            const year = parseInt(y);
+            const month = parseInt(m);
+            if (year > latestYear || (year === latestYear && month > latestMonth)) {
+              latestYear = year;
+              latestMonth = month;
+            }
+          } catch { continue; }
+        }
+        
+        // 最新月の翌月27日を計算
+        let paymentYear = latestYear;
+        let paymentMonth = latestMonth + 1;
+        if (paymentMonth > 12) {
+          paymentMonth = 1;
+          paymentYear += 1;
+        }
+        const paymentDate = `${paymentYear}-${paymentMonth.toString().padStart(2, '0')}-27`;
+        
+        console.log(`[楽天明細インポート] CSV最新月: ${latestYear}/${latestMonth}, 引き落とし日: ${paymentDate}`);
+        
+        for (const row of rows) {
+          const name = row['利用店名・商品名']?.trim() || '';
+          const amountKey = Object.keys(row).find(k => k.includes('支払金額'));
+          const amountStr = amountKey ? row[amountKey]?.replace(/,/g, '').trim() : '';
+          const dateStr = row['利用日']?.trim();
+          if (!name || !amountStr || !dateStr) { fail++; continue; }
+          const amount = Number(amountStr);
+          if (isNaN(amount)) { fail++; continue; }
+          
+          // 全明細で統一された引き落とし日を使用
+          const date = paymentDate;
+          const cardUsedDate = paymentDate;
+          
+          let category = 'その他';
+          for (const cat of EXPENSE_CATEGORIES) {
+            if (name.includes(cat)) { category = cat; break; }
+          }
+          try {
+            await useTransactionStore.getState().addTransaction({
+              type: 'expense',
+              amount,
+              category,
+              date,
+              memo: `${name}（利用日: ${dateStr}）`,
+              card_used_date: cardUsedDate,
+            });
+            success++;
+          } catch {
+            fail++;
+          }
+        }
+        useTransactionStore.getState().fetchTransactions();
+        setRakutenLoading(false);
+        if (success > 0) {
+          console.log('[楽天明細インポート] toast呼び出し: 登録件数:', success, '失敗:', fail);
+          showSnackbar(`楽天明細インポート完了: 登録件数: ${success}件、失敗: ${fail}件、引き落とし日: ${paymentDate}`, fail === 0 ? 'default' : 'destructive');
+        } else {
+          console.log('[楽天明細インポート] toast呼び出し: インポート失敗');
+          showSnackbar('インポート失敗: 明細の取り込みに失敗しました', 'destructive');
+        }
+      },
+      error: () => {
+        setRakutenLoading(false);
+        showSnackbar('CSV読み込みエラー: ファイルの解析に失敗しました', 'destructive');
+      },
+    });
+    e.target.value = '';
   };
 
   return (
@@ -337,13 +430,41 @@ export const CalendarPage = () => {
         className="w-full max-w-[100vw] flex justify-center"
       >
         <Card className="w-full max-w-4xl">
-          <CardContent className="p-2 sm:p-4 w-full min-h-[450px]" style={{ overflowY: 'hidden' }}>
+          <CardContent className="p-2 sm:p-4 w-full min-h-[450px] relative" style={{ overflowY: 'hidden' }}>
+            {/* カレンダー本体 */}
             <SwipeableCalendar
               selectedDate={selectedDate}
               onDateSelect={handleDateSelect}
               onMonthChange={handleMonthChange}
               currentMonth={currentMonth}
             />
+            {/* 楽天明細インポートボタン: 右下に絶対配置（白背景＋赤枠＋赤文字、元のデザイン） */}
+            <div style={{ position: 'absolute', bottom: 16, right: 16, zIndex: 10 }}>
+              <label className="inline-flex items-center gap-2 cursor-pointer">
+                <Button
+                  asChild
+                  disabled={rakutenLoading}
+                  className="bg-white border border-red-500 text-red-600 hover:bg-red-50 hover:border-red-600 font-semibold rounded-md px-4 py-2 shadow"
+                >
+                  <span className="flex items-center">
+                    {rakutenLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        インポート中...
+                      </>
+                    ) : (
+                      '楽天明細インポート'
+                    )}
+                  </span>
+                </Button>
+                <input
+                  type="file"
+                  accept=".csv"
+                  className="hidden"
+                  onChange={handleRakutenCsvImport}
+                />
+              </label>
+            </div>
           </CardContent>
         </Card>
       </motion.div>
@@ -430,7 +551,7 @@ export const CalendarPage = () => {
               <div className="space-y-2 max-h-32 overflow-y-auto">
                 {selectedDateTransactions.map((transaction) => (
                   <div key={transaction.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-2 flex-1">
                       {transaction.type === 'income' ? (
                         <ArrowUpCircle className="h-4 w-4 text-green-600" />
                       ) : (
@@ -439,6 +560,11 @@ export const CalendarPage = () => {
                       <span className="text-sm">{transaction.memo || transaction.category}</span>
                     </div>
                     <div className="flex items-center space-x-2">
+                      <span className={`text-sm font-medium ${
+                        transaction.type === 'income' ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        ¥{formatAmount(transaction.amount)}
+                      </span>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -463,7 +589,6 @@ export const CalendarPage = () => {
           {/* Quick transaction form */}
           <QuickTransactionForm
             selectedDate={selectedDate}
-            onTransactionAdded={handleTransactionAdded}
             editingTransaction={editingTransaction}
             onEditCancel={() => setEditingTransaction(null)}
           />

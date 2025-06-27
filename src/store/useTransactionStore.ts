@@ -111,6 +111,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
           {
             ...transaction,
             user_id: user.user.id,
+            card_used_date: transaction.card_used_date || null,
           }
         ])
         .select()

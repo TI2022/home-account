@@ -9,12 +9,11 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useTransactionStore } from '@/store/useTransactionStore';
-import { useToast } from '@/hooks/use-toast';
+import { useSnackbar } from '@/hooks/use-toast';
 import { EXPENSE_CATEGORIES } from '@/types';
 import type { RecurringExpense } from '@/types';
-import { Plus, Edit, Trash2, Receipt, Calendar, Clock } from 'lucide-react';
+import { Plus, Edit, Trash2, Receipt, Calendar, Clock, Loader2 } from 'lucide-react';
 import Papa from 'papaparse';
-import { Skeleton } from '@/components/ui/skeleton';
 
 const MONTH_NAMES = [
   '1月', '2月', '3月', '4月', '5月', '6月',
@@ -30,7 +29,7 @@ export const RecurringExpenseSettings = () => {
     deleteRecurringExpense,
     reflectRecurringExpensesForPeriod,
   } = useTransactionStore();
-  const { toast } = useToast();
+  const { showSnackbar } = useSnackbar();
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<string | null>(null);
@@ -44,6 +43,7 @@ export const RecurringExpenseSettings = () => {
   });
   const [loading, setLoading] = useState(false);
   const [allMonthsChecked, setAllMonthsChecked] = useState(false);
+  const [allMonthsDay, setAllMonthsDay] = useState(27);
   const [periodStartDate, setPeriodStartDate] = useState(() => {
     const d = new Date();
     d.setDate(1);
@@ -79,20 +79,12 @@ export const RecurringExpenseSettings = () => {
     e.preventDefault();
     
     if (!formData.name || !formData.amount || !formData.category) {
-      toast({
-        title: 'エラー',
-        description: '必須項目を入力してください',
-        variant: 'destructive',
-      });
+      showSnackbar('必須項目を入力してください', 'destructive');
       return;
     }
 
     if (formData.payment_schedule.length === 0) {
-      toast({
-        title: 'エラー',
-        description: '支払月を少なくとも1つ選択してください',
-        variant: 'destructive',
-      });
+      showSnackbar('支払月を少なくとも1つ選択してください', 'destructive');
       return;
     }
 
@@ -107,7 +99,8 @@ export const RecurringExpenseSettings = () => {
         : months.length === 1
         ? 'yearly'
         : 'custom') as 'monthly' | 'quarterly' | 'yearly' | 'custom';
-      const day_of_month = formData.payment_schedule.length > 0 ? formData.payment_schedule[0].day : 25;
+      // payment_scheduleが空の場合はday_of_monthをnullに設定
+      const day_of_month = formData.payment_schedule.length > 0 ? formData.payment_schedule[0].day : null;
       const expenseData = {
         name: formData.name,
         amount: parseInt(formData.amount),
@@ -121,26 +114,16 @@ export const RecurringExpenseSettings = () => {
 
       if (editingExpense) {
         await updateRecurringExpense(editingExpense, expenseData);
-        toast({
-          title: '更新完了',
-          description: '定期支出を更新しました',
-        });
+        showSnackbar('定期支出を更新しました');
       } else {
         await addRecurringExpense(expenseData);
-        toast({
-          title: '追加完了',
-          description: '定期支出を追加しました',
-        });
+        showSnackbar('定期支出を追加しました');
       }
 
       resetForm();
       setIsDialogOpen(false);
     } catch {
-      toast({
-        title: 'エラー',
-        description: '保存に失敗しました',
-        variant: 'destructive',
-      });
+      showSnackbar('保存に失敗しました', 'destructive');
     } finally {
       setLoading(false);
     }
@@ -164,32 +147,18 @@ export const RecurringExpenseSettings = () => {
 
     try {
       await deleteRecurringExpense(id);
-      toast({
-        title: '削除完了',
-        description: '定期支出を削除しました',
-      });
+      showSnackbar('定期支出を削除しました');
     } catch {
-      toast({
-        title: 'エラー',
-        description: '削除に失敗しました',
-        variant: 'destructive',
-      });
+      showSnackbar('削除に失敗しました', 'destructive');
     }
   };
 
   const handleToggleActive = async (id: string, isActive: boolean) => {
     try {
       await updateRecurringExpense(id, { is_active: isActive });
-      toast({
-        title: '更新完了',
-        description: `定期支出を${isActive ? '有効' : '無効'}にしました`,
-      });
+      showSnackbar(`定期支出を${isActive ? '有効' : '無効'}にしました`);
     } catch {
-      toast({
-        title: 'エラー',
-        description: '更新に失敗しました',
-        variant: 'destructive',
-      });
+      showSnackbar('更新に失敗しました', 'destructive');
     }
   };
 
@@ -217,6 +186,7 @@ export const RecurringExpenseSettings = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     setRakutenLoading(true);
+    showSnackbar('楽天明細のインポートを開始します');
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
@@ -232,10 +202,16 @@ export const RecurringExpenseSettings = () => {
           if (!name || !amountStr || !dateStr) { fail++; continue; }
           const amount = Number(amountStr);
           if (isNaN(amount)) { fail++; continue; }
+          // カード引き落とし日（27日）
           let date = '';
+          let cardUsedDate = '';
           try {
-            date = dateStr.replace(/\//g, '-');
-            if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('日付形式エラー');
+            // 利用日（実際のカード利用日）はcard_used_dateに保存
+            cardUsedDate = dateStr.replace(/\//g, '-');
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(cardUsedDate)) throw new Error('日付形式エラー');
+            // CSVの月の27日をdateにセット
+            const [y, m] = cardUsedDate.split('-');
+            date = `${y}-${m}-27`;
           } catch { fail++; continue; }
           let category = 'その他';
           for (const cat of EXPENSE_CATEGORIES) {
@@ -248,6 +224,7 @@ export const RecurringExpenseSettings = () => {
               category,
               date,
               memo: name,
+              card_used_date: cardUsedDate,
             });
             success++;
           } catch {
@@ -257,22 +234,16 @@ export const RecurringExpenseSettings = () => {
         useTransactionStore.getState().fetchTransactions();
         setRakutenLoading(false);
         if (success > 0) {
-          toast({
-            title: '楽天明細インポート完了',
-            description: `登録件数: ${success}件、失敗: ${fail}件`,
-            variant: fail === 0 ? 'default' : 'destructive',
-          });
+          console.log('[楽天明細インポート] toast呼び出し: 登録件数:', success, '失敗:', fail);
+          showSnackbar(`楽天明細インポート完了: 登録件数: ${success}件、失敗: ${fail}件`, fail === 0 ? 'default' : 'destructive');
         } else {
-          toast({
-            title: 'インポート失敗',
-            description: '明細の取り込みに失敗しました',
-            variant: 'destructive',
-          });
+          console.log('[楽天明細インポート] toast呼び出し: インポート失敗');
+          showSnackbar('インポート失敗: 明細の取り込みに失敗しました', 'destructive');
         }
       },
       error: () => {
         setRakutenLoading(false);
-        toast({ title: 'CSV読み込みエラー', description: 'ファイルの解析に失敗しました', variant: 'destructive' });
+        showSnackbar('CSV読み込みエラー: ファイルの解析に失敗しました', 'destructive');
       },
     });
     e.target.value = '';
@@ -287,7 +258,16 @@ export const RecurringExpenseSettings = () => {
         {/* 楽天明細インポートボタン */}
         <label className="inline-flex items-center gap-2 cursor-pointer">
           <Button asChild disabled={rakutenLoading}>
-            <span>楽天明細インポート</span>
+            <span className="flex items-center">
+              {rakutenLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  インポート中...
+                </>
+              ) : (
+                '楽天明細インポート'
+              )}
+            </span>
           </Button>
           <input
             type="file"
@@ -295,7 +275,6 @@ export const RecurringExpenseSettings = () => {
             className="hidden"
             onChange={handleRakutenCsvImport}
           />
-          {rakutenLoading && <Skeleton className="w-6 h-6 ml-2" />}
         </label>
       </div>
       <Dialog open={isReflectDialogOpen} onOpenChange={setIsReflectDialogOpen}>
@@ -332,7 +311,7 @@ export const RecurringExpenseSettings = () => {
                 await reflectRecurringExpensesForPeriod(periodStartDate, periodEndDate);
                 setReflectLoading(false);
                 setIsReflectDialogOpen(false);
-                toast({ title: '反映完了', description: '指定期間の定期支出を反映しました' });
+                showSnackbar('反映完了', 'default');
               }}
             >
               {reflectLoading ? '反映中...' : '定期支出を反映'}
@@ -414,11 +393,8 @@ export const RecurringExpenseSettings = () => {
                       setAllMonthsChecked(checked as boolean);
                       setFormData(prev => {
                         if (checked) {
-                          // 全月ON: 既存の値を維持しつつ、未設定月は25日で追加
-                          const newSchedule = [...Array(12)].map((_, idx) => {
-                            const exist = prev.payment_schedule.find(s => s.month === idx + 1);
-                            return exist ? { ...exist } : { month: idx + 1, day: 25 };
-                          });
+                          // 全月ON: 選択した日付で全月分をセット
+                          const newSchedule = [...Array(12)].map((_, idx) => ({ month: idx + 1, day: allMonthsDay }));
                           return { ...prev, payment_schedule: newSchedule };
                         } else {
                           // 全月OFF: 全て解除
@@ -427,7 +403,30 @@ export const RecurringExpenseSettings = () => {
                       });
                     }}
                   />
-                  <span className="text-xs text-gray-600">全月一括</span>
+                  <span className="text-gray-600">全月一括</span>
+                  <Select
+                    value={String(allMonthsDay)}
+                    onValueChange={val => {
+                      const day = Number(val);
+                      setAllMonthsDay(day);
+                      if (allMonthsChecked) {
+                        setFormData(prev => ({
+                          ...prev,
+                          payment_schedule: prev.payment_schedule.map(s => ({ ...s, day }))
+                        }));
+                      }
+                    }}
+                    disabled={!allMonthsChecked}
+                  >
+                    <SelectTrigger className="w-20 ml-2">
+                      <SelectValue placeholder="日付" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                        <SelectItem key={day} value={String(day)}>{day}日</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                   {MONTH_NAMES.map((month, idx) => {
@@ -452,7 +451,7 @@ export const RecurringExpenseSettings = () => {
                             });
                           }}
                         />
-                        <span className="text-sm w-8">{month}</span>
+                        <span className="w-8">{month}</span>
                         <Input
                           type="number"
                           min={1}
@@ -473,7 +472,7 @@ export const RecurringExpenseSettings = () => {
                           className="w-16"
                           disabled={!schedule}
                         />
-                        <span className="text-xs text-gray-400">日</span>
+                        <span className="text-gray-400">日</span>
                       </div>
                     );
                   })}
@@ -527,8 +526,8 @@ export const RecurringExpenseSettings = () => {
             <CardContent className="p-6 text-center text-gray-500">
               <Receipt className="h-12 w-12 mx-auto mb-4 text-gray-400" />
               <p className="text-lg font-medium mb-2">定期支出が設定されていません</p>
-              <p className="text-sm">税金や保険料などの定期的な支出を管理しましょう</p>
-              <p className="text-xs mt-2 text-gray-400">
+              <p>税金や保険料などの定期的な支出を管理しましょう</p>
+              <p className="mt-2 text-gray-400">
                 住民税、所得税、健康保険、国民年金など
               </p>
             </CardContent>
@@ -558,7 +557,7 @@ export const RecurringExpenseSettings = () => {
                               {expense.is_active ? '有効' : '無効'}
                             </span>
                           </div>
-                          <div className="flex items-center space-x-4 text-sm text-gray-600">
+                          <div className="flex items-center space-x-4 text-gray-600">
                             <div className="flex items-center space-x-1">
                               <Calendar className="h-3 w-3" />
                               <span>
@@ -577,7 +576,7 @@ export const RecurringExpenseSettings = () => {
                             </div>
                           </div>
                           {expense.description && (
-                            <p className="text-xs text-gray-500 mt-1">{expense.description}</p>
+                            <p className="text-gray-500 mt-1">{expense.description}</p>
                           )}
                           <p className="text-lg font-bold text-red-600 mt-2">
                             ¥{formatAmount(expense.amount)}

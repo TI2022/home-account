@@ -6,12 +6,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useThemeStore, PRESET_THEMES } from '@/store/useThemeStore';
-import { useToast } from '@/hooks/use-toast';
+import { useSnackbar } from '@/hooks/use-toast';
 import { Palette, Plus, Trash2, Check, Sparkles } from 'lucide-react';
 
 export const ThemeCustomizer = () => {
   const { currentTheme, customThemes, setTheme, addCustomTheme, deleteCustomTheme } = useThemeStore();
-  const { toast } = useToast();
+  const { showSnackbar } = useSnackbar();
   
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [customName, setCustomName] = useState('');
@@ -23,19 +23,12 @@ export const ThemeCustomizer = () => {
 
   const handleThemeSelect = (themeId: string) => {
     setTheme(themeId);
-    toast({
-      title: '背景を変更しました',
-      description: '新しい背景テーマが適用されました✨',
-    });
+    showSnackbar('新しい背景テーマが適用されました✨');
   };
 
   const handleCreateCustomTheme = () => {
     if (!customName.trim()) {
-      toast({
-        title: 'エラー',
-        description: 'テーマ名を入力してください',
-        variant: 'destructive',
-      });
+      showSnackbar('テーマ名を入力してください', 'destructive');
       return;
     }
 
@@ -46,10 +39,7 @@ export const ThemeCustomizer = () => {
       gradient,
     });
 
-    toast({
-      title: 'カスタムテーマを作成しました',
-      description: `「${customName}」が追加されました🎨`,
-    });
+    showSnackbar(`「${customName}」が追加されました🎨`);
 
     setCustomName('');
     setSelectedColors({
@@ -65,10 +55,7 @@ export const ThemeCustomizer = () => {
       setTheme('default');
     }
     deleteCustomTheme(themeId);
-    toast({
-      title: 'テーマを削除しました',
-      description: `「${themeName}」を削除しました`,
-    });
+    showSnackbar(`「${themeName}」を削除しました`);
   };
 
   const previewGradient = `linear-gradient(135deg, ${selectedColors.color1} 0%, ${selectedColors.color2} 50%, ${selectedColors.color3} 100%)`;
@@ -76,7 +63,7 @@ export const ThemeCustomizer = () => {
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <p className="text-gray-600 text-sm">気分に合わせて背景を変更できます</p>
+        <p className="text-gray-600">気分に合わせて背景を変更できます</p>
       </div>
 
       {/* Preset Themes */}
@@ -106,9 +93,9 @@ export const ThemeCustomizer = () => {
                   <div>
                     <div className="flex items-center space-x-1">
                       <span className="text-lg">{theme.icon}</span>
-                      <span className="font-medium text-sm">{theme.name}</span>
+                      <span className="font-medium">{theme.name}</span>
                     </div>
-                    <p className="text-xs text-gray-500">{theme.mood}</p>
+                    <p className="text-gray-500">{theme.mood}</p>
                   </div>
                   {currentTheme === theme.id && (
                     <motion.div
@@ -160,7 +147,7 @@ export const ThemeCustomizer = () => {
                     <Label>グラデーション色</Label>
                     <div className="grid grid-cols-3 gap-2">
                       <div>
-                        <Label htmlFor="color1" className="text-xs">開始色</Label>
+                        <Label htmlFor="color1">開始色</Label>
                         <input
                           id="color1"
                           type="color"
@@ -170,7 +157,7 @@ export const ThemeCustomizer = () => {
                         />
                       </div>
                       <div>
-                        <Label htmlFor="color2" className="text-xs">中間色</Label>
+                        <Label htmlFor="color2">中間色</Label>
                         <input
                           id="color2"
                           type="color"
@@ -180,7 +167,7 @@ export const ThemeCustomizer = () => {
                         />
                       </div>
                       <div>
-                        <Label htmlFor="color3" className="text-xs">終了色</Label>
+                        <Label htmlFor="color3">終了色</Label>
                         <input
                           id="color3"
                           type="color"
@@ -224,8 +211,8 @@ export const ThemeCustomizer = () => {
           {customThemes.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               <Palette className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-              <p className="text-sm">まだカスタムテーマがありません</p>
-              <p className="text-xs mt-1">「作成」ボタンから独自のテーマを作ってみましょう</p>
+              <p>まだカスタムテーマがありません</p>
+              <p className="mt-1">「作成」ボタンから独自のテーマを作ってみましょう</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-3">
@@ -251,7 +238,7 @@ export const ThemeCustomizer = () => {
                       />
                       <div className="flex-1">
                         <div className="flex items-center space-x-2">
-                          <span className="font-medium text-sm">{theme.name}</span>
+                          <span className="font-medium">{theme.name}</span>
                           {currentTheme === theme.id && (
                             <motion.div
                               initial={{ scale: 0 }}
@@ -262,7 +249,7 @@ export const ThemeCustomizer = () => {
                             </motion.div>
                           )}
                         </div>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-gray-500">
                           作成日: {new Date(theme.createdAt).toLocaleDateString('ja-JP')}
                         </p>
                       </div>

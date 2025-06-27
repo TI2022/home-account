@@ -12,7 +12,7 @@ import { motion } from 'framer-motion';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useTransactionStore } from '@/store/useTransactionStore';
 import { useGameStore } from '@/store/useGameStore';
-import { useToast } from '@/hooks/use-toast';
+import { useSnackbar } from '@/hooks/use-toast';
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '@/types';
 import { format } from 'date-fns';
 
@@ -29,7 +29,7 @@ export const AddTransactionForm = () => {
   
   const { addTransaction } = useTransactionStore();
   const { recordTransaction } = useGameStore();
-  const { toast } = useToast();
+  const { showSnackbar } = useSnackbar();
 
   const categories = type === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
 
@@ -37,11 +37,7 @@ export const AddTransactionForm = () => {
     e.preventDefault();
     
     if (!amount || !category) {
-      toast({
-        title: 'エラー',
-        description: '金額とカテゴリを入力してください',
-        variant: 'destructive',
-      });
+      showSnackbar('金額とカテゴリを入力してください', 'destructive');
       return;
     }
 
@@ -55,10 +51,7 @@ export const AddTransactionForm = () => {
         memo: memo || undefined,
       });
 
-      toast({
-        title: '記録完了',
-        description: `${type === 'expense' ? '支出' : '収入'}を記録しました`,
-      });
+      showSnackbar(`${type === 'expense' ? '支出' : '収入'}を記録しました`);
 
       // Record transaction for game progress
       recordTransaction();
@@ -87,11 +80,7 @@ export const AddTransactionForm = () => {
       setMemo('');
       setDate(format(new Date(), 'yyyy-MM-dd'));
     } catch {
-      toast({
-        title: 'エラー',
-        description: '記録に失敗しました',
-        variant: 'destructive',
-      });
+      showSnackbar('記録に失敗しました', 'destructive');
     } finally {
       setLoading(false);
     }

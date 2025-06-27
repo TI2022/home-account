@@ -222,8 +222,8 @@ export const GraphPage = () => {
                   className="inline-block w-3 h-3 rounded-full"
                   style={{ backgroundColor: COLORS[idx % COLORS.length] }}
                 />
-                <span className="text-sm">{item.category}</span>
-                <span className="text-xs text-gray-500">
+                <span>{item.category}</span>
+                <span className="text-gray-500">
                   ¥{item.amount.toLocaleString()}
                 </span>
               </div>
@@ -260,7 +260,7 @@ export const GraphPage = () => {
               </Bar>
             </BarChart>
           </ResponsiveContainer>
-          <div className="text-xs text-gray-500 mt-2">
+          <div className="text-gray-500 mt-2">
             ※「収支」は収入−支出の差額です。プラスなら青、マイナスなら赤で表示されます。
           </div>
         </CardContent>
@@ -281,7 +281,7 @@ export const GraphPage = () => {
               <Line type="monotone" dataKey="balance" stroke="#22C55E" name="貯蓄残高" />
             </LineChart>
           </ResponsiveContainer>
-          <div className="text-xs text-gray-500 mt-2">
+          <div className="text-gray-500 mt-2">
             ※各月末時点の貯蓄残高を表示しています。
           </div>
         </CardContent>
@@ -298,13 +298,13 @@ export const GraphPage = () => {
               className="bg-green-500 h-6 rounded-full transition-all duration-700"
               style={{ width: `${progress}%` }}
             />
-            <div className="absolute inset-0 flex items-center justify-center font-bold text-white text-sm">
+            <div className="absolute inset-0 flex items-center justify-center font-bold text-white">
               {goal > 0
                 ? `${progress.toFixed(1)}%（¥${current.toLocaleString()} / ¥${goal.toLocaleString()}）`
                 : '目標未設定'}
             </div>
           </div>
-          <div className="text-xs text-gray-500 mt-2">
+          <div className="text-gray-500 mt-2">
             ※目標貯蓄額に対する現在の貯蓄額の進捗率を表示しています。
           </div>
         </CardContent>
@@ -317,7 +317,7 @@ export const GraphPage = () => {
         </CardHeader>
         <CardContent>
           <div className="flex items-center space-x-2 mb-4">
-            <span className="text-sm">集計単位：</span>
+            <span>集計単位：</span>
             <button
               className={`px-3 py-1 rounded ${period === 'week' ? 'bg-blue-500 text-white' : 'bg-gray-100'}`}
               onClick={() => setPeriod('week')}
@@ -357,7 +357,7 @@ export const GraphPage = () => {
               </Bar>
             </BarChart>
           </ResponsiveContainer>
-          <div className="text-xs text-gray-500 mt-2">
+          <div className="text-gray-500 mt-2">
             ※週・月・年ごとの収入・支出・収支を切り替えて比較できます。収支は増減で色分けされます。
           </div>
         </CardContent>

@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuthStore } from '@/store/useAuthStore';
-import { useToast } from '@/hooks/use-toast';
+import { useSnackbar } from '@/hooks/use-toast';
 import { Calculator } from 'lucide-react';
 
 export const AuthForm = () => {
@@ -13,7 +13,7 @@ export const AuthForm = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const { signIn, signUp } = useAuthStore();
-  const { toast } = useToast();
+  const { showSnackbar } = useSnackbar();
   const [errorMessage, setErrorMessage] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -27,25 +27,14 @@ export const AuthForm = () => {
 
       if (result.error) {
         setErrorMessage(result.error);
-        toast({
-          title: 'エラー',
-          description: result.error,
-          variant: 'destructive',
-        });
+        showSnackbar(result.error, 'destructive');
       } else {
         setErrorMessage('');
-        toast({
-          title: isSignUp ? 'アカウント作成完了' : 'ログイン完了',
-          description: 'TT家計簿へようこそ！',
-        });
+        showSnackbar(isSignUp ? 'アカウント作成完了' : 'ログイン完了');
       }
     } catch {
       setErrorMessage('予期しないエラーが発生しました');
-      toast({
-        title: 'エラー',
-        description: '予期しないエラーが発生しました',
-        variant: 'destructive',
-      });
+      showSnackbar('予期しないエラーが発生しました', 'destructive');
     } finally {
       setLoading(false);
     }
@@ -111,7 +100,7 @@ export const AuthForm = () => {
                 {loading ? '処理中...' : (isSignUp ? 'アカウント作成' : 'ログイン')}
               </Button>
               {errorMessage && (
-                <div className="mt-2 text-red-600 text-sm text-center">{errorMessage}</div>
+                <div className="mt-2 text-red-600 text-center">{errorMessage}</div>
               )}
             </form>
             
@@ -119,7 +108,7 @@ export const AuthForm = () => {
               <button
                 type="button"
                 onClick={() => setIsSignUp(!isSignUp)}
-                className="text-green-600 hover:text-green-700 text-sm underline"
+                className="text-green-600 hover:text-green-700 underline"
               >
                 {isSignUp 
                   ? 'すでにアカウントをお持ちの方はこちら' 
@@ -129,7 +118,7 @@ export const AuthForm = () => {
             </div>
           </CardContent>
         </Card>
-        <div className="mt-6 text-center text-xs text-gray-500">
+        <div className="mt-6 text-center text-gray-500">
           <a href="/terms" target="_blank" rel="noopener noreferrer" className="underline hover:text-green-600">利用規約</a> をご確認ください。
         </div>
       </div>

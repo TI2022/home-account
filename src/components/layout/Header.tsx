@@ -99,8 +99,8 @@ export const Header = () => {
                     <User className="h-4 w-4 text-white" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900">アカウント</p>
-                    <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                    <p className="font-medium text-gray-900">アカウント</p>
+                    <p className="text-gray-500 truncate">{user?.email}</p>
                   </div>
                 </div>
               </div>

@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useTransactionStore } from '@/store/useTransactionStore';
-import { useToast } from '@/hooks/use-toast';
+import { useSnackbar } from '@/hooks/use-toast';
 import { INCOME_CATEGORIES } from '@/types';
 import { Plus, Edit, Trash2 } from 'lucide-react';
 
@@ -20,7 +20,7 @@ export const RecurringIncomeSettings = () => {
     deleteRecurringIncome,
     reflectRecurringIncomesForPeriod
   } = useTransactionStore();
-  const { toast } = useToast();
+  const { showSnackbar } = useSnackbar();
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingIncome, setEditingIncome] = useState<string | null>(null);
@@ -65,11 +65,7 @@ export const RecurringIncomeSettings = () => {
     e.preventDefault();
     
     if (!formData.name || !formData.amount || !formData.category) {
-      toast({
-        title: 'エラー',
-        description: '必須項目を入力してください',
-        variant: 'destructive',
-      });
+      showSnackbar('必須項目を入力してください', 'destructive');
       return;
     }
 
@@ -85,26 +81,16 @@ export const RecurringIncomeSettings = () => {
 
       if (editingIncome) {
         await updateRecurringIncome(editingIncome, incomeData);
-        toast({
-          title: '更新完了',
-          description: '定期収入を更新しました',
-        });
+        showSnackbar('定期収入を更新しました');
       } else {
         await addRecurringIncome(incomeData);
-        toast({
-          title: '追加完了',
-          description: '定期収入を追加しました',
-        });
+        showSnackbar('定期収入を追加しました');
       }
 
       resetForm();
       setIsDialogOpen(false);
     } catch {
-      toast({
-        title: 'エラー',
-        description: '保存に失敗しました',
-        variant: 'destructive',
-      });
+      showSnackbar('保存に失敗しました', 'destructive');
     } finally {
       setLoading(false);
     }
@@ -127,32 +113,18 @@ export const RecurringIncomeSettings = () => {
 
     try {
       await deleteRecurringIncome(id);
-      toast({
-        title: '削除完了',
-        description: '定期収入を削除しました',
-      });
+      showSnackbar('定期収入を削除しました');
     } catch {
-      toast({
-        title: 'エラー',
-        description: '削除に失敗しました',
-        variant: 'destructive',
-      });
+      showSnackbar('削除に失敗しました', 'destructive');
     }
   };
 
   const handleToggleActive = async (id: string, isActive: boolean) => {
     try {
       await updateRecurringIncome(id, { is_active: isActive });
-      toast({
-        title: '更新完了',
-        description: `定期収入を${isActive ? '有効' : '無効'}にしました`,
-      });
+      showSnackbar(`定期収入を${isActive ? '有効' : '無効'}にしました`);
     } catch {
-      toast({
-        title: 'エラー',
-        description: '更新に失敗しました',
-        variant: 'destructive',
-      });
+      showSnackbar('更新に失敗しました', 'destructive');
     }
   };
 
@@ -201,7 +173,7 @@ export const RecurringIncomeSettings = () => {
                   await reflectRecurringIncomesForPeriod(periodStartDate, periodEndDate);
                   setReflectLoading(false);
                   setIsReflectDialogOpen(false);
-                  toast({ title: '反映完了', description: '指定期間の定期収入を反映しました' });
+                  showSnackbar('指定期間の定期収入を反映しました');
                 }}
               >
                 {reflectLoading ? '反映中...' : '定期収入を反映'}
@@ -328,7 +300,7 @@ export const RecurringIncomeSettings = () => {
           <Card>
             <CardContent className="p-6 text-center text-gray-500">
               <p>定期収入が設定されていません</p>
-              <p className="text-sm mt-1">「追加」ボタンから設定してください</p>
+              <p className="mt-1">「追加」ボタンから設定してください</p>
             </CardContent>
           </Card>
         ) : (
@@ -347,7 +319,7 @@ export const RecurringIncomeSettings = () => {
                         {income.is_active ? '有効' : '無効'}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-gray-600">
                       {income.category} • 毎月{income.day_of_month}日
                     </p>
                     <p className="text-lg font-bold text-green-600 mt-1">
@@ -388,7 +360,7 @@ export const RecurringIncomeSettings = () => {
           <Card className="bg-green-50 border-green-200">
             <CardContent className="p-4">
               <div className="text-center">
-                <p className="text-sm text-green-700 font-medium mb-1">年間定期収入合計</p>
+                <p className="text-green-700 font-medium mb-1">年間定期収入合計</p>
                 <p className="text-2xl font-bold text-green-600">
                   ¥{formatAmount(
                     recurringIncomes
@@ -396,7 +368,7 @@ export const RecurringIncomeSettings = () => {
                       .reduce((sum, income) => sum + income.amount * 12, 0)
                   )}
                 </p>
-                <p className="text-xs text-green-600 mt-1">
+                <p className="text-green-600 mt-1">
                   有効な定期収入: {recurringIncomes.filter(i => i.is_active).length}件
                 </p>
               </div>

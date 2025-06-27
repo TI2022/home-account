@@ -2,26 +2,30 @@ import { useEffect, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { useSavingsPlanStore } from '@/store/useSavingsPlanStore';
+import { useWishlistStore } from '@/store/useWishlistStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
 export const SavingsPlan = () => {
   const { plan, fetchPlan, upsertPlan } = useSavingsPlanStore();
+  const { wishlist, fetchWishlist } = useWishlistStore();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [form, setForm] = useState({
-    goal_amount: plan?.goal_amount?.toString() || '',
     monthly_target: plan?.monthly_target?.toString() || '',
     target_date: plan?.target_date || '',
   });
 
+  // 欲しいものリストの合計金額
+  const wishlistTotal = wishlist.reduce((sum, item) => sum + Number(item.price), 0);
+
   useEffect(() => {
     fetchPlan();
-  }, [fetchPlan]);
+    fetchWishlist();
+  }, [fetchPlan, fetchWishlist]);
 
   useEffect(() => {
     if (plan) {
       setForm({
-        goal_amount: plan.goal_amount.toString(),
         monthly_target: plan.monthly_target.toString(),
         target_date: plan.target_date || '',
       });
@@ -29,13 +33,13 @@ export const SavingsPlan = () => {
   }, [plan]);
 
   // 達成率・残り金額・残り月数計算
-  const goal = Number(plan?.goal_amount || 0);
+  const goal = wishlistTotal;
   const monthly = Number(plan?.monthly_target || 0);
 
   const handleSave = async () => {
-    if (!form.goal_amount || !form.monthly_target) return;
+    if (!goal || !form.monthly_target) return;
     await upsertPlan({
-      goal_amount: Number(form.goal_amount),
+      goal_amount: goal,
       monthly_target: Number(form.monthly_target),
       target_date: form.target_date || null,
     });
@@ -48,21 +52,14 @@ export const SavingsPlan = () => {
         <CardTitle>貯金計画</CardTitle>
       </CardHeader>
       <CardContent>
-        {plan ? (
-          <div>
-            <div className="mb-2">目標額：<span className="font-bold text-blue-600">¥{goal.toLocaleString()}</span></div>
-            <div className="mb-2">毎月の目標額：<span className="font-bold text-green-600">¥{monthly.toLocaleString()}</span></div>
-            {plan.target_date && (
-              <div className="mb-2">目標日：<span className="font-bold">{format(parseISO(plan.target_date), 'yyyy年M月d日', { locale: ja })}</span></div>
-            )}
-            <Button onClick={() => setIsDialogOpen(true)} className="mt-2">計画を編集</Button>
-          </div>
-        ) : (
-          <div>
-            <div className="mb-2 text-gray-500">まだ貯金計画がありません</div>
-            <Button onClick={() => setIsDialogOpen(true)}>計画を立てる</Button>
-          </div>
-        )}
+        <div>
+          <div className="mb-2">目標額：<span className="font-bold text-blue-600">¥{goal.toLocaleString()}</span></div>
+          <div className="mb-2">毎月の目標額：<span className="font-bold text-green-600">¥{monthly.toLocaleString()}</span></div>
+          {plan?.target_date && (
+            <div className="mb-2">目標日：<span className="font-bold">{format(parseISO(plan.target_date), 'yyyy年M月d日', { locale: ja })}</span></div>
+          )}
+          <Button onClick={() => setIsDialogOpen(true)} className="mt-2">計画を編集</Button>
+        </div>
       </CardContent>
 
       {/* モーダル */}
@@ -72,18 +69,17 @@ export const SavingsPlan = () => {
             <h2 className="text-lg font-bold mb-4">貯金計画を設定</h2>
             <div className="space-y-3">
               <div>
-                <label className="block text-sm mb-1">目標額</label>
+                <label className="block mb-1">目標額</label>
                 <input
                   type="number"
                   min={0}
-                  value={form.goal_amount}
-                  onChange={e => setForm(f => ({ ...f, goal_amount: e.target.value }))}
-                  className="w-full border rounded px-3 py-2"
-                  required
+                  value={goal}
+                  disabled
+                  className="w-full border rounded px-3 py-2 bg-gray-100 text-gray-500 cursor-not-allowed"
                 />
               </div>
               <div>
-                <label className="block text-sm mb-1">毎月の目標額</label>
+                <label className="block mb-1">毎月の目標額</label>
                 <input
                   type="number"
                   min={0}
@@ -94,7 +90,7 @@ export const SavingsPlan = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm mb-1">目標日（任意）</label>
+                <label className="block mb-1">目標日（任意）</label>
                 <input
                   type="date"
                   value={form.target_date || ''}

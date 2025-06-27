@@ -41,7 +41,7 @@ export const ExpenseChart = () => {
       return (
         <div className="bg-white p-3 shadow-lg rounded-lg border">
           <p className="font-medium">{data.category}</p>
-          <p className="text-sm text-gray-600">{formatAmount(data.amount)}</p>
+          <p className="text-gray-600">{formatAmount(data.amount)}</p>
         </div>
       );
     }
@@ -99,9 +99,9 @@ export const ExpenseChart = () => {
                   className="w-3 h-3 rounded-full"
                   style={{ backgroundColor: item.color }}
                 />
-                <span className="text-sm">{item.category}</span>
+                <span>{item.category}</span>
               </div>
-              <span className="text-sm font-medium">{formatAmount(item.amount)}</span>
+              <span className="font-medium">{formatAmount(item.amount)}</span>
             </div>
           ))}
         </div>

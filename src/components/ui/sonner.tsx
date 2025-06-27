@@ -1,29 +1,32 @@
-import { useTheme } from 'next-themes';
-import { Toaster as Sonner } from 'sonner';
+import { useEffect } from 'react';
 
-type ToasterProps = React.ComponentProps<typeof Sonner>;
+// Snackbarのprops
+export interface SnackbarProps {
+  open: boolean;
+  message: string;
+  variant?: 'default' | 'destructive';
+  onClose?: () => void;
+  duration?: number;
+}
 
-const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = 'system' } = useTheme();
+export const Snackbar = ({ open, message, variant = 'default', onClose, duration = 2000 }: SnackbarProps) => {
+  useEffect(() => {
+    if (open && onClose) {
+      const timer = setTimeout(onClose, duration);
+      return () => clearTimeout(timer);
+    }
+  }, [open, onClose, duration]);
 
+  if (!open) return null;
   return (
-    <Sonner
-      theme={theme as ToasterProps['theme']}
-      className="toaster group"
-      toastOptions={{
-        classNames: {
-          toast:
-            'group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg',
-          description: 'group-[.toast]:text-muted-foreground',
-          actionButton:
-            'group-[.toast]:bg-primary group-[.toast]:text-primary-foreground',
-          cancelButton:
-            'group-[.toast]:bg-muted group-[.toast]:text-muted-foreground',
-        },
-      }}
-      {...props}
-    />
+    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[200]">
+      <div
+        className={`px-6 py-3 rounded shadow-lg font-bold text-white text-center min-w-[200px] max-w-[90vw] transition-all ${
+          variant === 'destructive' ? 'bg-red-500' : 'bg-gray-900'
+        } animate-fade-in-out`}
+      >
+        {message}
+      </div>
+    </div>
   );
 };
-
-export { Toaster };

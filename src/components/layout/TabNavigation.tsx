@@ -32,7 +32,7 @@ export const TabNavigation = () => {
             >
               <div className="flex flex-col items-center space-y-1">
                 <tab.icon className="h-5 w-5" />
-                <span className="text-xs font-medium">{tab.label}</span>
+                <span className="font-medium">{tab.label}</span>
               </div>
             </Button>
           </motion.div>

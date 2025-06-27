@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useTransactionStore } from '@/store/useTransactionStore';
-import { useToast } from '@/hooks/use-toast';
+import { useSnackbar } from '@/hooks/use-toast';
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '@/types';
 import { format } from 'date-fns';
 import { Transaction } from '@/types';
@@ -14,19 +14,17 @@ import { CoinAnimation } from '@/components/ui/coin-animation';
 
 interface QuickTransactionFormProps {
   selectedDate: Date;
-  onTransactionAdded: () => void;
   editingTransaction?: Transaction | null;
   onEditCancel?: () => void;
 }
 
 export const QuickTransactionForm = ({ 
   selectedDate, 
-  onTransactionAdded,
   editingTransaction: externalEditingTransaction = null,
   onEditCancel
 }: QuickTransactionFormProps) => {
   const { addTransaction, updateTransaction } = useTransactionStore();
-  const { toast } = useToast();
+  const { showSnackbar } = useSnackbar();
   const [formData, setFormData] = useState({
     type: 'expense' as 'income' | 'expense',
     amount: '',
@@ -43,6 +41,8 @@ export const QuickTransactionForm = ({
     category: string;
     memo: string;
   } | null>(null);
+  const [successToastOpen, setSuccessToastOpen] = useState(false);
+  const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // 外部からeditingTransactionが渡されたら内部stateに反映
   useEffect(() => {
@@ -67,11 +67,7 @@ export const QuickTransactionForm = ({
     e.preventDefault();
     if (isSubmitting) return;
     if (!formData.amount || !formData.category) {
-      toast({
-        title: 'エラー',
-        description: '金額とカテゴリーを入力してください',
-        variant: 'destructive',
-      });
+      showSnackbar('エラー', 'destructive');
       return;
     }
     const submitData = {
@@ -103,10 +99,8 @@ export const QuickTransactionForm = ({
           category: formData.category,
           memo: formData.memo,
         });
-        toast({
-          title: '更新完了',
-          description: '収支を更新しました',
-        });
+        setSuccessToastOpen(true);
+        toastTimeoutRef.current = setTimeout(() => setSuccessToastOpen(false), 1000);
       } else {
         await addTransaction({
           date: submitData.date,
@@ -115,10 +109,8 @@ export const QuickTransactionForm = ({
           category: submitData.category,
           memo: submitData.memo,
         });
-        toast({
-          title: '追加完了',
-          description: '収支を追加しました',
-        });
+        setSuccessToastOpen(true);
+        toastTimeoutRef.current = setTimeout(() => setSuccessToastOpen(false), 1000);
         setShowCoinAnimation(true);
       }
       setFormData({
@@ -128,13 +120,8 @@ export const QuickTransactionForm = ({
         memo: '',
       });
       setEditingTransaction(null);
-      onTransactionAdded();
     } catch {
-      toast({
-        title: 'エラー',
-        description: '操作に失敗しました',
-        variant: 'destructive',
-      });
+      showSnackbar('操作に失敗しました', 'destructive');
     } finally {
       setIsSubmitting(false);
     }
@@ -157,6 +144,13 @@ export const QuickTransactionForm = ({
         trigger={showCoinAnimation}
         onComplete={() => setShowCoinAnimation(false)}
       />
+      {successToastOpen && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[200]">
+          <div className="bg-green-500 text-white px-6 py-2 rounded shadow font-bold animate-fade-in-out">
+            {editingTransaction ? '更新完了' : '追加完了'}
+          </div>
+        </div>
+      )}
       {/* フォーム */}
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">

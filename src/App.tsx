@@ -11,11 +11,12 @@ import { AddTransactionForm } from '@/components/add/AddTransactionForm';
 import { HistoryPage } from '@/components/history/HistoryPage';
 import { SettingsPage } from '@/components/settings/SettingsPage';
 import { BackgroundSettingsPage } from '@/components/background/BackgroundSettingsPage';
-import { Toaster } from '@/components/ui/sonner';
+import { Snackbar } from '@/components/ui/sonner';
 import { SavingsPage } from '@/components/savings/SavingsPage';
 import { GraphPage } from '@/components/graph/GraphPage';
 import TermsPage from '@/pages/TermsPage';
 import { useAppStore } from '@/store/useAppStore';
+import { useSnackbar } from '@/hooks/use-toast';
 import './App.css';
 
 function App() {
@@ -55,6 +56,7 @@ function App() {
 
 function MainApp() {
   const { currentTab } = useAppStore();
+  const { open, message, variant } = useSnackbar();
   const renderCurrentPage = () => {
     switch (currentTab) {
       case 'home':
@@ -84,7 +86,7 @@ function MainApp() {
         {renderCurrentPage()}
       </main>
       <TabNavigation />
-      <Toaster />
+      <Snackbar open={open} message={message} variant={variant} />
     </div>
   );
 }

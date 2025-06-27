@@ -3,14 +3,17 @@ import { useWishlistStore, WishlistItem } from '@/store/useWishlistStore';
 import { useSavingsStore } from '@/store/useSavingsStore';
 import { useSavingsPlanStore } from '@/store/useSavingsPlanStore';
 import { Button } from '@/components/ui/button';
+import { useSnackbar } from '@/hooks/use-toast';
 
 export const Wishlist = () => {
   const { wishlist, fetchWishlist, addWishlistItem, updateWishlistItem, deleteWishlistItem, loading } = useWishlistStore();
   const { savingsAmount } = useSavingsStore();
   const { plan } = useSavingsPlanStore();
+  const { showSnackbar } = useSnackbar();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [form, setForm] = useState({ name: '', price: '', priority: 1 });
+  const [form, setForm] = useState({ name: '', price: '', priority: '1' });
   const [editId, setEditId] = useState<string | null>(null);
+  const [priorityError, setPriorityError] = useState('');
 
   useEffect(() => {
     fetchWishlist();
@@ -56,29 +59,53 @@ export const Wishlist = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name || !form.price) return;
-    if (editId) {
-      await updateWishlistItem(editId, {
-        name: form.name,
-        price: Number(form.price),
-        priority: Number(form.priority),
-      });
-    } else {
-      await addWishlistItem({
-        name: form.name,
-        price: Number(form.price),
-        priority: Number(form.priority),
-      });
+    setPriorityError('');
+    if (!form.name || !form.price || !form.priority) return;
+    // priority重複チェック
+    const isDuplicate = wishlist.some(item =>
+      String(item.priority) === form.priority && (!editId || item.id !== editId)
+    );
+    if (isDuplicate) {
+      setPriorityError('同じ優先順位のアイテムが既に存在します');
+      return;
     }
-    setForm({ name: '', price: '', priority: 1 });
-    setEditId(null);
-    setIsDialogOpen(false);
+    try {
+      if (editId) {
+        await updateWishlistItem(editId, {
+          name: form.name,
+          price: Number(form.price),
+          priority: Number(form.priority),
+        });
+        showSnackbar('リストを編集しました');
+      } else {
+        await addWishlistItem({
+          name: form.name,
+          price: Number(form.price),
+          priority: Number(form.priority),
+        });
+        showSnackbar('リストに追加しました');
+      }
+      setForm({ name: '', price: '', priority: '1' });
+      setEditId(null);
+      setIsDialogOpen(false);
+    } catch {
+      showSnackbar('保存に失敗しました', 'destructive');
+    }
   };
 
   const handleEdit = (item: WishlistItem) => {
-    setForm({ name: item.name, price: String(item.price), priority: item.priority });
+    setForm({ name: item.name, price: String(item.price), priority: String(item.priority) });
     setEditId(item.id);
     setIsDialogOpen(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteWishlistItem(id);
+      showSnackbar('リストから削除しました');
+    } catch {
+      showSnackbar('削除に失敗しました', 'destructive');
+    }
   };
 
   return (
@@ -96,16 +123,16 @@ export const Wishlist = () => {
             <div key={item.id} className="flex items-center justify-between bg-white rounded shadow p-3">
               <div>
                 <div className="font-bold text-left">{item.name}</div>
-                <div className="text-sm text-gray-500">
+                <div className="text-sm text-gray-500 text-left">
                   ¥{Number(item.price).toLocaleString()} / 優先度: {item.priority}
                 </div>
-                <div className="text-xs text-blue-600 mt-1">
+                <div className="text-xs text-blue-600 mt-1 text-left">
                   達成予定：{expectedDates[item.id]}
                 </div>
               </div>
               <div className="flex space-x-2">
                 <Button size="sm" variant="outline" onClick={() => handleEdit(item)}>編集</Button>
-                <Button size="sm" variant="destructive" onClick={() => deleteWishlistItem(item.id)}>削除</Button>
+                <Button size="sm" variant="destructive" onClick={() => handleDelete(item.id)}>削除</Button>
               </div>
             </div>
           ))}
@@ -119,7 +146,7 @@ export const Wishlist = () => {
             <h2 className="text-lg font-bold mb-4">{editId ? '編集' : '追加'}</h2>
             <form onSubmit={handleSubmit} className="space-y-3">
               <div>
-                <label className="block text-sm mb-1">名称</label>
+                <label className="block mb-1">名称</label>
                 <input
                   type="text"
                   value={form.name}
@@ -129,7 +156,7 @@ export const Wishlist = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm mb-1">値段</label>
+                <label className="block mb-1">値段</label>
                 <input
                   type="number"
                   min={0}
@@ -140,15 +167,27 @@ export const Wishlist = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm mb-1">優先順位（数字が小さいほど高い）</label>
+                <label className="block mb-1">優先順位（数字が小さいほど高い）</label>
                 <input
                   type="number"
                   min={1}
                   value={form.priority}
-                  onChange={e => setForm(f => ({ ...f, priority: Number(e.target.value) }))}
+                  onChange={e => {
+                    const val = e.target.value;
+                    if (val === '') {
+                      setForm(f => ({ ...f, priority: '' }));
+                    } else {
+                      // 先頭0を除去し、1以上のみ許可
+                      const num = val.replace(/^0+/, '');
+                      if (/^\d+$/.test(num) && Number(num) >= 1) {
+                        setForm(f => ({ ...f, priority: num }));
+                      }
+                    }
+                  }}
                   className="w-full border rounded px-3 py-2"
                   required
                 />
+                {priorityError && <div className="text-red-600 text-sm mt-1">{priorityError}</div>}
               </div>
               <div className="flex justify-end space-x-2 pt-2">
                 <Button variant="outline" type="button" onClick={() => setIsDialogOpen(false)}>

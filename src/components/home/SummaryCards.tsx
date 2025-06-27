@@ -36,7 +36,7 @@ export const SummaryCards = () => {
       >
         <CuteCard variant="green" hover glow>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-emerald-800">今月の収入</CardTitle>
+          <CardTitle className="font-medium text-emerald-800">今月の収入</CardTitle>
           <motion.div
             animate={{ scale: [1, 1.05, 1] }}
             transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
@@ -59,7 +59,7 @@ export const SummaryCards = () => {
       >
         <CuteCard variant="pink" hover glow>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-rose-800">今月の支出</CardTitle>
+          <CardTitle className="font-medium text-rose-800">今月の支出</CardTitle>
           <motion.div
             animate={{ scale: [1, 1.05, 1] }}
             transition={{ duration: 4, repeat: Infinity, delay: 1, ease: "easeInOut" }}
@@ -86,7 +86,7 @@ export const SummaryCards = () => {
           glow
         >
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className={`text-sm font-medium ${
+          <CardTitle className={`font-medium ${
             balance >= 0 ? 'text-blue-800' : 'text-purple-800'
           }`}>
             残高

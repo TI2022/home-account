@@ -73,7 +73,7 @@ export const CoinAnimation = ({ trigger, onComplete }: CoinAnimationProps) => {
                   ease: [0.25, 0.46, 0.45, 0.94]
                 }}
               >
-                <div className="w-full h-full bg-gradient-to-br from-yellow-300 via-yellow-400 to-yellow-600 rounded-full flex items-center justify-center text-sm font-bold text-yellow-900 shadow-lg border-2 border-yellow-200">
+                <div className="w-full h-full bg-gradient-to-br from-yellow-300 via-yellow-400 to-yellow-600 rounded-full flex items-center justify-center font-bold text-yellow-900 shadow-lg border-2 border-yellow-200">
                   ¥
                 </div>
                 

@@ -53,11 +53,11 @@ export const GameDashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-3xl font-bold text-purple-700">レベル {level}</div>
-                <div className="text-sm text-purple-600">家計管理マスター</div>
+                <div className="text-purple-600">家計管理マスター</div>
               </div>
               <div className="text-right">
                 <div className="text-lg font-semibold text-purple-700">{experience} / {maxExperience}</div>
-                <div className="text-sm text-purple-600">経験値</div>
+                <div className="text-purple-600">経験値</div>
               </div>
             </div>
             <ProgressBar
@@ -81,7 +81,7 @@ export const GameDashboard = () => {
             <CardContent className="p-4 text-center">
               <Flame className="h-8 w-8 text-orange-600 mx-auto mb-2" />
               <div className="text-2xl font-bold text-orange-700">{consecutiveDays}</div>
-              <div className="text-sm text-orange-600">連続記録日数</div>
+              <div className="text-orange-600">連続記録日数</div>
             </CardContent>
           </Card>
         </motion.div>
@@ -95,7 +95,7 @@ export const GameDashboard = () => {
             <CardContent className="p-4 text-center">
               <Target className="h-8 w-8 text-blue-600 mx-auto mb-2" />
               <div className="text-2xl font-bold text-blue-700">{totalTransactions}</div>
-              <div className="text-sm text-blue-600">総記録回数</div>
+              <div className="text-blue-600">総記録回数</div>
             </CardContent>
           </Card>
         </motion.div>
@@ -128,7 +128,7 @@ export const GameDashboard = () => {
               {/* Unlocked Badges */}
               {unlockedBadgesList.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">獲得済み ({unlockedBadgesList.length})</h4>
+                  <h4 className="font-medium text-gray-700 mb-2">獲得済み ({unlockedBadgesList.length})</h4>
                   <div className="grid grid-cols-2 gap-2">
                     {unlockedBadgesList.map((badge) => (
                       <motion.div
@@ -138,7 +138,7 @@ export const GameDashboard = () => {
                         className={`p-3 rounded-lg border ${badge.color} text-center`}
                       >
                         <div className="text-2xl mb-1">{badge.icon}</div>
-                        <div className="text-xs font-medium">{badge.name}</div>
+                        <div className="font-medium">{badge.name}</div>
                       </motion.div>
                     ))}
                   </div>
@@ -148,7 +148,7 @@ export const GameDashboard = () => {
               {/* Locked Badges */}
               {lockedBadgesList.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">未獲得 ({lockedBadgesList.length})</h4>
+                  <h4 className="font-medium text-gray-700 mb-2">未獲得 ({lockedBadgesList.length})</h4>
                   <div className="grid grid-cols-2 gap-2">
                     {lockedBadgesList.slice(0, 4).map((badge) => (
                       <div
@@ -156,8 +156,8 @@ export const GameDashboard = () => {
                         className="p-3 rounded-lg border bg-gray-50 text-center opacity-60"
                       >
                         <div className="text-2xl mb-1 grayscale">🔒</div>
-                        <div className="text-xs font-medium text-gray-500">{badge.name}</div>
-                        <div className="text-xs text-gray-400 mt-1">{badge.description}</div>
+                        <div className="font-medium text-gray-500">{badge.name}</div>
+                        <div className="text-gray-400 mt-1">{badge.description}</div>
                       </div>
                     ))}
                   </div>

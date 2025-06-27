@@ -40,7 +40,7 @@ const TermsPage = () => (
         本規約は必要に応じて改定されることがあります。改定後の規約は本サービス上に掲載した時点で効力を生じます。
       </p>
     </section>
-    <div className="text-right text-sm text-gray-500 mt-8">制定日：2024年6月</div>
+    <div className="text-right text-gray-500 mt-8">制定日：2024年6月</div>
   </div>
 );
 

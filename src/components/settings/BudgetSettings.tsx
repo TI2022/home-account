@@ -4,13 +4,13 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useTransactionStore } from '@/store/useTransactionStore';
 import { useAppStore } from '@/store/useAppStore';
-import { useToast } from '@/hooks/use-toast';
+import { useSnackbar } from '@/hooks/use-toast';
 import { EXPENSE_CATEGORIES } from '@/types';
 
 export const BudgetSettings = () => {
   const { budgets, fetchBudgets, updateBudget } = useTransactionStore();
   const { selectedMonth } = useAppStore();
-  const { toast } = useToast();
+  const { showSnackbar } = useSnackbar();
   const [budgetValues, setBudgetValues] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
 
@@ -42,27 +42,16 @@ export const BudgetSettings = () => {
     const amount = parseInt(budgetValues[category]);
     
     if (isNaN(amount) || amount < 0) {
-      toast({
-        title: 'エラー',
-        description: '正しい金額を入力してください',
-        variant: 'destructive',
-      });
+      showSnackbar('正しい金額を入力してください', 'destructive');
       return;
     }
 
     setLoading(true);
     try {
       await updateBudget(category, amount, selectedMonth);
-      toast({
-        title: '保存完了',
-        description: `${category}の予算を更新しました`,
-      });
+      showSnackbar(`${category}の予算を更新しました`);
     } catch {
-      toast({
-        title: 'エラー',
-        description: '予算の保存に失敗しました',
-        variant: 'destructive',
-      });
+      showSnackbar('予算の保存に失敗しました', 'destructive');
     } finally {
       setLoading(false);
     }

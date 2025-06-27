@@ -6,7 +6,7 @@ import { Transaction } from '@/types';
 import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { ArrowUpCircle, ArrowDownCircle, Pencil, Trash2 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { useSnackbar } from '@/hooks/use-toast';
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -19,7 +19,7 @@ import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '@/types';
 export const TransactionList = () => {
   const { transactions, deleteTransaction, updateTransaction } = useTransactionStore();
   const { selectedMonth } = useAppStore();
-  const { toast } = useToast();
+  const { showSnackbar } = useSnackbar();
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
@@ -58,16 +58,9 @@ export const TransactionList = () => {
     if (window.confirm('この収支を削除してもよろしいですか？')) {
       try {
         await deleteTransaction(transaction.id);
-        toast({
-          title: '削除完了',
-          description: '収支を削除しました',
-        });
+        showSnackbar('収支を削除しました');
       } catch {
-        toast({
-          title: 'エラー',
-          description: '削除に失敗しました',
-          variant: 'destructive',
-        });
+        showSnackbar('削除に失敗しました', 'destructive');
       }
     }
   };
@@ -76,11 +69,7 @@ export const TransactionList = () => {
     e.preventDefault();
     
     if (!formData.amount || !formData.category || !editingTransaction || !formData.date) {
-      toast({
-        title: 'エラー',
-        description: '金額・カテゴリー・日付を入力してください',
-        variant: 'destructive',
-      });
+      showSnackbar('エラー', 'destructive');
       return;
     }
 
@@ -94,19 +83,12 @@ export const TransactionList = () => {
         date: formData.date,
       });
       
-      toast({
-        title: '更新完了',
-        description: '収支を更新しました',
-      });
+      showSnackbar('収支を更新しました');
       
       setIsDialogOpen(false);
       setEditingTransaction(null);
     } catch {
-      toast({
-        title: 'エラー',
-        description: '更新に失敗しました',
-        variant: 'destructive',
-      });
+      showSnackbar('更新に失敗しました', 'destructive');
     }
   };
 
@@ -139,7 +121,7 @@ export const TransactionList = () => {
         .sort(([a], [b]) => b.localeCompare(a))
         .map(([date, dayTransactions]) => (
           <div key={date}>
-            <h3 className="text-sm font-medium text-gray-600 mb-2 px-1">
+            <h3 className="font-medium text-gray-600 mb-2 px-1">
               {formatDate(date)}
             </h3>
             <div className="space-y-2">
@@ -164,7 +146,7 @@ export const TransactionList = () => {
                             {transaction.category}
                           </p>
                           {transaction.memo && (
-                            <p className="text-sm text-gray-500 mt-1">
+                            <p className="text-gray-500 mt-1">
                               {transaction.memo}
                             </p>
                           )}

@@ -6,6 +6,7 @@ export interface Transaction {
   category: string;
   date: string;
   memo?: string;
+  card_used_date?: string;
   created_at: string;
   updated_at: string;
 }
