@@ -195,12 +195,17 @@ export const GraphPage = () => {
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
-                  data={categoryData}
+                data={categoryData}
                 dataKey="amount"
                 nameKey="category"
                 cx="50%"
                 cy="50%"
-                outerRadius={100}
+                outerRadius={60}
+                label={({ category, percent }) => 
+                  percent > 0.05 ? `${category} ${(percent * 100).toFixed(0)}%` : ''
+                }
+                labelLine={false}
+                className="text-[9px]"
               >
                   {categoryData.map((entry, idx) => (
                     <Cell key={entry.category} fill={COLORS[idx % COLORS.length]} />

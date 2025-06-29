@@ -90,7 +90,7 @@ export const RecurringExpenseSettings = () => {
 
     setLoading(true);
     try {
-      // payment_scheduleからfrequencyとday_of_monthを自動算出
+      // payment_scheduleからfrequencyを自動算出
       const months = formData.payment_schedule.map(s => s.month).sort((a, b) => a - b);
       const payment_frequency = (months.length === 12
         ? 'monthly'
@@ -99,18 +99,17 @@ export const RecurringExpenseSettings = () => {
         : months.length === 1
         ? 'yearly'
         : 'custom') as 'monthly' | 'quarterly' | 'yearly' | 'custom';
-      // payment_scheduleが空の場合はday_of_monthをnullに設定
-      const day_of_month = formData.payment_schedule.length > 0 ? formData.payment_schedule[0].day : null;
       const expenseData = {
         name: formData.name,
         amount: parseInt(formData.amount),
         category: formData.category,
         payment_schedule: formData.payment_schedule,
         payment_frequency,
-        day_of_month,
         description: formData.description || undefined,
         is_active: formData.is_active,
       };
+
+      console.log('Submitting expense data:', expenseData);
 
       if (editingExpense) {
         await updateRecurringExpense(editingExpense, expenseData);
@@ -122,7 +121,8 @@ export const RecurringExpenseSettings = () => {
 
       resetForm();
       setIsDialogOpen(false);
-    } catch {
+    } catch (error) {
+      console.error('Form submission error:', error);
       showSnackbar('保存に失敗しました', 'destructive');
     } finally {
       setLoading(false);

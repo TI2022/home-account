@@ -105,6 +105,11 @@ export const QuickTransactionForm = ({
     setLastSubmitted(submitData);
     try {
       if (editingTransaction) {
+        console.log('Editing transaction:', {
+          original: editingTransaction,
+          formData,
+          type: editingTransaction.type
+        });
         await updateTransaction({
           ...editingTransaction,
           type: formData.type,
@@ -133,7 +138,13 @@ export const QuickTransactionForm = ({
         memo: '',
       });
       setEditingTransaction(null);
-    } catch {
+    } catch (error) {
+      console.error('Transaction operation failed:', error);
+      console.error('Error details:', {
+        editingTransaction: editingTransaction?.id,
+        formData,
+        error: error
+      });
       showSnackbar('操作に失敗しました', 'destructive');
     } finally {
       setIsSubmitting(false);
@@ -183,7 +194,7 @@ export const QuickTransactionForm = ({
               </div>
             </RadioGroup>
             {editingTransaction && (
-              <span className="ml-4 px-2 py-1 rounded text-xs font-bold bg-yellow-200 text-yellow-800 border border-yellow-400 flex items-center">
+              <span className="ml-4 px-2 py-1 rounded text-xs font-medium bg-yellow-50 text-yellow-700 flex items-center">
                 <span className="mr-1">📝</span>編集モード
               </span>
             )}
@@ -211,6 +222,10 @@ export const QuickTransactionForm = ({
               <SelectValue placeholder="カテゴリーを選択" />
             </SelectTrigger>
             <SelectContent>
+              {(() => {
+                console.log('Rendering category select - type:', formData.type, 'category:', formData.category);
+                return null;
+              })()}
               {(formData.type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map((category) => (
                 <SelectItem key={category} value={category}>
                   {category}

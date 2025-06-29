@@ -73,7 +73,14 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      set({ recurringIncomes: data || [] });
+      // payment_scheduleがstringの場合はパース
+      const fixed = (data || []).map((item: RecurringIncome) => ({
+        ...item,
+        payment_schedule: typeof item.payment_schedule === 'string'
+          ? JSON.parse(item.payment_schedule)
+          : item.payment_schedule || [],
+      }));
+      set({ recurringIncomes: fixed });
     } catch (error) {
       console.error('Error fetching recurring incomes:', error);
     }
@@ -176,6 +183,8 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
           {
             ...income,
             user_id: user.user.id,
+            payment_schedule: JSON.stringify(income.payment_schedule),
+            description: income.description || null,
           }
         ])
         .select()
@@ -184,7 +193,15 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
       if (error) throw error;
 
       const currentIncomes = get().recurringIncomes;
-      set({ recurringIncomes: [data, ...currentIncomes] });
+      set({ recurringIncomes: [
+        {
+          ...data,
+          payment_schedule: typeof data.payment_schedule === 'string'
+            ? JSON.parse(data.payment_schedule)
+            : data.payment_schedule || [],
+        },
+        ...currentIncomes
+      ] });
     } catch (error) {
       console.error('Error adding recurring income:', error);
       throw error;
@@ -193,22 +210,40 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
 
   updateRecurringIncome: async (id: string, income) => {
     try {
+      console.log('Updating recurring income:', { id, income });
       const { data, error } = await supabase
         .from('recurring_income')
-        .update(income)
+        .update({
+          ...income,
+          payment_schedule: income.payment_schedule
+            ? JSON.stringify(income.payment_schedule)
+            : undefined,
+          description: income.description || null,
+        })
         .eq('id', id)
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
 
       const currentIncomes = get().recurringIncomes;
       const updatedIncomes = currentIncomes.map(item => 
-        item.id === id ? data : item
+        item.id === id
+          ? {
+              ...data,
+              payment_schedule: typeof data.payment_schedule === 'string'
+                ? JSON.parse(data.payment_schedule)
+                : data.payment_schedule || [],
+            }
+          : item
       );
       set({ recurringIncomes: updatedIncomes });
     } catch (error) {
       console.error('Error updating recurring income:', error);
+      console.error('Error details:', error);
       throw error;
     }
   },
@@ -268,6 +303,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
 
   updateRecurringExpense: async (id: string, expense) => {
     try {
+      console.log('Updating recurring expense:', { id, expense });
       const { data, error } = await supabase
         .from('recurring_expenses')
         .update({
@@ -281,7 +317,10 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
 
       set({ recurringExpenses: get().recurringExpenses.map(item =>
         item.id === id
@@ -295,6 +334,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
       ) });
     } catch (error) {
       console.error('Error updating recurring expense:', error);
+      console.error('Error details:', error);
       throw error;
     }
   },
@@ -319,14 +359,38 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
 
   updateTransaction: async (transaction) => {
     try {
+      console.log('Updating transaction:', { id: transaction.id, updateData: transaction });
+      console.log('Transaction type:', transaction.type);
+      console.log('Transaction category:', transaction.category);
+      // 更新可能なフィールドのみを抽出
+      const updateData = {
+        type: transaction.type,
+        amount: transaction.amount,
+        category: transaction.category,
+        date: transaction.date,
+        memo: transaction.memo,
+        card_used_date: transaction.card_used_date || null,
+      };
+      console.log('Extracted update data:', updateData);
+      console.log('Update data type:', typeof updateData.type);
+      console.log('Update data category:', typeof updateData.category);
+
       const { data, error } = await supabase
         .from('transactions')
-        .update(transaction)
+        .update(updateData)
         .eq('id', transaction.id)
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase update error:', error);
+        console.error('Error code:', error.code);
+        console.error('Error message:', error.message);
+        console.error('Error details:', error.details);
+        throw error;
+      }
+
+      console.log('Update successful:', data);
 
       const currentTransactions = get().transactions;
       const updatedTransactions = currentTransactions.map(t => 
@@ -335,6 +399,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
       set({ transactions: updatedTransactions });
     } catch (error) {
       console.error('Error updating transaction:', error);
+      console.error('Error details:', error);
       throw error;
     }
   },
@@ -415,23 +480,30 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
       while (d <= end) {
         const month = d.getMonth() + 1;
         const year = d.getFullYear();
-        const paymentDate = new Date(year, month - 1, inc.day_of_month);
-        if (paymentDate >= start && paymentDate <= end) {
-          const paymentDateStr = format(paymentDate, 'yyyy-MM-dd');
-          const exists = (get().transactions || []).some(t =>
-            t.date === paymentDateStr &&
-            t.amount === inc.amount &&
-            t.category === inc.category &&
-            t.type === 'income'
-          );
-          if (!exists) {
-            await addTransaction({
-              type: 'income',
-              amount: inc.amount,
-              category: inc.category,
-              date: paymentDateStr,
-              memo: inc.name,
-            });
+        let paymentDay: number | undefined = undefined;
+        if (inc.payment_schedule) {
+          const schedule = inc.payment_schedule.find(s => s.month === month);
+          if (schedule) paymentDay = schedule.day;
+        }
+        if (paymentDay !== undefined) {
+          const paymentDate = new Date(year, month - 1, paymentDay);
+          if (paymentDate >= start && paymentDate <= end) {
+            const paymentDateStr = format(paymentDate, 'yyyy-MM-dd');
+            const exists = (get().transactions || []).some(t =>
+              t.date === paymentDateStr &&
+              t.amount === inc.amount &&
+              t.category === inc.category &&
+              t.type === 'income'
+            );
+            if (!exists) {
+              await addTransaction({
+                type: 'income',
+                amount: inc.amount,
+                category: inc.category,
+                date: paymentDateStr,
+                memo: inc.name,
+              });
+            }
           }
         }
         d.setMonth(d.getMonth() + 1);

@@ -36,6 +36,14 @@ export const SavingsPage = () => {
     }))
     .sort((a, b) => a.ym.localeCompare(b.ym));
 
+  // 1年分の貯金機会合計を計算
+  const yearlySavingsOpportunity = monthlySavingsList.reduce((total, { savings }) => {
+    return total + Math.max(0, savings); // プラスの月のみを合計
+  }, 0);
+
+  // 過去1年分のデータを取得（最新12ヶ月）
+  const last12Months = monthlySavingsList.slice(-12);
+
   const handleSave = async () => {
     const value = Number(inputValue);
     if (!isNaN(value) && value >= 0) {
@@ -66,11 +74,23 @@ export const SavingsPage = () => {
           <CardTitle>月ごとの貯金額</CardTitle>
         </CardHeader>
         <CardContent>
+          {/* 1年分の貯金機会合計 */}
+          <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium text-blue-700">過去1年分の貯金機会合計</span>
+              <span className="text-lg font-bold text-blue-600">
+                ¥{yearlySavingsOpportunity.toLocaleString('ja-JP')}
+              </span>
+            </div>
+            <div className="text-xs text-blue-600 mt-1">
+              プラスの月のみを合計（{last12Months.filter(m => m.savings > 0).length}ヶ月分）
+            </div>
+          </div>
           <div className="space-y-2">
             {monthlySavingsList.length === 0 ? (
               <div className="text-gray-500">記録がありません</div>
             ) : (
-              monthlySavingsList.map(({ ym, savings }) => (
+              last12Months.map(({ ym, savings }) => (
                 <div key={ym} className="flex justify-between border-b pb-1">
                   <span>{format(new Date(ym + '-01'), 'yyyy年M月')}</span>
                   <span className={savings >= 0 ? 'text-blue-600' : 'text-red-600'}>

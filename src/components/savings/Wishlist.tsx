@@ -14,6 +14,7 @@ export const Wishlist = () => {
   const [form, setForm] = useState({ name: '', price: '', priority: '1' });
   const [editId, setEditId] = useState<string | null>(null);
   const [priorityError, setPriorityError] = useState('');
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchWishlist();
@@ -132,7 +133,7 @@ export const Wishlist = () => {
               </div>
               <div className="flex space-x-2">
                 <Button size="sm" variant="outline" onClick={() => handleEdit(item)}>編集</Button>
-                <Button size="sm" variant="destructive" onClick={() => handleDelete(item.id)}>削除</Button>
+                <Button size="sm" variant="destructive" onClick={() => setDeleteTargetId(item.id)}>削除</Button>
               </div>
             </div>
           ))}
@@ -196,6 +197,28 @@ export const Wishlist = () => {
                 <Button type="submit">{editId ? '保存' : '追加'}</Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 削除確認モーダル */}
+      {deleteTargetId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-80">
+            <h2 className="text-lg font-bold mb-4">削除の確認</h2>
+            <p className="mb-4">本当にこのアイテムを削除しますか？</p>
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => setDeleteTargetId(null)}>キャンセル</Button>
+              <Button
+                variant="destructive"
+                onClick={async () => {
+                  await handleDelete(deleteTargetId);
+                  setDeleteTargetId(null);
+                }}
+              >
+                削除
+              </Button>
+            </div>
           </div>
         </div>
       )}
