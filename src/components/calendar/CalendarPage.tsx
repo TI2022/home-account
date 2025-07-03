@@ -272,7 +272,7 @@ export const CalendarPage = () => {
     // デフォルトは翌月
     return now.toISOString().slice(0, 7);
   });
-  const [importResult, setImportResult] = useState<null | { success: number; fail: number; paymentDate: string; type: 'success' | 'fail' }>(null);
+  const [importResult, setImportResult] = useState<null | { success: number; fail: number; paymentDate: string; type: 'success' | 'fail', failedRows?: (Record<string, string> & { reason: string })[] }>(null);
   const { showSnackbar } = useSnackbar();
   const [isBulkSelectMode, setIsBulkSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -381,6 +381,7 @@ export const CalendarPage = () => {
         const rows = results.data;
         let success = 0;
         let fail = 0;
+        const failedRows: (Record<string, string> & { reason: string })[] = [];
         const [paymentYear, paymentMonth] = rakutenImportMonth.split('-');
         const paymentDate = `${paymentYear}-${paymentMonth}-27`;
         for (const row of rows) {
@@ -388,9 +389,17 @@ export const CalendarPage = () => {
           const amountKey = Object.keys(row).find(k => k.includes('支払金額'));
           const amountStr = amountKey ? row[amountKey]?.replace(/,/g, '').trim() : '';
           const dateStr = row['利用日']?.trim();
-          if (!name || !amountStr || !dateStr) { fail++; continue; }
+          if (!name || !amountStr || !dateStr) {
+            fail++;
+            failedRows.push({ ...row, reason: '必須項目が不足しています' });
+            continue;
+          }
           const amount = Number(amountStr);
-          if (isNaN(amount)) { fail++; continue; }
+          if (isNaN(amount)) {
+            fail++;
+            failedRows.push({ ...row, reason: '金額が不正です' });
+            continue;
+          }
           const date = paymentDate;
           const cardUsedDate = paymentDate;
           let category = 'その他';
@@ -409,23 +418,20 @@ export const CalendarPage = () => {
             success++;
           } catch {
             fail++;
+            failedRows.push({ ...row, reason: 'DB登録に失敗しました' });
           }
         }
         useTransactionStore.getState().fetchTransactions();
         setRakutenLoading(false);
         setRakutenImportDialogOpen(false);
         setRakutenImportFile(null);
-        if (success > 0) {
-          setImportResult({ success, fail, paymentDate, type: 'success' });
-        } else {
-          setImportResult({ success, fail, paymentDate, type: 'fail' });
-        }
+        setImportResult({ success, fail, paymentDate, type: success > 0 ? 'success' : 'fail', failedRows });
       },
       error: () => {
         setRakutenLoading(false);
         setRakutenImportDialogOpen(false);
         setRakutenImportFile(null);
-        setImportResult({ success: 0, fail: 0, paymentDate: '', type: 'fail' });
+        setImportResult({ success: 0, fail: 0, paymentDate: '', type: 'fail', failedRows: [] });
       },
     });
   };
@@ -441,6 +447,8 @@ export const CalendarPage = () => {
   useEffect(() => {
     if (!isDialogOpen) {
       setEditingTransaction(null);
+      setSelectedIds([]);
+      setIsBulkSelectMode(false);
     }
   }, [isDialogOpen]);
 
@@ -499,6 +507,40 @@ export const CalendarPage = () => {
             </div>
             {importResult.paymentDate && (
               <div className="text-xs text-gray-500 mt-1">引き落とし日: {importResult.paymentDate}</div>
+            )}
+            {importResult.failedRows && importResult.failedRows.length > 0 && (
+              <details className="mt-2 w-full">
+                <summary className="cursor-pointer text-xs text-red-600 underline">失敗データの詳細を表示</summary>
+                <div className="max-h-[70vh] overflow-y-auto mt-1 text-[10px] w-[80vw]">
+                  <table className="w-full border text-[10px] table-fixed">
+                    <thead>
+                      <tr>
+                        {Object.keys(importResult.failedRows[0]).filter(key => key !== 'reason').map((key) => (
+                          <th key={key} className="border px-1 py-0.5 bg-gray-100 break-words max-w-[5.5em] whitespace-pre-line text-[10px]">{key.replace('利用店名・商品名','店名').replace('支払金額','金額').replace('利用日','日付')}</th>
+                        ))}
+                        <th className="border px-1 py-0.5 bg-gray-100 break-words max-w-[5.5em] whitespace-pre-line text-[10px]">失敗理由</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {importResult.failedRows.map((row, i) => (
+                        <tr key={i} className="odd:bg-red-50 even:bg-white">
+                          {(() => {
+                            const cells = [];
+                            for (const [key, val] of Object.entries(row) as [string, string][]) {
+                              if (key === 'reason') continue;
+                              cells.push(
+                                <td key={key} className="border px-1 py-0.5 break-words max-w-[5.5em] whitespace-pre-line text-[10px]">{val}</td>
+                              );
+                            }
+                            return cells;
+                          })()}
+                          <td className="border px-1 py-0.5 break-words max-w-[5.5em] whitespace-pre-line text-[10px]">{row.reason}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </details>
             )}
             <button
               className="absolute top-1 right-2 text-gray-400 hover:text-gray-700 text-lg"
@@ -716,15 +758,37 @@ export const CalendarPage = () => {
                   </Button>
                 )}
                 {isBulkSelectMode && (
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    className="ml-2"
-                    disabled={selectedIds.length === 0}
-                    onClick={() => setIsConfirmDialogOpen(true)}
-                  >
-                    {selectedIds.length}件を削除
-                  </Button>
+                  <>
+                    {selectedIds.length === selectedDateTransactions.length ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="ml-2"
+                        onClick={() => setSelectedIds([])}
+                      >
+                        全件解除
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="ml-2"
+                        onClick={() => setSelectedIds(selectedDateTransactions.map(t => t.id))}
+                        disabled={selectedDateTransactions.length === 0}
+                      >
+                        全件選択
+                      </Button>
+                    )}
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="ml-2"
+                      disabled={selectedIds.length === 0}
+                      onClick={() => setIsConfirmDialogOpen(true)}
+                    >
+                      {selectedIds.length}件を削除
+                    </Button>
+                  </>
                 )}
               </div>
               <div className="flex items-center ml-auto">
@@ -760,11 +824,6 @@ export const CalendarPage = () => {
                         className="mr-2 w-6 h-6 min-w-[1.5rem] min-h-[1.5rem] accent-blue-500 rounded border-gray-300 focus:ring-2 focus:ring-blue-400"
                         style={{ boxSizing: 'border-box' }}
                       />
-                    )}
-                    {transaction.type === 'income' ? (
-                      <ArrowUpCircle className="h-4 w-4 text-green-600" />
-                    ) : (
-                      <ArrowDownCircle className="h-4 w-4 text-red-600" />
                     )}
                     <span className="text-sm">{transaction.memo || transaction.category}</span>
                   </div>
