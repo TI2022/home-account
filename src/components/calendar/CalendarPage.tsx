@@ -553,8 +553,8 @@ export const CalendarPage = () => {
         )}
         <Card className="w-full max-w-4xl">
           <CardContent className="p-2 sm:p-4 w-full min-h-[450px] relative" style={{ overflowY: 'hidden' }}>
-            {/* 地味で直感的なトグルデザイン */}
-            <div {...segmentSwipeHandlers} className="flex flex-col items-center justify-center mb-4 select-none">
+            {/* 直感的なトグルデザイン */}
+            <div {...segmentSwipeHandlers} className="flex flex-col items-center justify-center select-none">
               <div ref={segmentRef} className="flex w-full max-w-xs relative">
                 <button
                   type="button"

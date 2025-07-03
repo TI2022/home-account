@@ -26,6 +26,7 @@ export const AddTransactionForm = () => {
   const [showCoinAnimation, setShowCoinAnimation] = useState(false);
   const [showCharacterReaction, setShowCharacterReaction] = useState(false);
   const [reactionMessage, setReactionMessage] = useState('');
+  const [isMock, setIsMock] = useState(false);
   
   const { addTransaction } = useTransactionStore();
   const { recordTransaction } = useGameStore();
@@ -49,6 +50,7 @@ export const AddTransactionForm = () => {
         category,
         date,
         memo: memo || undefined,
+        isMock,
       });
 
       showSnackbar(`${type === 'expense' ? '支出' : '収入'}を記録しました`);
@@ -181,6 +183,32 @@ export const AddTransactionForm = () => {
                     rows={3}
                     className="bg-white"
                   />
+                </div>
+
+                <div className="flex flex-col items-center space-y-1">
+                  <div className="flex w-full max-w-xs bg-gray-100 rounded-full p-1">
+                    <button
+                      type="button"
+                      className={`flex-1 flex items-center justify-center gap-1 px-3 py-2 rounded-full font-bold transition-all
+                        ${!isMock ? 'bg-blue-500 text-white shadow' : 'bg-white text-gray-500'}`}
+                      onClick={() => setIsMock(false)}
+                      aria-pressed={!isMock}
+                    >
+                      <span className="text-lg">💰</span> 実際の収支
+                    </button>
+                    <button
+                      type="button"
+                      className={`flex-1 flex items-center justify-center gap-1 px-3 py-2 rounded-full font-bold transition-all
+                        ${isMock ? 'bg-orange-400 text-white shadow' : 'bg-white text-gray-500'}`}
+                      onClick={() => setIsMock(true)}
+                      aria-pressed={isMock}
+                    >
+                      <span className="text-lg">🕒</span> 予定の収支
+                    </button>
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    <span className="font-bold text-blue-500">実際の収支</span>は確定した記録、<span className="font-bold text-orange-400">予定の収支</span>は将来の予定や仮の記録です
+                  </div>
                 </div>
 
                 <AnimatedButton
