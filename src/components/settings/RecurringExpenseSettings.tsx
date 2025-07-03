@@ -12,8 +12,7 @@ import { useTransactionStore } from '@/store/useTransactionStore';
 import { useSnackbar } from '@/hooks/use-toast';
 import { EXPENSE_CATEGORIES } from '@/types';
 import type { RecurringExpense } from '@/types';
-import { Plus, Edit, Trash2, Receipt, Calendar, Clock, Loader2 } from 'lucide-react';
-import Papa from 'papaparse';
+import { Plus, Edit, Trash2, Receipt, Calendar, Clock } from 'lucide-react';
 
 const MONTH_NAMES = [
   '1月', '2月', '3月', '4月', '5月', '6月',
@@ -57,7 +56,6 @@ export const RecurringExpenseSettings = () => {
   });
   const [reflectLoading, setReflectLoading] = useState(false);
   const [isReflectDialogOpen, setIsReflectDialogOpen] = useState(false);
-  const [rakutenLoading, setRakutenLoading] = useState(false);
   const [isMock, setIsMock] = useState(false);
 
   useEffect(() => {
@@ -182,101 +180,12 @@ export const RecurringExpenseSettings = () => {
     custom: 'その他の支出'
   };
 
-  // 楽天明細インポート処理
-  const handleRakutenCsvImport = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setRakutenLoading(true);
-    showSnackbar('楽天明細のインポートを開始します');
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: async (results: Papa.ParseResult<Record<string, string>>) => {
-        const rows = results.data;
-        let success = 0;
-        let fail = 0;
-        for (const row of rows) {
-          const name = row['利用店名・商品名']?.trim() || '';
-          const amountKey = Object.keys(row).find(k => k.includes('支払金額'));
-          const amountStr = amountKey ? row[amountKey]?.replace(/,/g, '').trim() : '';
-          const dateStr = row['利用日']?.trim();
-          if (!name || !amountStr || !dateStr) { fail++; continue; }
-          const amount = Number(amountStr);
-          if (isNaN(amount)) { fail++; continue; }
-          // カード引き落とし日（27日）
-          let date = '';
-          let cardUsedDate = '';
-          try {
-            // 利用日（実際のカード利用日）はcard_used_dateに保存
-            cardUsedDate = dateStr.replace(/\//g, '-');
-            if (!/^\d{4}-\d{2}-\d{2}$/.test(cardUsedDate)) throw new Error('日付形式エラー');
-            // CSVの月の27日をdateにセット
-            const [y, m] = cardUsedDate.split('-');
-            date = `${y}-${m}-27`;
-          } catch { fail++; continue; }
-          let category = 'その他';
-          for (const cat of EXPENSE_CATEGORIES) {
-            if (name.includes(cat)) { category = cat; break; }
-          }
-          try {
-            await useTransactionStore.getState().addTransaction({
-              type: 'expense',
-              amount,
-              category,
-              date,
-              memo: name,
-              card_used_date: cardUsedDate,
-            });
-            success++;
-          } catch {
-            fail++;
-          }
-        }
-        useTransactionStore.getState().fetchTransactions();
-        setRakutenLoading(false);
-        if (success > 0) {
-          console.log('[楽天明細インポート] toast呼び出し: 登録件数:', success, '失敗:', fail);
-          showSnackbar(`楽天明細インポート完了: 登録件数: ${success}件、失敗: ${fail}件`, fail === 0 ? 'default' : 'destructive');
-        } else {
-          console.log('[楽天明細インポート] toast呼び出し: インポート失敗');
-          showSnackbar('インポート失敗: 明細の取り込みに失敗しました', 'destructive');
-        }
-      },
-      error: () => {
-        setRakutenLoading(false);
-        showSnackbar('CSV読み込みエラー: ファイルの解析に失敗しました', 'destructive');
-      },
-    });
-    e.target.value = '';
-  };
-
   return (
     <div className="space-y-4">
       <div className="flex flex-row items-center gap-2">
         <Button className="bg-red-500 hover:bg-red-600" onClick={() => setIsReflectDialogOpen(true)}>
           支出一括反映
         </Button>
-        {/* 楽天明細インポートボタン */}
-        <label className="inline-flex items-center gap-2 cursor-pointer">
-          <Button asChild disabled={rakutenLoading}>
-            <span className="flex items-center">
-              {rakutenLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  インポート中...
-                </>
-              ) : (
-                '楽天明細インポート'
-              )}
-            </span>
-          </Button>
-          <input
-            type="file"
-            accept=".csv"
-            className="hidden"
-            onChange={handleRakutenCsvImport}
-          />
-        </label>
       </div>
       <Dialog open={isReflectDialogOpen} onOpenChange={setIsReflectDialogOpen}>
         <DialogContent className="sm:max-w-xs">
@@ -322,7 +231,7 @@ export const RecurringExpenseSettings = () => {
                   checked={isMock}
                   onChange={() => setIsMock(true)}
                 />
-                <span>予定の支出</span>
+                <span><span className="text-blue-700">予定</span>の支出</span>
               </label>
             </div>
             <Button

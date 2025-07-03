@@ -25,6 +25,7 @@ interface TransactionState {
   deleteTransaction: (id: string) => Promise<void>;
   reflectRecurringExpensesForPeriod: (startDate: string, endDate: string, isMock?: boolean) => Promise<void>;
   reflectRecurringIncomesForPeriod: (startDate: string, endDate: string, isMock?: boolean) => Promise<void>;
+  deleteTransactions: (ids: string[]) => Promise<void>;
 }
 
 export const useTransactionStore = create<TransactionState>((set, get) => ({
@@ -512,6 +513,25 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
         d.setMonth(d.getMonth() + 1);
         d.setDate(1);
       }
+    }
+  },
+
+  deleteTransactions: async (ids: string[]) => {
+    try {
+      const { error } = await supabase
+        .from('transactions')
+        .delete()
+        .in('id', ids);
+
+      if (error) throw error;
+
+      const currentTransactions = get().transactions;
+      set({
+        transactions: currentTransactions.filter(t => !ids.includes(t.id)),
+      });
+    } catch (error) {
+      console.error('Error deleting transactions:', error);
+      throw error;
     }
   },
 }));

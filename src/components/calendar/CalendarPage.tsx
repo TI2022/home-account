@@ -16,9 +16,10 @@ import { PickersDay, PickersDayProps } from '@mui/x-date-pickers/PickersDay';
 import { useSwipeable } from 'react-swipeable';
 import bearImg from '@/assets/bear-guide.png';
 import { Transaction } from '@/types';
-import { useSnackbar } from '@/hooks/use-toast';
 import Papa from 'papaparse';
 import { EXPENSE_CATEGORIES } from '@/types';
+import { Input } from '@/components/ui/input';
+import { useSnackbar } from '@/hooks/use-toast';
 
 // カスタムスタイルの定義
 const StyledDateCalendar = styled(DateCalendar)(({ theme }) => ({
@@ -254,17 +255,28 @@ export const CalendarPage = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
-  const { transactions, fetchTransactions, deleteTransaction } = useTransactionStore();
+  const { transactions, fetchTransactions, deleteTransaction, deleteTransactions } = useTransactionStore();
   const [showGuide, setShowGuide] = useState(false);
   const [dontShowNext, setDontShowNext] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
-  const { showSnackbar } = useSnackbar();
   const [rakutenLoading, setRakutenLoading] = useState(false);
   const [showAllTransactions, setShowAllTransactions] = useState(false);
   const [showMock, setShowMock] = useState(false);
   const [swipeDeltaX, setSwipeDeltaX] = useState(0);
   const [isSwiping, setIsSwiping] = useState(false);
   const segmentRef = useRef<HTMLDivElement>(null);
+  const [rakutenImportDialogOpen, setRakutenImportDialogOpen] = useState(false);
+  const [rakutenImportFile, setRakutenImportFile] = useState<File | null>(null);
+  const [rakutenImportMonth, setRakutenImportMonth] = useState(() => {
+    const now = new Date();
+    // デフォルトは翌月
+    return now.toISOString().slice(0, 7);
+  });
+  const [importResult, setImportResult] = useState<null | { success: number; fail: number; paymentDate: string; type: 'success' | 'fail' }>(null);
+  const { showSnackbar } = useSnackbar();
+  const [isBulkSelectMode, setIsBulkSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
 
   const segmentSwipeHandlers = useSwipeable({
     onSwipedLeft: () => {
@@ -348,50 +360,29 @@ export const CalendarPage = () => {
     setSelectedDate(date); // カレンダーの表示月も切り替える
   };
 
-  // 楽天明細インポート処理
-  const handleRakutenCsvImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // インポートボタンでファイル選択→月選択ダイアログ
+  const handleRakutenFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setRakutenImportFile(file);
+    setRakutenImportDialogOpen(true);
+    e.target.value = '';
+  };
+
+  // 月選択ダイアログでインポート実行
+  const handleRakutenImport = () => {
+    if (!rakutenImportFile) return;
     setRakutenLoading(true);
-    showSnackbar('楽天明細のインポートを開始します');
-    Papa.parse(file, {
+    setImportResult(null);
+    Papa.parse(rakutenImportFile, {
       header: true,
       skipEmptyLines: true,
       complete: async (results: Papa.ParseResult<Record<string, string>>) => {
         const rows = results.data;
         let success = 0;
         let fail = 0;
-        
-        // CSV内の最新月を特定して、その翌月27日を全明細の引き落とし日とする
-        let latestYear = 0;
-        let latestMonth = 0;
-        
-        // まずCSV内の最新月を特定
-        for (const row of rows) {
-          const dateStr = row['利用日']?.trim();
-          if (!dateStr) continue;
-          try {
-            const [y, m] = dateStr.replace(/\//g, '-').split('-');
-            const year = parseInt(y);
-            const month = parseInt(m);
-            if (year > latestYear || (year === latestYear && month > latestMonth)) {
-              latestYear = year;
-              latestMonth = month;
-            }
-          } catch { continue; }
-        }
-        
-        // 最新月の翌月27日を計算
-        let paymentYear = latestYear;
-        let paymentMonth = latestMonth + 1;
-        if (paymentMonth > 12) {
-          paymentMonth = 1;
-          paymentYear += 1;
-        }
-        const paymentDate = `${paymentYear}-${paymentMonth.toString().padStart(2, '0')}-27`;
-        
-        console.log(`[楽天明細インポート] CSV最新月: ${latestYear}/${latestMonth}, 引き落とし日: ${paymentDate}`);
-        
+        const [paymentYear, paymentMonth] = rakutenImportMonth.split('-');
+        const paymentDate = `${paymentYear}-${paymentMonth}-27`;
         for (const row of rows) {
           const name = row['利用店名・商品名']?.trim() || '';
           const amountKey = Object.keys(row).find(k => k.includes('支払金額'));
@@ -400,11 +391,8 @@ export const CalendarPage = () => {
           if (!name || !amountStr || !dateStr) { fail++; continue; }
           const amount = Number(amountStr);
           if (isNaN(amount)) { fail++; continue; }
-          
-          // 全明細で統一された引き落とし日を使用
           const date = paymentDate;
           const cardUsedDate = paymentDate;
-          
           let category = 'その他';
           for (const cat of EXPENSE_CATEGORIES) {
             if (name.includes(cat)) { category = cat; break; }
@@ -425,20 +413,21 @@ export const CalendarPage = () => {
         }
         useTransactionStore.getState().fetchTransactions();
         setRakutenLoading(false);
+        setRakutenImportDialogOpen(false);
+        setRakutenImportFile(null);
         if (success > 0) {
-          console.log('[楽天明細インポート] toast呼び出し: 登録件数:', success, '失敗:', fail);
-          showSnackbar(`楽天明細インポート完了: 登録件数: ${success}件、失敗: ${fail}件、引き落とし日: ${paymentDate}`, fail === 0 ? 'default' : 'destructive');
+          setImportResult({ success, fail, paymentDate, type: 'success' });
         } else {
-          console.log('[楽天明細インポート] toast呼び出し: インポート失敗');
-          showSnackbar('インポート失敗: 明細の取り込みに失敗しました', 'destructive');
+          setImportResult({ success, fail, paymentDate, type: 'fail' });
         }
       },
       error: () => {
         setRakutenLoading(false);
-        showSnackbar('CSV読み込みエラー: ファイルの解析に失敗しました', 'destructive');
+        setRakutenImportDialogOpen(false);
+        setRakutenImportFile(null);
+        setImportResult({ success: 0, fail: 0, paymentDate: '', type: 'fail' });
       },
     });
-    e.target.value = '';
   };
 
   // モーダルが開いた時はトランザクション一覧を展開状態にする
@@ -454,6 +443,19 @@ export const CalendarPage = () => {
       setEditingTransaction(null);
     }
   }, [isDialogOpen]);
+
+  const handleBulkDelete = async () => {
+    setIsConfirmDialogOpen(false);
+    try {
+      await deleteTransactions(selectedIds);
+      setSelectedIds([]);
+      setIsBulkSelectMode(false);
+      showSnackbar('選択した収支を削除しました', 'default');
+      fetchTransactions();
+    } catch {
+      showSnackbar('一括削除に失敗しました', 'destructive');
+    }
+  };
 
   return (
     <motion.div 
@@ -482,6 +484,31 @@ export const CalendarPage = () => {
         transition={{ delay: 0.2 }}
         className="w-full max-w-[100vw] flex justify-center"
       >
+        {/* インポート結果トースト */}
+        {importResult && (
+          <div
+            className={`fixed bottom-20 left-1/2 -translate-x-1/2 z-[200] px-6 py-3 rounded-lg shadow-lg border-2 flex flex-col items-start min-w-[260px] animate-fade-in-out
+              ${importResult.type === 'success' ? 'bg-green-50 border-green-500' : 'bg-red-50 border-red-500'}`}
+          >
+            <div className="font-bold text-base mb-1">
+              楽天明細インポート{importResult.type === 'success' ? '完了' : '失敗'}
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <span className="font-bold text-green-600">成功: {importResult.success}件</span>
+              <span className="font-bold text-red-600">失敗: {importResult.fail}件</span>
+            </div>
+            {importResult.paymentDate && (
+              <div className="text-xs text-gray-500 mt-1">引き落とし日: {importResult.paymentDate}</div>
+            )}
+            <button
+              className="absolute top-1 right-2 text-gray-400 hover:text-gray-700 text-lg"
+              onClick={() => setImportResult(null)}
+              aria-label="閉じる"
+            >
+              ×
+            </button>
+          </div>
+        )}
         <Card className="w-full max-w-4xl">
           <CardContent className="p-2 sm:p-4 w-full min-h-[450px] relative" style={{ overflowY: 'hidden' }}>
             {/* 地味で直感的なトグルデザイン */}
@@ -562,10 +589,38 @@ export const CalendarPage = () => {
                   type="file"
                   accept=".csv"
                   className="hidden"
-                  onChange={handleRakutenCsvImport}
+                  onChange={handleRakutenFileChange}
                 />
               </label>
             </div>
+            {/* 楽天明細インポート用の反映月選択ダイアログ */}
+            <Dialog open={rakutenImportDialogOpen} onOpenChange={setRakutenImportDialogOpen}>
+              <DialogContent className="max-w-xs">
+                <DialogHeader>
+                  <DialogTitle>反映月を選択</DialogTitle>
+                </DialogHeader>
+                <div className="flex flex-col gap-4">
+                  <Input
+                    type="month"
+                    value={rakutenImportMonth}
+                    onChange={e => setRakutenImportMonth(e.target.value)}
+                    className="border rounded px-2 py-1 text-sm"
+                    min={(() => {
+                      const d = new Date();
+                      return d.toISOString().slice(0, 7);
+                    })()}
+                    max={(() => {
+                      const d = new Date();
+                      d.setMonth(d.getMonth() + 11);
+                      return d.toISOString().slice(0, 7);
+                    })()}
+                  />
+                  <Button onClick={handleRakutenImport} disabled={rakutenLoading}>
+                    この月でインポート
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
           </CardContent>
         </Card>
       </motion.div>
@@ -644,11 +699,10 @@ export const CalendarPage = () => {
               {format(selectedDate, 'M月d日(E)', { locale: ja })}の記録
             </DialogTitle>
           </DialogHeader>
-          
-          {/* Existing transactions for the day */}
+          {/* 一括選択モード切替 */}
           {selectedDateTransactions.length > 0 && (
-            <div>
-              <div className="flex items-center mb-2 justify-start">
+            <div className="flex items-center mt-2 justify-between w-full">
+              <div className="flex items-center">
                 {selectedDateTransactions.length > 2 && (
                   <Button
                     variant="outline"
@@ -661,46 +715,90 @@ export const CalendarPage = () => {
                     {showAllTransactions ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                   </Button>
                 )}
+                {isBulkSelectMode && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="ml-2"
+                    disabled={selectedIds.length === 0}
+                    onClick={() => setIsConfirmDialogOpen(true)}
+                  >
+                    {selectedIds.length}件を削除
+                  </Button>
+                )}
               </div>
-              <div className={`space-y-2 overflow-auto transition-all duration-200 ${showAllTransactions ? 'max-h-[40vh] min-h-[4rem]' : 'max-h-[96px] min-h-[96px]'}`}>
-                {selectedDateTransactions.map((transaction) => (
-                  <div key={transaction.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                    <div className="flex items-center space-x-2 flex-1">
-                      {transaction.type === 'income' ? (
-                        <ArrowUpCircle className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <ArrowDownCircle className="h-4 w-4 text-red-600" />
-                      )}
-                      <span className="text-sm">{transaction.memo || transaction.category}</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className={`text-sm font-medium ${
-                        transaction.type === 'income' ? 'text-green-600' : 'text-red-600'
-                      }`}>
-                        ¥{formatAmount(transaction.amount)}
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() =>
-                          editingTransaction?.id === transaction.id
-                            ? setEditingTransaction(null)
-                            : setEditingTransaction(transaction)
-                        }
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDelete(transaction.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+              <div className="flex items-center ml-auto">
+                {!isBulkSelectMode ? (
+                  <Button variant="outline" size="sm" onClick={() => setIsBulkSelectMode(true)}>
+                    収支一括削除
+                  </Button>
+                ) : (
+                  <Button variant="destructive" size="sm" onClick={() => { setIsBulkSelectMode(false); setSelectedIds([]); }}>
+                    一括選択解除
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+          {/* Existing transactions for the day */}
+          {selectedDateTransactions.length > 0 && (
+            <div className={`space-y-2 overflow-auto transition-all duration-200 ${showAllTransactions ? 'max-h-[40vh] min-h-[4rem]' : 'max-h-[96px] min-h-[96px]'}`}>
+              {selectedDateTransactions.map((transaction) => (
+                <div key={transaction.id} className={`flex items-center justify-between p-2 bg-gray-50 rounded ${isBulkSelectMode && selectedIds.includes(transaction.id) ? 'ring-2 ring-blue-400' : ''}`}>
+                  <div className="flex items-center space-x-2 flex-1">
+                    {isBulkSelectMode && (
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(transaction.id)}
+                        onChange={e => {
+                          setSelectedIds(ids =>
+                            e.target.checked
+                              ? [...ids, transaction.id]
+                              : ids.filter(id => id !== transaction.id)
+                          );
+                        }}
+                        className="mr-2 w-6 h-6 min-w-[1.5rem] min-h-[1.5rem] accent-blue-500 rounded border-gray-300 focus:ring-2 focus:ring-blue-400"
+                        style={{ boxSizing: 'border-box' }}
+                      />
+                    )}
+                    {transaction.type === 'income' ? (
+                      <ArrowUpCircle className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <ArrowDownCircle className="h-4 w-4 text-red-600" />
+                    )}
+                    <span className="text-sm">{transaction.memo || transaction.category}</span>
                   </div>
-                ))}
-              </div>
+                  <div className="flex items-center space-x-2">
+                    <span className={`text-sm font-medium ${
+                      transaction.type === 'income' ? 'text-green-600' : 'text-red-600'
+                    }`}>
+                      ¥{formatAmount(transaction.amount)}
+                    </span>
+                    {!isBulkSelectMode && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            editingTransaction?.id === transaction.id
+                              ? setEditingTransaction(null)
+                              : setEditingTransaction(transaction)
+                          }
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDelete(transaction.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
 
@@ -710,6 +808,37 @@ export const CalendarPage = () => {
             editingTransaction={editingTransaction}
             onEditCancel={() => setEditingTransaction(null)}
           />
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Delete Confirmation Dialog: 件数・期間・注意文言を明示 */}
+      <Dialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
+        <DialogContent className="max-w-xs">
+          <DialogHeader>
+            <DialogTitle>本当に削除しますか？</DialogTitle>
+          </DialogHeader>
+          <div className="py-2 text-sm text-gray-700">
+            <div>選択件数: <b>{selectedIds.length}</b></div>
+            {selectedIds.length > 0 && (
+              <div>
+                <span>期間: </span>
+                <b>
+                  {(() => {
+                    const sel = selectedDateTransactions.filter(t => selectedIds.includes(t.id));
+                    if (sel.length === 0) return '-';
+                    const dates = sel.map(t => t.date).sort();
+                    return dates[0] === dates[dates.length-1]
+                      ? dates[0]
+                      : `${dates[0]} ~ ${dates[dates.length-1]}`;
+                  })()}
+                </b>
+              </div>
+            )}
+          </div>
+          <div className="flex justify-end space-x-2 mt-4">
+            <Button variant="outline" onClick={() => setIsConfirmDialogOpen(false)}>キャンセル</Button>
+            <Button variant="destructive" onClick={handleBulkDelete}>削除</Button>
+          </div>
         </DialogContent>
       </Dialog>
     </motion.div>

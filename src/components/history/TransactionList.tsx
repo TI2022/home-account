@@ -17,7 +17,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '@/types';
 
 export const TransactionList = () => {
-  const { transactions, deleteTransaction, updateTransaction } = useTransactionStore();
+  const { transactions, deleteTransaction, updateTransaction, deleteTransactions } = useTransactionStore();
   const { selectedMonth } = useAppStore();
   const { showSnackbar } = useSnackbar();
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
@@ -29,6 +29,9 @@ export const TransactionList = () => {
     memo: '',
     date: '',
   });
+  const [isBulkSelectMode, setIsBulkSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
 
   const filteredTransactions = transactions.filter(t => 
     t.date.startsWith(selectedMonth)
@@ -97,6 +100,18 @@ export const TransactionList = () => {
     setEditingTransaction(null);
   };
 
+  const handleBulkDelete = async () => {
+    setIsConfirmDialogOpen(false);
+    try {
+      await deleteTransactions(selectedIds);
+      setSelectedIds([]);
+      setIsBulkSelectMode(false);
+      showSnackbar('選択した収支を削除しました', 'default');
+    } catch {
+      showSnackbar('一括削除に失敗しました', 'destructive');
+    }
+  };
+
   if (filteredTransactions.length === 0) {
     return (
       <div className="text-center py-12 text-gray-500">
@@ -117,6 +132,17 @@ export const TransactionList = () => {
 
   return (
     <div className="space-y-4">
+      <div className="flex justify-end mb-2">
+        {!isBulkSelectMode ? (
+          <Button variant="outline" size="sm" onClick={() => setIsBulkSelectMode(true)}>
+            一括選択モード
+          </Button>
+        ) : (
+          <Button variant="destructive" size="sm" onClick={() => { setIsBulkSelectMode(false); setSelectedIds([]); }}>
+            一括選択解除
+          </Button>
+        )}
+      </div>
       {Object.entries(groupedTransactions)
         .sort(([a], [b]) => b.localeCompare(a))
         .map(([date, dayTransactions]) => (
@@ -126,10 +152,25 @@ export const TransactionList = () => {
             </h3>
             <div className="space-y-2">
               {dayTransactions.map((transaction) => (
-                <Card key={transaction.id} className="shadow-sm">
+                <Card key={transaction.id} className={`shadow-sm ${isBulkSelectMode && selectedIds.includes(transaction.id) ? 'ring-2 ring-blue-400' : ''}`}>
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
+                        {isBulkSelectMode && (
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.includes(transaction.id)}
+                            onChange={e => {
+                              setSelectedIds(ids =>
+                                e.target.checked
+                                  ? [...ids, transaction.id]
+                                  : ids.filter(id => id !== transaction.id)
+                              );
+                            }}
+                            className="mr-2 w-6 h-6 min-w-[1.5rem] min-h-[1.5rem] accent-blue-500 rounded border-gray-300 focus:ring-2 focus:ring-blue-400"
+                            style={{ boxSizing: 'border-box' }}
+                          />
+                        )}
                         <div className={`p-2 rounded-full ${
                           transaction.type === 'income' 
                             ? 'bg-green-100' 
@@ -160,20 +201,24 @@ export const TransactionList = () => {
                         }`}>
                           {transaction.type === 'income' ? '+' : '-'}¥{formatAmount(transaction.amount)}
                         </p>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEdit(transaction)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDelete(transaction)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {!isBulkSelectMode && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEdit(transaction)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDelete(transaction)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </div>
                   </CardContent>
@@ -182,7 +227,47 @@ export const TransactionList = () => {
             </div>
           </div>
         ))}
-
+      {isBulkSelectMode && (
+        <div className="fixed right-6 z-[100] flex flex-col items-end space-y-2" style={{ bottom: '5rem' }}>
+          <Button
+            variant="destructive"
+            size="lg"
+            disabled={selectedIds.length === 0}
+            onClick={() => setIsConfirmDialogOpen(true)}
+          >
+            {selectedIds.length}件を削除
+          </Button>
+        </div>
+      )}
+      <Dialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
+        <DialogContent className="max-w-xs">
+          <DialogHeader>
+            <DialogTitle>本当に削除しますか？</DialogTitle>
+          </DialogHeader>
+          <div className="py-2 text-sm text-gray-700">
+            <div>選択件数: <b>{selectedIds.length}</b></div>
+            {selectedIds.length > 0 && (
+              <div>
+                <span>期間: </span>
+                <b>
+                  {(() => {
+                    const sel = filteredTransactions.filter(t => selectedIds.includes(t.id));
+                    if (sel.length === 0) return '-';
+                    const dates = sel.map(t => t.date).sort();
+                    return dates[0] === dates[dates.length-1]
+                      ? dates[0]
+                      : `${dates[0]} ~ ${dates[dates.length-1]}`;
+                  })()}
+                </b>
+              </div>
+            )}
+          </div>
+          <div className="flex justify-end space-x-2 mt-4">
+            <Button variant="outline" onClick={() => setIsConfirmDialogOpen(false)}>キャンセル</Button>
+            <Button variant="destructive" onClick={handleBulkDelete}>削除</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       {/* 編集ダイアログ */}
       <Dialog open={isDialogOpen} onOpenChange={handleCancel}>
         <DialogContent className="sm:max-w-md">
