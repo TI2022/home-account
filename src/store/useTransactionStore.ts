@@ -23,8 +23,8 @@ interface TransactionState {
   deleteRecurringExpense: (id: string) => Promise<void>;
   updateTransaction: (transaction: Transaction) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
-  reflectRecurringExpensesForPeriod: (startDate: string, endDate: string) => Promise<void>;
-  reflectRecurringIncomesForPeriod: (startDate: string, endDate: string) => Promise<void>;
+  reflectRecurringExpensesForPeriod: (startDate: string, endDate: string, isMock?: boolean) => Promise<void>;
+  reflectRecurringIncomesForPeriod: (startDate: string, endDate: string, isMock?: boolean) => Promise<void>;
 }
 
 export const useTransactionStore = create<TransactionState>((set, get) => ({
@@ -370,6 +370,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
         date: transaction.date,
         memo: transaction.memo,
         card_used_date: transaction.card_used_date || null,
+        isMock: transaction.isMock ?? false,
       };
       console.log('Extracted update data:', updateData);
       console.log('Update data type:', typeof updateData.type);
@@ -422,7 +423,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
     }
   },
 
-  reflectRecurringExpensesForPeriod: async (startDate: string, endDate: string) => {
+  reflectRecurringExpensesForPeriod: async (startDate: string, endDate: string, isMock?: boolean) => {
     const { addTransaction, fetchRecurringExpenses, fetchTransactions } = get();
     await fetchRecurringExpenses();
     await fetchTransactions();
@@ -457,6 +458,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
                 category: exp.category,
                 date: paymentDateStr,
                 memo: exp.name,
+                isMock: !!isMock,
               });
             }
           }
@@ -467,7 +469,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
     }
   },
 
-  reflectRecurringIncomesForPeriod: async (startDate: string, endDate: string) => {
+  reflectRecurringIncomesForPeriod: async (startDate: string, endDate: string, isMock?: boolean) => {
     const { addTransaction, fetchRecurringIncomes, fetchTransactions } = get();
     await fetchRecurringIncomes();
     await fetchTransactions();
@@ -502,6 +504,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
                 category: inc.category,
                 date: paymentDateStr,
                 memo: inc.name,
+                isMock: !!isMock,
               });
             }
           }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -30,6 +30,17 @@ const StyledDateCalendar = styled(DateCalendar)(({ theme }) => ({
     alignItems: 'center',
     justifyContent: 'center',
     padding: '8px',
+  },
+  '& .MuiPickersArrowSwitcher-root .MuiIconButton-root': {
+    width: '48px',
+    height: '48px',
+    minWidth: '48px',
+    minHeight: '48px',
+    padding: '12px',
+    fontSize: '2rem',
+    '& svg': {
+      fontSize: '2rem',
+    },
   },
   '& .MuiPickersCalendarHeader-label': {
     fontSize: '1.1rem',
@@ -70,28 +81,24 @@ const StyledDateCalendar = styled(DateCalendar)(({ theme }) => ({
 type CustomDayProps = Omit<PickersDayProps, 'onAnimationStart'>;
 
 // カスタムの日付セルコンポーネント
-const CustomDay = (props: CustomDayProps) => {
-  const { day, ...other } = props;
+const CustomDay = (props: CustomDayProps & { showMock?: boolean }) => {
+  const { day, showMock, ...other } = props;
   const { transactions } = useTransactionStore();
   const isToday = isSameDay(day, new Date());
 
   // Calculate daily totals for calendar display
   const getDayTotal = (date: Date) => {
     const dayTransactions = transactions.filter(t => 
-      isSameDay(new Date(t.date), date)
+      isSameDay(new Date(t.date), date) && (!showMock ? !t.isMock : true)
     );
-    
     const income = dayTransactions
       .filter(t => t.type === 'income')
       .reduce((sum, t) => sum + t.amount, 0);
-    
     const expense = dayTransactions
       .filter(t => t.type === 'expense')
       .reduce((sum, t) => sum + t.amount, 0);
-
     return { income, expense, net: income - expense };
   };
-
   const dayTotal = getDayTotal(day);
 
   return (
@@ -192,12 +199,14 @@ const SwipeableCalendar = ({
   selectedDate, 
   onDateSelect, 
   onMonthChange, 
-  currentMonth 
+  currentMonth,
+  showMock
 }: {
   selectedDate: Date;
   onDateSelect: (date: Date | null) => void;
   onMonthChange: (date: Date) => void;
   currentMonth: Date;
+  showMock: boolean;
 }) => {
   const swipeHandlers = useSwipeable({
     onSwipedLeft: () => {
@@ -233,7 +242,7 @@ const SwipeableCalendar = ({
           onChange={onDateSelect}
           onMonthChange={onMonthChange}
           slots={{
-            day: CustomDay
+            day: (props) => <CustomDay {...props} showMock={showMock} />
           }}
         />
       </LocalizationProvider>
@@ -252,6 +261,34 @@ export const CalendarPage = () => {
   const { showSnackbar } = useSnackbar();
   const [rakutenLoading, setRakutenLoading] = useState(false);
   const [showAllTransactions, setShowAllTransactions] = useState(false);
+  const [showMock, setShowMock] = useState(false);
+  const [swipeDeltaX, setSwipeDeltaX] = useState(0);
+  const [isSwiping, setIsSwiping] = useState(false);
+  const segmentRef = useRef<HTMLDivElement>(null);
+
+  const segmentSwipeHandlers = useSwipeable({
+    onSwipedLeft: () => {
+      setShowMock(true);
+      setSwipeDeltaX(0);
+      setIsSwiping(false);
+    },
+    onSwipedRight: () => {
+      setShowMock(false);
+      setSwipeDeltaX(0);
+      setIsSwiping(false);
+    },
+    onSwiping: (e) => {
+      setIsSwiping(true);
+      setSwipeDeltaX(e.deltaX);
+    },
+    onSwiped: () => {
+      setSwipeDeltaX(0);
+      setIsSwiping(false);
+    },
+    delta: 30,
+    trackTouch: true,
+    trackMouse: false,
+  });
 
   useEffect(() => {
     fetchTransactions();
@@ -265,12 +302,13 @@ export const CalendarPage = () => {
   const monthEnd = endOfMonth(currentMonth);
   const monthTransactions = transactions.filter(t => {
     const transactionDate = new Date(t.date);
+    if (!showMock && t.isMock) return false;
     return transactionDate >= monthStart && transactionDate <= monthEnd;
   });
 
   // Get transactions for selected date
   const selectedDateTransactions = transactions.filter(t => 
-    isSameDay(new Date(t.date), selectedDate)
+    (!t.isMock || showMock) && isSameDay(new Date(t.date), selectedDate)
   );
 
   const formatAmount = (amount: number) => {
@@ -446,12 +484,60 @@ export const CalendarPage = () => {
       >
         <Card className="w-full max-w-4xl">
           <CardContent className="p-2 sm:p-4 w-full min-h-[450px] relative" style={{ overflowY: 'hidden' }}>
+            {/* 地味で直感的なトグルデザイン */}
+            <div {...segmentSwipeHandlers} className="flex flex-col items-center justify-center mb-4 select-none">
+              <div ref={segmentRef} className="flex w-full max-w-xs relative">
+                <button
+                  type="button"
+                  className={`flex-1 px-3 py-2 rounded-l-full flex items-center justify-center gap-1 text-base font-semibold border border-gray-300
+                    ${!showMock ? 'bg-blue-100 text-blue-800' : 'bg-white text-gray-400'}`}
+                  onClick={() => setShowMock(false)}
+                  aria-pressed={!showMock}
+                  style={{ borderRight: 'none', borderTopRightRadius: 0, borderBottomRightRadius: 0, boxShadow: 'none', transition: 'color 0.2s, background 0.2s' }}
+                >
+                  <span className="relative z-10">実際の収支のみ</span>
+                </button>
+                <button
+                  type="button"
+                  className={`flex-1 px-3 py-2 rounded-r-full flex items-center justify-center gap-1 text-base font-semibold border border-gray-300
+                    ${showMock ? 'bg-blue-100 text-blue-800' : 'bg-white text-gray-400'}`}
+                  onClick={() => setShowMock(true)}
+                  aria-pressed={showMock}
+                  style={{ borderLeft: 'none', borderTopLeftRadius: 0, borderBottomLeftRadius: 0, boxShadow: 'none', transition: 'color 0.2s, background 0.2s' }}
+                >
+                  <span className="relative z-10">予定も表示</span>
+                </button>
+                {/* トグルのアニメーション部分（右端遅延解消） */}
+                <span
+                  className="absolute top-0 h-full w-1/2 transition-all duration-200 pointer-events-none bg-blue-100"
+                  style={{
+                    left: isSwiping
+                      ? (() => {
+                          if (!segmentRef.current) return showMock ? '50%' : '0%';
+                          const width = segmentRef.current.offsetWidth;
+                          const percent = Math.max(-1, Math.min(1, swipeDeltaX / width));
+                          const base = showMock ? 50 : 0;
+                          let move = base + percent * 50;
+                          move = Math.max(0, Math.min(50, move));
+                          return `${move}%`;
+                        })()
+                      : showMock ? '50%' : '0%',
+                    right: isSwiping ? 'auto' : showMock ? 0 : 'auto',
+                    width: '50%',
+                    borderRadius: '9999px',
+                    zIndex: 0,
+                    transition: 'left 0.2s cubic-bezier(0.4,0,0.2,1)',
+                  }}
+                />
+              </div>
+            </div>
             {/* カレンダー本体 */}
             <SwipeableCalendar
               selectedDate={selectedDate}
               onDateSelect={handleDateSelect}
               onMonthChange={handleMonthChange}
               currentMonth={currentMonth}
+              showMock={showMock}
             />
             {/* 楽天明細インポートボタン: 右下に絶対配置（白背景＋赤枠＋赤文字、元のデザイン） */}
             <div style={{ position: 'absolute', bottom: 16, right: 16, zIndex: 10 }}>

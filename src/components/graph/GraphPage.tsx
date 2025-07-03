@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useTransactionStore } from '@/store/useTransactionStore';
 import { useSavingsStore } from '@/store/useSavingsStore';
-import { useSavingsPlanStore } from '@/store/useSavingsPlanStore';
 import {
   ResponsiveContainer,
   BarChart,
@@ -22,12 +21,13 @@ import { format, parseISO } from 'date-fns';
 export const GraphPage = () => {
   const { transactions } = useTransactionStore();
   const { savingsAmount } = useSavingsStore();
-  const { plan } = useSavingsPlanStore();
+
+  const [showMock, setShowMock] = useState(false); // 仮データも表示するか
 
   // 月別収支データ
   const monthlyData = useMemo(() => {
     const map: Record<string, { month: string; income: number; expense: number; balance: number }> = {};
-    transactions.forEach((t) => {
+    transactions.filter(t => showMock || !t.isMock).forEach((t) => {
       const date = typeof t.date === 'string' ? parseISO(t.date) : t.date;
       const key = format(date, 'yyyy-MM');
       if (!map[key]) {
@@ -41,12 +41,12 @@ export const GraphPage = () => {
       map[key].balance = map[key].income - map[key].expense;
     });
     return Object.values(map).sort((a, b) => a.month.localeCompare(b.month));
-  }, [transactions]);
+  }, [transactions, showMock]);
 
   // カテゴリ別支出データ
   const categoryData = useMemo(() => {
     const map: Record<string, number> = {};
-    transactions.forEach((t) => {
+    transactions.filter(t => showMock || !t.isMock).forEach((t) => {
       if (t.type === 'expense') {
         map[t.category] = (map[t.category] || 0) + t.amount;
       }
@@ -54,7 +54,7 @@ export const GraphPage = () => {
     return Object.entries(map)
       .map(([category, amount]) => ({ category, amount }))
       .sort((a, b) => b.amount - a.amount);
-  }, [transactions]);
+  }, [transactions, showMock]);
 
   const COLORS = [
     '#22C55E', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6',
@@ -65,7 +65,7 @@ export const GraphPage = () => {
   const savingsHistory = useMemo(() => {
     // 月ごとに収入・支出を集計
     const map: Record<string, { month: string; income: number; expense: number }> = {};
-    transactions.forEach((t) => {
+    transactions.filter(t => showMock || !t.isMock).forEach((t) => {
       const date = typeof t.date === 'string' ? parseISO(t.date) : t.date;
       const key = format(date, 'yyyy-MM');
       if (!map[key]) {
@@ -96,12 +96,7 @@ export const GraphPage = () => {
       }
     }
     return result;
-  }, [transactions, savingsAmount]);
-
-  // 目標達成率の計算
-  const goal = Number(plan?.goal_amount || 0);
-  const current = Number(savingsAmount || 0);
-  const progress = goal > 0 ? Math.min((current / goal) * 100, 100) : 0;
+  }, [transactions, savingsAmount, showMock]);
 
   // 期間指定集計用の状態
   const [period, setPeriod] = useState<'month' | 'year' | 'week'>('month');
@@ -154,6 +149,18 @@ export const GraphPage = () => {
 
   return (
     <div className="pb-20 space-y-8">
+      {/* 仮データ表示切り替えスイッチ */}
+      <div className="flex items-center gap-2 mb-2">
+        <label className="flex items-center gap-1 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={showMock}
+            onChange={e => setShowMock(e.target.checked)}
+          />
+          <span className="text-sm">仮データも表示</span>
+        </label>
+      </div>
+
       <Card>
         <CardHeader>
           <CardTitle>月別収支推移</CardTitle>
@@ -285,29 +292,6 @@ export const GraphPage = () => {
           </ResponsiveContainer>
           <div className="text-gray-500 mt-2">
             ※各月末時点の貯蓄残高を表示しています。
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* 目標達成率ゲージ（進捗バー） */}
-      <Card>
-        <CardHeader>
-          <CardTitle>目標貯蓄額の達成率</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="w-full bg-gray-200 rounded-full h-6 relative overflow-hidden">
-            <div
-              className="bg-green-500 h-6 rounded-full transition-all duration-700"
-              style={{ width: `${progress}%` }}
-            />
-            <div className="absolute inset-0 flex items-center justify-center font-bold text-white">
-              {goal > 0
-                ? `${progress.toFixed(1)}%（¥${current.toLocaleString()} / ¥${goal.toLocaleString()}）`
-                : '目標未設定'}
-            </div>
-          </div>
-          <div className="text-gray-500 mt-2">
-            ※目標貯蓄額に対する現在の貯蓄額の進捗率を表示しています。
           </div>
         </CardContent>
       </Card>

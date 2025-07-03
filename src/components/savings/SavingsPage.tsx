@@ -4,7 +4,6 @@ import { useTransactionStore } from '@/store/useTransactionStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Wishlist } from './Wishlist';
-import { SavingsPlan } from './SavingsPlan';
 import { format } from 'date-fns';
 
 export const SavingsPage = () => {
@@ -21,8 +20,8 @@ export const SavingsPage = () => {
     setInputValue(savingsAmount.toString());
   }, [savingsAmount]);
 
-  // 月ごとの貯金額（収入-支出）を集計
-  const monthlySavings = transactions.reduce((acc, t) => {
+  // 月ごとの貯金額（収入-支出）を集計（仮データは除外）
+  const monthlySavings = transactions.filter(t => !t.isMock).reduce((acc, t) => {
     const ym = t.date.slice(0, 7); // YYYY-MM
     if (!acc[ym]) acc[ym] = { income: 0, expense: 0 };
     if (t.type === 'income') acc[ym].income += t.amount;
@@ -36,7 +35,7 @@ export const SavingsPage = () => {
     }))
     .sort((a, b) => a.ym.localeCompare(b.ym));
 
-  // 1年分の貯金機会合計を計算
+  // 1年分の貯金機会合計（仮データは除外）
   const yearlySavingsOpportunity = monthlySavingsList.reduce((total, { savings }) => {
     return total + Math.max(0, savings); // プラスの月のみを合計
   }, 0);
@@ -127,7 +126,6 @@ export const SavingsPage = () => {
           </div>
         </div>
       )}
-      <SavingsPlan />
       <Wishlist />
     </div>
   );

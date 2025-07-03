@@ -58,6 +58,7 @@ export const RecurringExpenseSettings = () => {
   const [reflectLoading, setReflectLoading] = useState(false);
   const [isReflectDialogOpen, setIsReflectDialogOpen] = useState(false);
   const [rakutenLoading, setRakutenLoading] = useState(false);
+  const [isMock, setIsMock] = useState(false);
 
   useEffect(() => {
     fetchRecurringExpenses();
@@ -303,15 +304,42 @@ export const RecurringExpenseSettings = () => {
                 min={periodStartDate}
               />
             </div>
+            <div className="flex items-center gap-4 mt-2">
+              <Label>反映種別</Label>
+              <label className="flex items-center gap-1">
+                <input
+                  type="radio"
+                  name="reflectType"
+                  checked={!isMock}
+                  onChange={() => setIsMock(false)}
+                />
+                <span><span className="text-red-700">実際</span>の支出</span>
+              </label>
+              <label className="flex items-center gap-1">
+                <input
+                  type="radio"
+                  name="reflectType"
+                  checked={isMock}
+                  onChange={() => setIsMock(true)}
+                />
+                <span>予定の支出</span>
+              </label>
+            </div>
             <Button
               className="bg-green-500 hover:bg-green-600 mt-2"
               disabled={reflectLoading || periodEndDate < periodStartDate}
               onClick={async () => {
                 setReflectLoading(true);
-                await reflectRecurringExpensesForPeriod(periodStartDate, periodEndDate);
-                setReflectLoading(false);
-                setIsReflectDialogOpen(false);
-                showSnackbar('反映完了', 'default');
+                try {
+                  await reflectRecurringExpensesForPeriod(periodStartDate, periodEndDate, isMock);
+                  showSnackbar('反映完了', 'default');
+                  setIsReflectDialogOpen(false);
+                } catch (error) {
+                  console.error('一括反映エラー:', error);
+                  showSnackbar('一括反映に失敗しました', 'destructive');
+                } finally {
+                  setReflectLoading(false);
+                }
               }}
             >
               {reflectLoading ? '反映中...' : '定期支出を反映'}

@@ -1,14 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useWishlistStore, WishlistItem } from '@/store/useWishlistStore';
-import { useSavingsStore } from '@/store/useSavingsStore';
-import { useSavingsPlanStore } from '@/store/useSavingsPlanStore';
 import { Button } from '@/components/ui/button';
 import { useSnackbar } from '@/hooks/use-toast';
 
 export const Wishlist = () => {
   const { wishlist, fetchWishlist, addWishlistItem, updateWishlistItem, deleteWishlistItem, loading } = useWishlistStore();
-  const { savingsAmount } = useSavingsStore();
-  const { plan } = useSavingsPlanStore();
   const { showSnackbar } = useSnackbar();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [form, setForm] = useState({ name: '', price: '', priority: '1' });
@@ -20,43 +16,13 @@ export const Wishlist = () => {
     fetchWishlist();
   }, [fetchWishlist]);
 
-  // 優先度順にソート
-  const sortedWishlist = [...wishlist].sort((a, b) => a.priority - b.priority);
-
-  // 優先度順に達成予定日を計算
-  const getExpectedDates = () => {
-    const monthly = Number(plan?.monthly_target || 0);
-    let current = Number(savingsAmount || 0);
-    let now = new Date();
-    const results: { [id: string]: string } = {};
-
-    for (const item of sortedWishlist) {
-      const price = Number(item.price);
-      if (!monthly || monthly <= 0) {
-        results[item.id] = '未設定';
-        continue;
-      }
-      if (price <= current) {
-        results[item.id] = '達成！';
-        current -= price; // 次のアイテムのために減算
-        continue;
-      }
-      const remain = price - current;
-      const monthsLeft = Math.ceil(remain / monthly);
-
-      // 達成予定日を計算
-      const expected = new Date(now);
-      expected.setMonth(expected.getMonth() + monthsLeft);
-      results[item.id] = `${expected.getFullYear()}年${expected.getMonth() + 1}月`;
-
-      // 次のアイテムのために、今の貯金額をこのアイテム達成後の状態に更新
-      current = current + monthsLeft * monthly - price;
-      now = expected;
+  // 優先度順（同じ場合は値段が高い順）にソート
+  const sortedWishlist = [...wishlist].sort((a, b) => {
+    if (a.priority !== b.priority) {
+      return a.priority - b.priority; // 優先度が小さい順
     }
-    return results;
-  };
-
-  const expectedDates = getExpectedDates();
+    return b.price - a.price; // 同じ優先度なら値段が高い順
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,9 +93,6 @@ export const Wishlist = () => {
                 <div className="text-sm text-gray-500 text-left">
                   ¥{Number(item.price).toLocaleString()} / 優先度: {item.priority}
                 </div>
-                <div className="text-xs text-blue-600 mt-1 text-left">
-                  達成予定：{expectedDates[item.id]}
-                </div>
               </div>
               <div className="flex space-x-2">
                 <Button size="sm" variant="outline" onClick={() => handleEdit(item)}>編集</Button>
@@ -174,27 +137,17 @@ export const Wishlist = () => {
                   min={1}
                   value={form.priority}
                   onChange={e => {
-                    const val = e.target.value;
-                    if (val === '') {
-                      setForm(f => ({ ...f, priority: '' }));
-                    } else {
-                      // 先頭0を除去し、1以上のみ許可
-                      const num = val.replace(/^0+/, '');
-                      if (/^\d+$/.test(num) && Number(num) >= 1) {
-                        setForm(f => ({ ...f, priority: num }));
-                      }
-                    }
+                    setForm(f => ({ ...f, priority: e.target.value }));
+                    setPriorityError('');
                   }}
                   className="w-full border rounded px-3 py-2"
                   required
                 />
-                {priorityError && <div className="text-red-600 text-sm mt-1">{priorityError}</div>}
+                {priorityError && <div className="text-red-500 text-sm">{priorityError}</div>}
               </div>
-              <div className="flex justify-end space-x-2 pt-2">
-                <Button variant="outline" type="button" onClick={() => setIsDialogOpen(false)}>
-                  キャンセル
-                </Button>
-                <Button type="submit">{editId ? '保存' : '追加'}</Button>
+              <div className="flex space-x-2">
+                <Button type="submit" className="flex-1">{editId ? '更新' : '追加'}</Button>
+                <Button type="button" variant="outline" onClick={() => { setIsDialogOpen(false); setEditId(null); setForm({ name: '', price: '', priority: '1' }); }}>キャンセル</Button>
               </div>
             </form>
           </div>
@@ -205,19 +158,11 @@ export const Wishlist = () => {
       {deleteTargetId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
           <div className="bg-white rounded-lg shadow-lg p-6 w-80">
-            <h2 className="text-lg font-bold mb-4">削除の確認</h2>
-            <p className="mb-4">本当にこのアイテムを削除しますか？</p>
-            <div className="flex justify-end space-x-2">
+            <h2 className="text-lg font-bold mb-4">削除確認</h2>
+            <p className="mb-4">このアイテムを削除しますか？</p>
+            <div className="flex space-x-2">
+              <Button variant="destructive" onClick={() => { handleDelete(deleteTargetId); setDeleteTargetId(null); }}>削除</Button>
               <Button variant="outline" onClick={() => setDeleteTargetId(null)}>キャンセル</Button>
-              <Button
-                variant="destructive"
-                onClick={async () => {
-                  await handleDelete(deleteTargetId);
-                  setDeleteTargetId(null);
-                }}
-              >
-                削除
-              </Button>
             </div>
           </div>
         </div>

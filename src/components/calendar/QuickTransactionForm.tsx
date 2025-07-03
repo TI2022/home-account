@@ -30,6 +30,7 @@ export const QuickTransactionForm = ({
     amount: '',
     category: '',
     memo: '',
+    isMock: false,
   });
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [showCoinAnimation, setShowCoinAnimation] = useState(false);
@@ -60,6 +61,7 @@ export const QuickTransactionForm = ({
         amount: '',
         category: '',
         memo: '',
+        isMock: false,
       });
     }
   }, [externalEditingTransaction]);
@@ -72,6 +74,7 @@ export const QuickTransactionForm = ({
         amount: editingTransaction.amount.toString(),
         category: editingTransaction.category,
         memo: editingTransaction.memo || '',
+        isMock: !!editingTransaction.isMock,
       });
     }
   }, [editingTransaction]);
@@ -89,6 +92,7 @@ export const QuickTransactionForm = ({
       amount: formData.amount,
       category: formData.category,
       memo: formData.memo,
+      isMock: formData.isMock,
     };
     if (
       lastSubmitted &&
@@ -116,6 +120,7 @@ export const QuickTransactionForm = ({
           amount: Number(formData.amount),
           category: formData.category,
           memo: formData.memo,
+          isMock: formData.isMock,
         });
         setSuccessToastOpen(true);
         toastTimeoutRef.current = setTimeout(() => setSuccessToastOpen(false), 1000);
@@ -126,6 +131,7 @@ export const QuickTransactionForm = ({
           amount: Number(submitData.amount),
           category: submitData.category,
           memo: submitData.memo,
+          isMock: submitData.isMock,
         });
         setSuccessToastOpen(true);
         toastTimeoutRef.current = setTimeout(() => setSuccessToastOpen(false), 1000);
@@ -136,6 +142,7 @@ export const QuickTransactionForm = ({
         amount: '',
         category: '',
         memo: '',
+        isMock: false,
       });
       setEditingTransaction(null);
     } catch (error) {
@@ -158,6 +165,7 @@ export const QuickTransactionForm = ({
       amount: '',
       category: '',
       memo: '',
+      isMock: false,
     });
     if (onEditCancel) onEditCancel();
   };
@@ -177,6 +185,33 @@ export const QuickTransactionForm = ({
       )}
       {/* フォーム */}
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* 反映種別セグメントコントロールをここに移動 */}
+        <div className="flex flex-col items-center space-y-1">
+          <div className="flex w-full max-w-xs bg-gray-100 rounded-full p-1">
+            <button
+              type="button"
+              className={`flex-1 flex items-center justify-center gap-1 px-3 py-2 rounded-full font-bold transition-all
+                ${!formData.isMock ? 'bg-blue-500 text-white shadow' : 'bg-white text-gray-500'}`}
+              onClick={() => setFormData({ ...formData, isMock: false })}
+              aria-pressed={!formData.isMock}
+            >
+              <span className="text-lg">💰</span> 実際の収支
+            </button>
+            <button
+              type="button"
+              className={`flex-1 flex items-center justify-center gap-1 px-3 py-2 rounded-full font-bold transition-all
+                ${formData.isMock ? 'bg-orange-400 text-white shadow' : 'bg-white text-gray-500'}`}
+              onClick={() => setFormData({ ...formData, isMock: true })}
+              aria-pressed={formData.isMock}
+            >
+              <span className="text-lg">🕒</span> 予定の収支
+            </button>
+          </div>
+          <div className="text-xs text-gray-500 mt-1">
+            <span className="font-bold text-blue-500">実際の収支</span>は確定した記録、<span className="font-bold text-orange-400">予定の収支</span>は将来の予定や仮の記録です
+          </div>
+        </div>
+        {/* 支出/収入ラジオボタン */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <RadioGroup

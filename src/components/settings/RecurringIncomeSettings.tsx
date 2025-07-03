@@ -56,6 +56,7 @@ export const RecurringIncomeSettings = () => {
   });
   const [reflectLoading, setReflectLoading] = useState(false);
   const [isReflectDialogOpen, setIsReflectDialogOpen] = useState(false);
+  const [isMock, setIsMock] = useState(false);
 
   useEffect(() => {
     fetchRecurringIncomes();
@@ -211,15 +212,42 @@ export const RecurringIncomeSettings = () => {
                   min={periodStartDate}
                 />
               </div>
+              <div className="flex items-center gap-4 mt-2">
+                <Label>反映種別</Label>
+                <label className="flex items-center gap-1">
+                  <input
+                    type="radio"
+                    name="reflectType"
+                    checked={!isMock}
+                    onChange={() => setIsMock(false)}
+                  />
+                  <span>本番データ</span>
+                </label>
+                <label className="flex items-center gap-1">
+                  <input
+                    type="radio"
+                    name="reflectType"
+                    checked={isMock}
+                    onChange={() => setIsMock(true)}
+                  />
+                  <span>仮データ</span>
+                </label>
+              </div>
               <Button
                 className="bg-green-500 hover:bg-green-600 mt-2"
                 disabled={reflectLoading || periodEndDate < periodStartDate}
                 onClick={async () => {
                   setReflectLoading(true);
-                  await reflectRecurringIncomesForPeriod(periodStartDate, periodEndDate);
-                  setReflectLoading(false);
-                  setIsReflectDialogOpen(false);
-                  showSnackbar('指定期間の定期収入を反映しました');
+                  try {
+                    await reflectRecurringIncomesForPeriod(periodStartDate, periodEndDate, isMock);
+                    showSnackbar('指定期間の定期収入を反映しました');
+                    setIsReflectDialogOpen(false);
+                  } catch (error) {
+                    console.error('一括反映エラー:', error);
+                    showSnackbar('一括反映に失敗しました', 'destructive');
+                  } finally {
+                    setReflectLoading(false);
+                  }
                 }}
               >
                 {reflectLoading ? '反映中...' : '定期収入を反映'}
