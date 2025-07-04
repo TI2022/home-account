@@ -10,7 +10,6 @@ import { useSnackbar } from '@/hooks/use-toast';
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '@/types';
 import { format } from 'date-fns';
 import { Transaction } from '@/types';
-import { CoinAnimation } from '@/components/ui/coin-animation';
 
 interface QuickTransactionFormProps {
   selectedDate: Date;
@@ -31,9 +30,9 @@ export const QuickTransactionForm = ({
     category: '',
     memo: '',
     isMock: false,
+    date: format(selectedDate, 'yyyy-MM-dd'),
   });
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
-  const [showCoinAnimation, setShowCoinAnimation] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lastSubmitted, setLastSubmitted] = useState<{
     date: string;
@@ -43,6 +42,8 @@ export const QuickTransactionForm = ({
     memo: string;
   } | null>(null);
   const [successToastOpen, setSuccessToastOpen] = useState(false);
+  const [errorToast, setErrorToast] = useState<string | null>(null);
+  const [lastAction, setLastAction] = useState<'add' | 'update' | null>(null);
   const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // 外部からeditingTransactionが渡されたら内部stateに反映
@@ -62,9 +63,10 @@ export const QuickTransactionForm = ({
         category: '',
         memo: '',
         isMock: false,
+        date: format(selectedDate, 'yyyy-MM-dd'),
       });
     }
-  }, [externalEditingTransaction]);
+  }, [externalEditingTransaction, selectedDate]);
 
   // 編集モードの場合、フォームに既存のデータをセット
   useEffect(() => {
@@ -75,6 +77,7 @@ export const QuickTransactionForm = ({
         category: editingTransaction.category,
         memo: editingTransaction.memo || '',
         isMock: !!editingTransaction.isMock,
+        date: editingTransaction.date,
       });
     }
   }, [editingTransaction]);
@@ -87,7 +90,7 @@ export const QuickTransactionForm = ({
       return;
     }
     const submitData = {
-      date: format(selectedDate, 'yyyy-MM-dd'),
+      date: editingTransaction ? formData.date : format(selectedDate, 'yyyy-MM-dd'),
       type: formData.type,
       amount: formData.amount,
       category: formData.category,
@@ -121,9 +124,14 @@ export const QuickTransactionForm = ({
           category: formData.category,
           memo: formData.memo,
           isMock: formData.isMock,
+          date: formData.date,
         });
+        setLastAction('update');
         setSuccessToastOpen(true);
-        toastTimeoutRef.current = setTimeout(() => setSuccessToastOpen(false), 1000);
+        toastTimeoutRef.current = setTimeout(() => {
+          setSuccessToastOpen(false);
+          setLastAction(null);
+        }, 1000);
       } else {
         await addTransaction({
           date: submitData.date,
@@ -133,9 +141,12 @@ export const QuickTransactionForm = ({
           memo: submitData.memo,
           isMock: submitData.isMock,
         });
+        setLastAction('add');
         setSuccessToastOpen(true);
-        toastTimeoutRef.current = setTimeout(() => setSuccessToastOpen(false), 1000);
-        setShowCoinAnimation(true);
+        toastTimeoutRef.current = setTimeout(() => {
+          setSuccessToastOpen(false);
+          setLastAction(null);
+        }, 1000);
       }
       setFormData({
         type: 'expense',
@@ -143,16 +154,19 @@ export const QuickTransactionForm = ({
         category: '',
         memo: '',
         isMock: false,
+        date: format(selectedDate, 'yyyy-MM-dd'),
       });
       setEditingTransaction(null);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Transaction operation failed:', error);
-      console.error('Error details:', {
-        editingTransaction: editingTransaction?.id,
-        formData,
-        error: error
-      });
-      showSnackbar('操作に失敗しました', 'destructive');
+      let message = '操作に失敗しました';
+      if (error && typeof error === 'object') {
+        const errObj = error as { message?: string; error_description?: string };
+        if ('message' in errObj && typeof errObj.message === 'string') message += `: ${errObj.message}`;
+        else if ('error_description' in errObj && typeof errObj.error_description === 'string') message += `: ${errObj.error_description}`;
+      }
+      setErrorToast(message);
+      setTimeout(() => setErrorToast(null), 3000);
     } finally {
       setIsSubmitting(false);
     }
@@ -166,20 +180,25 @@ export const QuickTransactionForm = ({
       category: '',
       memo: '',
       isMock: false,
+      date: format(selectedDate, 'yyyy-MM-dd'),
     });
     if (onEditCancel) onEditCancel();
   };
 
   return (
     <div className={`space-y-4 p-4 rounded shadow transition-all duration-200 ${editingTransaction ? 'bg-yellow-50 border-2 border-yellow-400' : 'bg-white border border-gray-200'}`}>
-      <CoinAnimation
-        trigger={showCoinAnimation}
-        onComplete={() => setShowCoinAnimation(false)}
-      />
-      {successToastOpen && (
+      {successToastOpen && lastAction && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[200]">
           <div className="bg-green-500 text-white px-6 py-2 rounded shadow font-bold animate-fade-in-out">
-            {editingTransaction ? '更新完了' : '追加完了'}
+            {lastAction === 'update' ? '更新完了' : lastAction === 'add' ? '追加完了' : ''}
+          </div>
+        </div>
+      )}
+      {/* エラートースト */}
+      {errorToast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[201]">
+          <div className="bg-red-500 text-white px-6 py-2 rounded shadow font-bold animate-fade-in-out">
+            {errorToast}
           </div>
         </div>
       )}
@@ -209,6 +228,20 @@ export const QuickTransactionForm = ({
             )}
           </div>
         </div>
+
+        {/* 編集モードの時に日付変更フィールドを表示 */}
+        {editingTransaction && (
+          <div className="space-y-2">
+            <Label>日付</Label>
+            <Input
+              className="bg-white"
+              type="date"
+              value={formData.date}
+              onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+            />
+          </div>
+        )}
+
         <div className="flex flex-col items-center space-y-1">
           <div className="text-xs text-gray-500 mt-1">
             <span className="font-bold text-blue-500">実際の収支</span>は確定した記録、<span className="font-bold text-orange-400">予定の収支</span>は将来の予定や仮の記録です
