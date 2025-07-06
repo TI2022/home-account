@@ -5,9 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Wishlist } from './Wishlist';
 import { format } from 'date-fns';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 export const SavingsPage = () => {
-  const { savingsAmount, setSavingsAmount, fetchSavingsAmount, loading } = useSavingsStore();
+  const { savingsAmount, setSavingsAmount, fetchSavingsAmount } = useSavingsStore();
   const { transactions } = useTransactionStore();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [inputValue, setInputValue] = useState(savingsAmount.toString());
@@ -22,7 +23,8 @@ export const SavingsPage = () => {
   }, [savingsAmount]);
 
   // 月ごとの貯金額（収入-支出）を集計（isMockで切り替え）
-  const monthlySavings = transactions.filter(t => showMock ? true : !t.isMock).reduce((acc, t) => {
+  const filteredTransactions = transactions.filter(t => showMock ? true : !t.isMock);
+  const monthlySavings = filteredTransactions.reduce((acc, t) => {
     const ym = t.date.slice(0, 7); // YYYY-MM
     if (!acc[ym]) acc[ym] = { income: 0, expense: 0 };
     if (t.type === 'income') acc[ym].income += t.amount;
@@ -36,13 +38,18 @@ export const SavingsPage = () => {
     }))
     .sort((a, b) => a.ym.localeCompare(b.ym));
 
-  // 1年分の貯金機会合計（isMockで切り替え）
-  const yearlySavingsOpportunity = monthlySavingsList.reduce((total, { savings }) => {
-    return total + Math.max(0, savings); // プラスの月のみを合計
-  }, 0);
-
   // 過去1年分のデータを取得（最新12ヶ月）
   const last12Months = monthlySavingsList.slice(-12);
+
+  // 1年分の貯金合計（isMockで切り替え）
+  const yearlySavingsOpportunity = last12Months.reduce((total, { savings }) => total + savings, 0);
+
+  // 累積貯金額リストを作成
+  const cumulativeSavingsList = last12Months.reduce<{ ym: string; cumulative: number }[]>((acc, { ym, savings }, idx) => {
+    const prev = acc[idx - 1]?.cumulative ?? 0;
+    acc.push({ ym, cumulative: prev + savings });
+    return acc;
+  }, []);
 
   const handleSave = async () => {
     const value = Number(inputValue);
@@ -54,24 +61,12 @@ export const SavingsPage = () => {
 
   return (
     <div className="pb-20">
+      
+
+      {/* タブUIで切り替え */}
       <Card>
         <CardHeader>
-          <CardTitle>現在の貯金額</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center text-3xl font-bold text-blue-600 mb-4">
-            {loading ? '...' : `¥${savingsAmount.toLocaleString('ja-JP')}`}
-          </div>
-          <Button onClick={() => setIsDialogOpen(true)} className="bg-blue-500 text-white">
-            貯金額を更新
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* 月ごとの貯金額リスト */}
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle>月ごとの貯金額</CardTitle>
+          <CardTitle>貯金額の推移</CardTitle>
         </CardHeader>
         <CardContent>
           {/* 実際/予定切り替えセグメントコントロール */}
@@ -96,36 +91,57 @@ export const SavingsPage = () => {
                 <span className="text-lg">🕒</span> 予定の貯金額
               </button>
             </div>
-            <div className="text-xs text-gray-500 mt-1">
-              <span className="font-bold text-blue-500">実際の貯金額</span>は確定した記録、<span className="font-bold text-orange-400">予定の貯金額</span>は将来の予定や仮の記録です
-            </div>
           </div>
-          {/* 1年分の貯金機会合計 */}
-          <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium text-blue-700">過去1年分の貯金機会合計</span>
-              <span className="text-lg font-bold text-blue-600">
-                ¥{yearlySavingsOpportunity.toLocaleString('ja-JP')}
-              </span>
-            </div>
-            <div className="text-xs text-blue-600 mt-1">
-              プラスの月のみを合計（{last12Months.filter(m => m.savings > 0).length}ヶ月分）
-            </div>
-          </div>
-          <div className="space-y-2">
-            {monthlySavingsList.length === 0 ? (
-              <div className="text-gray-500">記録がありません</div>
-            ) : (
-              last12Months.map(({ ym, savings }) => (
-                <div key={ym} className="flex justify-between border-b pb-1">
-                  <span>{format(new Date(ym + '-01'), 'yyyy年M月')}</span>
-                  <span className={savings >= 0 ? 'text-blue-600' : 'text-red-600'}>
-                    {savings >= 0 ? '+' : ''}¥{savings.toLocaleString('ja-JP')}
+          <Tabs defaultValue="monthly" className="w-full">
+            <TabsList className="mb-4">
+              <TabsTrigger value="monthly">月ごとの貯金額</TabsTrigger>
+              <TabsTrigger value="cumulative">累積貯金額</TabsTrigger>
+            </TabsList>
+            <TabsContent value="monthly">
+              <div className="space-y-2">
+                {monthlySavingsList.length === 0 ? (
+                  <div className="text-gray-500">記録がありません</div>
+                ) : (
+                  last12Months.map(({ ym, savings }) => (
+                    <div key={ym} className="flex justify-between border-b pb-1">
+                      <span>{format(new Date(ym + '-01'), 'yyyy年M月')}</span>
+                      <span className={savings >= 0 ? 'text-blue-600' : 'text-red-600'}>
+                        {savings >= 0 ? '+' : ''}¥{savings.toLocaleString('ja-JP')}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+              {/* 1年分の貯金合計 */}
+              <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium text-blue-700">過去1年分の貯金合計</span>
+                  <span className="text-lg font-bold text-blue-600">
+                    ¥{yearlySavingsOpportunity.toLocaleString('ja-JP')}
                   </span>
                 </div>
-              ))
-            )}
-          </div>
+                <div className="text-xs text-blue-600 mt-1">
+                  過去12ヶ月分すべての月の合計
+                </div>
+              </div>
+            </TabsContent>
+            <TabsContent value="cumulative">
+              <div className="space-y-2">
+                {cumulativeSavingsList.length === 0 ? (
+                  <div className="text-gray-500">記録がありません</div>
+                ) : (
+                  cumulativeSavingsList.map(({ ym, cumulative }) => (
+                    <div key={ym} className="flex justify-between border-b pb-1">
+                      <span>{format(new Date(ym + '-01'), 'yyyy年M月')}</span>
+                      <span className={cumulative >= 0 ? 'text-blue-600' : 'text-red-600'}>
+                        ¥{cumulative.toLocaleString('ja-JP')}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
 

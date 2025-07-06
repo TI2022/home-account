@@ -143,6 +143,44 @@ const CustomDay = (props: CustomDayProps & { showMock?: boolean }) => {
   );
 };
 
+// 年→月の順で表示する完全自作カレンダーヘッダー
+function CustomCalendarHeader(props: unknown) {
+  const { currentMonth, onMonthChange, minDate, maxDate } = props as { currentMonth: Date; onMonthChange: (date: Date) => void; minDate?: Date; maxDate?: Date };
+  const year = format(currentMonth, 'yyyy', { locale: ja });
+  const month = format(currentMonth, 'M', { locale: ja });
+  // 前月・次月の有効判定
+  const prevMonth = addMonths(currentMonth, -1);
+  const nextMonth = addMonths(currentMonth, 1);
+  const canPrev = !minDate || prevMonth >= minDate;
+  const canNext = !maxDate || nextMonth <= maxDate;
+  return (
+    <div className="flex items-center justify-center py-2 select-none">
+      <button
+        type="button"
+        className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 border border-gray-200 mr-5"
+        onClick={() => canPrev && onMonthChange(prevMonth)}
+        disabled={!canPrev}
+        aria-label="前の月"
+      >
+        <span style={{ fontSize: 20, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>&lt;</span>
+      </button>
+      <span className="text-lg font-bold">
+        <span style={{ marginRight: 8 }}>{year}年</span>
+        <span>{month}月</span>
+      </span>
+      <button
+        type="button"
+        className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 border border-gray-200 ml-5"
+        onClick={() => canNext && onMonthChange(nextMonth)}
+        disabled={!canNext}
+        aria-label="次の月"
+      >
+        <span style={{ fontSize: 20, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>&gt;</span>
+      </button>
+    </div>
+  );
+}
+
 const BearGuide = ({
   onClose,
   dontShowNext,
@@ -243,7 +281,8 @@ const SwipeableCalendar = ({
           onChange={onDateSelect}
           onMonthChange={onMonthChange}
           slots={{
-            day: (props) => <CustomDay {...props} showMock={showMock} />
+            day: (props) => <CustomDay {...props} showMock={showMock} />,
+            calendarHeader: CustomCalendarHeader,
           }}
         />
       </LocalizationProvider>
@@ -564,7 +603,7 @@ export const CalendarPage = () => {
                   aria-pressed={!showMock}
                   style={{ borderRight: 'none', borderTopRightRadius: 0, borderBottomRightRadius: 0, boxShadow: 'none', transition: 'color 0.2s, background 0.2s' }}
                 >
-                  <span className="relative z-10">実際の収支のみ</span>
+                  <span className="relative z-10">実際の収支</span>
                 </button>
                 <button
                   type="button"
@@ -574,7 +613,7 @@ export const CalendarPage = () => {
                   aria-pressed={showMock}
                   style={{ borderLeft: 'none', borderTopLeftRadius: 0, borderBottomLeftRadius: 0, boxShadow: 'none', transition: 'color 0.2s, background 0.2s' }}
                 >
-                  <span className="relative z-10">予定も表示</span>
+                  <span className="relative z-10">予定の収支</span>
                 </button>
                 {/* トグルのアニメーション部分（右端遅延解消） */}
                 <span
@@ -727,7 +766,7 @@ export const CalendarPage = () => {
               </div>
             </div>
             <div className="text-xs text-gray-500 text-center mt-2">
-              {format(currentMonth, 'yyyy年M月', { locale: ja })}の概要
+              {format(currentMonth, 'yyyy', { locale: ja })}年{format(currentMonth, 'M', { locale: ja })}月の概要
             </div>
           </CardContent>
         </Card>
@@ -838,11 +877,16 @@ export const CalendarPage = () => {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() =>
-                            editingTransaction?.id === transaction.id
-                              ? setEditingTransaction(null)
-                              : setEditingTransaction(transaction)
-                          }
+                          onClick={() => {
+                            console.log('CalendarPage: Edit button clicked for transaction:', transaction);
+                            console.log('CalendarPage: Current editingTransaction:', editingTransaction);
+                            if (editingTransaction?.id === transaction.id) {
+                              setEditingTransaction(null);
+                            } else {
+                              setEditingTransaction(transaction);
+                            }
+                            console.log('CalendarPage: Setting editingTransaction to:', editingTransaction?.id === transaction.id ? null : transaction);
+                          }}
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -902,4 +946,4 @@ export const CalendarPage = () => {
       </Dialog>
     </motion.div>
   );
-};
+}

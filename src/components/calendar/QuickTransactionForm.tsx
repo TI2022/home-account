@@ -48,6 +48,7 @@ export const QuickTransactionForm = ({
 
   // 外部からeditingTransactionが渡されたら内部stateに反映
   useEffect(() => {
+    console.log('QuickTransactionForm: externalEditingTransaction changed:', externalEditingTransaction);
     if (externalEditingTransaction) {
       setEditingTransaction(externalEditingTransaction);
     }
@@ -55,6 +56,7 @@ export const QuickTransactionForm = ({
 
   // externalEditingTransactionがnullになったらフォームをリセット
   useEffect(() => {
+    console.log('QuickTransactionForm: externalEditingTransaction is null, resetting form');
     if (externalEditingTransaction === null) {
       setEditingTransaction(null);
       setFormData({
@@ -70,7 +72,9 @@ export const QuickTransactionForm = ({
 
   // 編集モードの場合、フォームに既存のデータをセット
   useEffect(() => {
+    console.log('QuickTransactionForm: editingTransaction changed:', editingTransaction);
     if (editingTransaction) {
+      console.log('QuickTransactionForm: Setting form data for editing:', editingTransaction);
       setFormData({
         type: editingTransaction.type,
         amount: editingTransaction.amount.toString(),
