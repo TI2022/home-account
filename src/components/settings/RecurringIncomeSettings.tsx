@@ -196,63 +196,57 @@ export const RecurringIncomeSettings = () => {
           {isSelectMode ? <CheckSquare className="w-4 h-4 mr-1" /> : <Square className="w-4 h-4 mr-1" />}
           {isSelectMode ? '選択解除' : '選択モード'}
         </Button>
-        {/* 上部のisSelectModeトグルボタンを削除 */}
-        {isSelectMode && (
-          <div className="flex w-full gap-2 items-start flex-wrap sm:flex-nowrap">
-            <div className="flex flex-col gap-2 min-w-[100px]">
-              {selectedIncomeIds.length === recurringIncomes.filter(i => i.is_active).length ? (
-                <Button
-                  className="bg-gray-500 hover:bg-gray-600 text-white font-bold rounded-full shadow-lg px-4 py-2"
-                  onClick={() => setSelectedIncomeIds([])}
-                >
-                  全解除
-                </Button>
-              ) : (
-                <Button
-                  className="bg-gray-500 hover:bg-gray-600 text-white font-bold rounded-full shadow-lg px-4 py-2"
-                  onClick={() => {
-                    setSelectedIncomeIds(recurringIncomes.filter(i => i.is_active).map(i => i.id));
-                  }}
-                >
-                  全選択
-                </Button>
-              )}
-            </div>
-            {/* 右側: 一括反映・一括削除（横並び） */}
-            <div className="flex gap-2 flex-1">
-              <Button
-                className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-full shadow-lg px-4 py-2 w-full"
-                onClick={() => setIsScenarioDialogOpen(true)}
-                disabled={selectedIncomeIds.length === 0}
-              >
-                一括反映
-              </Button>
-              <Button
-                className="bg-red-600 hover:bg-red-700 text-white font-bold rounded-full shadow-lg px-4 py-2 w-full"
-                onClick={async () => {
-                  if (!window.confirm('選択した定期収入を削除しますか？')) return;
-                  setLoading(true);
-                  try {
-                    for (const id of selectedIncomeIds) {
-                      await deleteRecurringIncome(id);
-                    }
-                    showSnackbar('選択した定期収入を削除しました');
-                    setSelectedIncomeIds([]);
-                    setIsSelectMode(false);
-                  } catch {
-                    showSnackbar('削除に失敗しました', 'destructive');
-                  } finally {
-                    setLoading(false);
-                  }
-                }}
-                disabled={selectedIncomeIds.length === 0}
-              >
-                一括削除
-              </Button>
-            </div>
-          </div>
-        )}
       </div>
+      {isSelectMode && (
+        <div className="flex w-full gap-2 mb-2">
+          {selectedIncomeIds.length === recurringIncomes.filter(i => i.is_active).length ? (
+            <Button
+              className="bg-gray-500 hover:bg-gray-600 text-white font-bold rounded-full shadow-lg px-4 py-2"
+              onClick={() => setSelectedIncomeIds([])}
+            >
+              全解除
+            </Button>
+          ) : (
+            <Button
+              className="bg-gray-500 hover:bg-gray-600 text-white font-bold rounded-full shadow-lg px-4 py-2"
+              onClick={() => {
+                setSelectedIncomeIds(recurringIncomes.filter(i => i.is_active).map(i => i.id));
+              }}
+            >
+              全選択
+            </Button>
+          )}
+          <Button
+            className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-full shadow-lg px-4 py-2 flex-1"
+            onClick={() => setIsScenarioDialogOpen(true)}
+            disabled={selectedIncomeIds.length === 0}
+          >
+            一括反映
+          </Button>
+          <Button
+            className="bg-red-600 hover:bg-red-700 text-white font-bold rounded-full shadow-lg px-4 py-2 flex-1"
+            onClick={async () => {
+              if (!window.confirm('選択した定期収入を削除しますか？')) return;
+              setLoading(true);
+              try {
+                for (const id of selectedIncomeIds) {
+                  await deleteRecurringIncome(id);
+                }
+                showSnackbar('選択した定期収入を削除しました');
+                setSelectedIncomeIds([]);
+                setIsSelectMode(false);
+              } catch {
+                showSnackbar('削除に失敗しました', 'destructive');
+              } finally {
+                setLoading(false);
+              }
+            }}
+            disabled={selectedIncomeIds.length === 0}
+          >
+            一括削除
+          </Button>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-gray-900">定期収入設定</h3>
         <Dialog open={isDialogOpen} onOpenChange={(open) => {

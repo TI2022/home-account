@@ -14,6 +14,7 @@ import { EXPENSE_CATEGORIES } from '@/types';
 import type { RecurringExpense } from '@/types';
 import { Plus, Edit, Trash2, Receipt, Calendar, Clock, CheckSquare, Square } from 'lucide-react';
 import { ScenarioSelector } from '@/components/ui/scenario-selector';
+import { format } from 'date-fns';
 
 const MONTH_NAMES = [
   '1月', '2月', '3月', '4月', '5月', '6月',
@@ -27,7 +28,6 @@ export const RecurringExpenseSettings = () => {
     addRecurringExpense, 
     updateRecurringExpense, 
     deleteRecurringExpense,
-    reflectRecurringExpensesForPeriod,
     reflectSingleRecurringExpenseForPeriod,
   } = useTransactionStore();
   const { showSnackbar } = useSnackbar();
@@ -45,23 +45,10 @@ export const RecurringExpenseSettings = () => {
   const [loading, setLoading] = useState(false);
   const [allMonthsChecked, setAllMonthsChecked] = useState(false);
   const [allMonthsDay, setAllMonthsDay] = useState(27);
-  const [periodStartDate, setPeriodStartDate] = useState(() => {
-    const d = new Date();
-    d.setDate(1);
-    return d.toISOString().slice(0, 10);
-  });
-  const [periodEndDate, setPeriodEndDate] = useState(() => {
-    const d = new Date();
-    d.setMonth(d.getMonth() + 1);
-    d.setDate(0);
-    return d.toISOString().slice(0, 10);
-  });
-  const [reflectLoading, setReflectLoading] = useState(false);
-  const [isReflectDialogOpen, setIsReflectDialogOpen] = useState(false);
-  const [isMock, setIsMock] = useState(false);
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedExpenseIds, setSelectedExpenseIds] = useState<string[]>([]);
   const [selectedScenarioId, setSelectedScenarioId] = useState<string>('');
+  const [isScenarioDialogOpen, setIsScenarioDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchRecurringExpenses();
@@ -198,9 +185,6 @@ export const RecurringExpenseSettings = () => {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 mb-2">
-        <Button className="bg-red-500 hover:bg-red-600" onClick={() => setIsReflectDialogOpen(true)}>
-          支出一括反映
-        </Button>
         <Button
           variant={isSelectMode ? 'default' : 'outline'}
           className={isSelectMode ? 'bg-blue-500 text-white' : ''}
@@ -212,80 +196,97 @@ export const RecurringExpenseSettings = () => {
           {isSelectMode ? <CheckSquare className="w-4 h-4 mr-1" /> : <Square className="w-4 h-4 mr-1" />}
           {isSelectMode ? '選択解除' : '選択モード'}
         </Button>
-        <Dialog open={isReflectDialogOpen} onOpenChange={setIsReflectDialogOpen}>
-          <DialogContent className="sm:max-w-xs">
-            <DialogHeader>
-              <DialogTitle>定期支出の一括反映</DialogTitle>
-            </DialogHeader>
-            <div className="flex flex-col gap-2">
-              <div>
-                <Label>反映開始日</Label>
-                <input
-                  type="date"
-                  className="border rounded px-2 py-1 w-full"
-                  value={periodStartDate}
-                  onChange={e => setPeriodStartDate(e.target.value)}
-                  max={periodEndDate}
-                />
-              </div>
-              <div>
-                <Label>反映終了日</Label>
-                <input
-                  type="date"
-                  className="border rounded px-2 py-1 w-full"
-                  value={periodEndDate}
-                  onChange={e => setPeriodEndDate(e.target.value)}
-                  min={periodStartDate}
-                />
-              </div>
-              <div className="flex items-center gap-4 mt-2">
-                <Label>反映種別</Label>
-                <label className="flex items-center gap-1">
-                  <input
-                    type="radio"
-                    name="reflectType"
-                    checked={!isMock}
-                    onChange={() => setIsMock(false)}
-                  />
-                  <span>本番データ</span>
-                </label>
-                <label className="flex items-center gap-1">
-                  <input
-                    type="radio"
-                    name="reflectType"
-                    checked={isMock}
-                    onChange={() => setIsMock(true)}
-                  />
-                  <span>仮データ</span>
-                </label>
-              </div>
-              <div>
-                <Label>シナリオ</Label>
-                <ScenarioSelector value={selectedScenarioId} onValueChange={setSelectedScenarioId} />
-              </div>
+      </div>
+      {isSelectMode && (
+        <div className="flex w-full gap-2 items-start flex-wrap sm:flex-nowrap">
+          {/* 左側: 全選択/全解除（縦並び） */}
+          <div className="flex flex-col gap-2 min-w-[100px]">
+            {selectedExpenseIds.length === recurringExpenses.filter(e => e.is_active).length ? (
               <Button
-                className="bg-red-500 hover:bg-red-600 mt-2"
-                disabled={reflectLoading || periodEndDate < periodStartDate}
-                onClick={async () => {
-                  setReflectLoading(true);
-                  try {
-                    await reflectRecurringExpensesForPeriod(periodStartDate, periodEndDate, isMock, selectedScenarioId);
-                    showSnackbar('指定期間の定期支出を反映しました');
-                    setIsReflectDialogOpen(false);
-                  } catch (error) {
-                    console.error('一括反映エラー:', error);
-                    showSnackbar('一括反映に失敗しました', 'destructive');
-                  } finally {
-                    setReflectLoading(false);
-                  }
+                className="bg-gray-500 hover:bg-gray-600 text-white font-bold rounded-full shadow-lg px-4 py-2"
+                onClick={() => setSelectedExpenseIds([])}
+              >
+                全解除
+              </Button>
+            ) : (
+              <Button
+                className="bg-gray-500 hover:bg-gray-600 text-white font-bold rounded-full shadow-lg px-4 py-2"
+                onClick={() => {
+                  setSelectedExpenseIds(recurringExpenses.filter(e => e.is_active).map(e => e.id));
                 }}
               >
-                {reflectLoading ? '反映中...' : '定期支出を反映'}
+                全選択
               </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
+            )}
+          </div>
+          {/* 右側: 一括反映・一括削除（横並び） */}
+          <div className="flex gap-2 flex-1">
+            <Button
+              className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-full shadow-lg px-4 py-2 w-full"
+              onClick={() => setIsScenarioDialogOpen(true)}
+              disabled={selectedExpenseIds.length === 0}
+            >
+              一括反映
+            </Button>
+            <Button
+              className="bg-red-600 hover:bg-red-700 text-white font-bold rounded-full shadow-lg px-4 py-2 w-full"
+              onClick={async () => {
+                if (!window.confirm('選択した定期支出を削除しますか？')) return;
+                setLoading(true);
+                try {
+                  for (const id of selectedExpenseIds) {
+                    await deleteRecurringExpense(id);
+                  }
+                  showSnackbar('選択した定期支出を削除しました');
+                  setSelectedExpenseIds([]);
+                  setIsSelectMode(false);
+                } catch {
+                  showSnackbar('削除に失敗しました', 'destructive');
+                } finally {
+                  setLoading(false);
+                }
+              }}
+              disabled={selectedExpenseIds.length === 0}
+            >
+              一括削除
+            </Button>
+          </div>
+        </div>
+      )}
+      {/* シナリオ選択モーダル */}
+      <Dialog open={isScenarioDialogOpen} onOpenChange={setIsScenarioDialogOpen}>
+        <DialogContent className="sm:max-w-xs">
+          <DialogHeader>
+            <DialogTitle>一括反映するシナリオを選択</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-2">
+            <ScenarioSelector value={selectedScenarioId} onValueChange={setSelectedScenarioId} />
+            <Button
+              className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded shadow mt-4"
+              onClick={async () => {
+                setLoading(true);
+                const today = format(new Date(), 'yyyy-MM-dd');
+                try {
+                  for (const id of selectedExpenseIds) {
+                    await reflectSingleRecurringExpenseForPeriod(id, today, today, undefined, selectedScenarioId);
+                  }
+                  showSnackbar('選択した定期支出を反映しました');
+                  setSelectedExpenseIds([]);
+                  setIsSelectMode(false);
+                  setIsScenarioDialogOpen(false);
+                } catch {
+                  showSnackbar('反映に失敗しました', 'destructive');
+                } finally {
+                  setLoading(false);
+                }
+              }}
+              disabled={loading || !selectedScenarioId}
+            >
+              このシナリオで一括反映
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-gray-900">定期支出設定</h3>
         <Dialog open={isDialogOpen} onOpenChange={(open) => {
@@ -614,33 +615,6 @@ export const RecurringExpenseSettings = () => {
               </div>
             </CardContent>
           </Card>
-        </div>
-      )}
-      {/* 選択モード時の一括反映ボタン */}
-      {isSelectMode && selectedExpenseIds.length > 0 && (
-        <div className="fixed bottom-20 left-0 w-full flex justify-center z-50 pointer-events-none">
-          <ScenarioSelector value={selectedScenarioId} onValueChange={setSelectedScenarioId} className="mr-2 w-48" />
-          <Button
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-full shadow-lg px-8 py-3 pointer-events-auto"
-            onClick={async () => {
-              setLoading(true);
-              try {
-                for (const id of selectedExpenseIds) {
-                  await reflectSingleRecurringExpenseForPeriod(id, periodStartDate, periodEndDate, isMock, selectedScenarioId);
-                }
-                showSnackbar('選択した定期支出を反映しました');
-                setSelectedExpenseIds([]);
-                setIsSelectMode(false);
-              } catch {
-                showSnackbar('反映に失敗しました', 'destructive');
-              } finally {
-                setLoading(false);
-              }
-            }}
-            disabled={loading}
-          >
-            選択した定期支出を反映
-          </Button>
         </div>
       )}
     </div>
