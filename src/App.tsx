@@ -10,6 +10,7 @@ import { CalendarPage } from '@/components/calendar/CalendarPage';
 import { AddTransactionForm } from '@/components/add/AddTransactionForm';
 import { HistoryPage } from '@/components/history/HistoryPage';
 import { SettingsPage } from '@/components/settings/SettingsPage';
+import { ScenarioPage } from '@/components/settings/ScenarioPage';
 import { BackgroundSettingsPage } from '@/components/background/BackgroundSettingsPage';
 import { Snackbar } from '@/components/ui/sonner';
 import { SavingsPage } from '@/components/savings/SavingsPage';
@@ -69,6 +70,8 @@ function MainApp() {
         return <HistoryPage />;
       case 'settings':
         return <SettingsPage />;
+      case 'scenarios':
+        return <ScenarioPage />;
       case 'background':
         return <BackgroundSettingsPage />;
       case 'savings':

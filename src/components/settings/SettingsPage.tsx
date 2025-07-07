@@ -20,7 +20,6 @@ export const SettingsPage = () => {
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="expense">定期支出</TabsTrigger>
             <TabsTrigger value="income">定期収入</TabsTrigger>
-            
           </TabsList>
           
           <TabsContent value="income" className="space-y-4">

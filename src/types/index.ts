@@ -7,6 +7,7 @@ export interface Transaction {
   date: string;
   memo?: string;
   card_used_date?: string;
+  scenario_id?: string; // シナリオID（予定収支の場合）
   created_at: string;
   updated_at: string;
   isMock?: boolean;
@@ -65,11 +66,22 @@ export interface CategorySummary {
   budget?: number;
 }
 
+export interface Scenario {
+  id: string;
+  user_id: string;
+  name: string;
+  description?: string;
+  is_default: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export const EXPENSE_CATEGORIES = [
   '食費',
+  '外食費', // 追加
   '交通費',
   '家賃',
-  '光熱費',
+  '水道光熱費', // ←統合
   '通信費',
   '娯楽',
   '医療費',
@@ -90,7 +102,6 @@ export const EXPENSE_CATEGORIES = [
   '労災保険',
   // 事業関連
   '事務所家賃',
-  '水道光熱費（事業）',
   '通信費（事業）',
   '保険料（事業）',
   'リース料',
@@ -105,6 +116,7 @@ export const INCOME_CATEGORIES = [
   '給与',
   'ボーナス',
   '副業',
+  '給付金', // 追加
   'その他'
 ] as const;
 

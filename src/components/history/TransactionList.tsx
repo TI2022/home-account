@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '@/types';
+import { ScenarioSelector } from '@/components/ui/scenario-selector';
 
 export const TransactionList = () => {
   const { transactions, deleteTransaction, updateTransaction, deleteTransactions } = useTransactionStore();
@@ -28,10 +29,12 @@ export const TransactionList = () => {
     category: '',
     memo: '',
     date: '',
+    isMock: false,
   });
   const [isBulkSelectMode, setIsBulkSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
+  const [selectedScenarioId, setSelectedScenarioId] = useState<string>('');
 
   const filteredTransactions = transactions.filter(t => 
     t.date.startsWith(selectedMonth)
@@ -46,14 +49,13 @@ export const TransactionList = () => {
   };
 
   const handleEdit = (transaction: Transaction) => {
-    setEditingTransaction(transaction);
     setFormData({
-      type: transaction.type,
+      ...transaction,
       amount: transaction.amount.toString(),
-      category: transaction.category,
-      memo: transaction.memo || '',
-      date: transaction.date,
+      isMock: !!transaction.isMock,
     });
+    setSelectedScenarioId(transaction.scenario_id || '');
+    setEditingTransaction(transaction);
     setIsDialogOpen(true);
   };
 
@@ -77,13 +79,19 @@ export const TransactionList = () => {
     }
 
     try {
+      const updateData = {
+        ...formData,
+        amount: parseInt(formData.amount),
+        scenario_id: formData.isMock ? selectedScenarioId : undefined,
+      };
       await updateTransaction({
         ...editingTransaction,
-        type: formData.type,
-        amount: Number(formData.amount),
-        category: formData.category,
-        memo: formData.memo,
-        date: formData.date,
+        type: updateData.type,
+        amount: updateData.amount,
+        category: updateData.category,
+        memo: updateData.memo,
+        date: updateData.date,
+        scenario_id: updateData.scenario_id,
       });
       
       showSnackbar('収支を更新しました');
@@ -344,6 +352,18 @@ export const TransactionList = () => {
                 required
               />
             </div>
+
+            {formData.isMock && (
+              <div className="space-y-2">
+                <Label htmlFor="scenario">シナリオ</Label>
+                <ScenarioSelector
+                  value={selectedScenarioId}
+                  onValueChange={setSelectedScenarioId}
+                  placeholder="シナリオを選択してください"
+                  className="bg-white"
+                />
+              </div>
+            )}
 
             <div className="flex justify-end space-x-2">
               <Button

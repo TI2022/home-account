@@ -1,29 +1,49 @@
 import { useEffect, useState } from 'react';
 import { useSavingsStore } from '@/store/useSavingsStore';
 import { useTransactionStore } from '@/store/useTransactionStore';
+import { useScenarioStore } from '@/store/useScenarioStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Wishlist } from './Wishlist';
 import { format } from 'date-fns';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { ScenarioSelector } from '@/components/ui/scenario-selector';
 
 export const SavingsPage = () => {
   const { savingsAmount, setSavingsAmount, fetchSavingsAmount } = useSavingsStore();
   const { transactions } = useTransactionStore();
+  const { scenarios, fetchScenarios, getDefaultScenario } = useScenarioStore();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [inputValue, setInputValue] = useState(savingsAmount.toString());
   const [showMock, setShowMock] = useState(false);
+  const [selectedScenarioId, setSelectedScenarioId] = useState<string>('');
 
   useEffect(() => {
     fetchSavingsAmount();
-  }, [fetchSavingsAmount]);
+    fetchScenarios();
+  }, [fetchSavingsAmount, fetchScenarios]);
 
   useEffect(() => {
     setInputValue(savingsAmount.toString());
   }, [savingsAmount]);
 
+  // デフォルトシナリオを自動選択
+  useEffect(() => {
+    if (showMock && scenarios.length > 0 && !selectedScenarioId) {
+      const defaultScenario = getDefaultScenario();
+      if (defaultScenario) {
+        setSelectedScenarioId(defaultScenario.id);
+      }
+    }
+  }, [showMock, scenarios, selectedScenarioId, getDefaultScenario]);
+
   // 月ごとの貯金額（収入-支出）を集計（isMockで切り替え）
-  const filteredTransactions = transactions.filter(t => showMock ? true : !t.isMock);
+  const filteredTransactions = transactions.filter(t => {
+    if (!showMock && t.isMock) return false;
+    if (showMock && t.isMock && selectedScenarioId && t.scenario_id !== selectedScenarioId) return false;
+    return true;
+  });
+  
   const monthlySavings = filteredTransactions.reduce((acc, t) => {
     const ym = t.date.slice(0, 7); // YYYY-MM
     if (!acc[ym]) acc[ym] = { income: 0, expense: 0 };
@@ -61,8 +81,6 @@ export const SavingsPage = () => {
 
   return (
     <div className="pb-20">
-      
-
       {/* タブUIで切り替え */}
       <Card>
         <CardHeader>
@@ -76,7 +94,10 @@ export const SavingsPage = () => {
                 type="button"
                 className={`flex-1 flex items-center justify-center gap-1 px-3 py-2 rounded-full font-bold transition-all
                   ${!showMock ? 'bg-blue-500 text-white shadow' : 'bg-white text-gray-500'}`}
-                onClick={() => setShowMock(false)}
+                onClick={() => {
+                  setShowMock(false);
+                  setSelectedScenarioId(''); // 実際収支に切り替え時はシナリオをリセット
+                }}
                 aria-pressed={!showMock}
               >
                 <span className="text-lg">💰</span> 実際の貯金額
@@ -92,6 +113,19 @@ export const SavingsPage = () => {
               </button>
             </div>
           </div>
+
+          {/* シナリオ選択（予定収支の場合のみ表示） */}
+          {showMock && (
+            <div className="mb-4">
+              <ScenarioSelector
+                value={selectedScenarioId}
+                onValueChange={setSelectedScenarioId}
+                placeholder="シナリオを選択"
+                className="bg-white"
+              />
+            </div>
+          )}
+
           <Tabs defaultValue="monthly" className="w-full">
             <TabsList className="mb-4">
               <TabsTrigger value="monthly">月ごとの貯金額</TabsTrigger>

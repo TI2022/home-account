@@ -3,10 +3,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useTransactionStore } from '@/store/useTransactionStore';
+import { useScenarioStore } from '@/store/useScenarioStore';
 import { format, isSameDay, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { motion } from 'framer-motion';
-import { ArrowUpCircle, ArrowDownCircle, Trash2, Wallet, Edit, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowUpCircle, ArrowDownCircle, Trash2, Wallet, Edit, Loader2, ChevronDown, ChevronUp, X, Pin } from 'lucide-react';
 import { QuickTransactionForm } from './QuickTransactionForm';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -20,6 +21,7 @@ import Papa from 'papaparse';
 import { EXPENSE_CATEGORIES } from '@/types';
 import { Input } from '@/components/ui/input';
 import { useSnackbar } from '@/hooks/use-toast';
+import { ScenarioSelector } from '@/components/ui/scenario-selector';
 
 // カスタムスタイルの定義
 const StyledDateCalendar = styled(DateCalendar)(({ theme }) => ({
@@ -82,16 +84,22 @@ const StyledDateCalendar = styled(DateCalendar)(({ theme }) => ({
 type CustomDayProps = Omit<PickersDayProps, 'onAnimationStart'>;
 
 // カスタムの日付セルコンポーネント
-const CustomDay = (props: CustomDayProps & { showMock?: boolean }) => {
-  const { day, showMock, ...other } = props;
+const CustomDay = (props: CustomDayProps & { showMock?: boolean; selectedScenarioId?: string }) => {
+  const { day, showMock, selectedScenarioId, ...other } = props;
   const { transactions } = useTransactionStore();
   const isToday = isSameDay(day, new Date());
 
   // Calculate daily totals for calendar display
   const getDayTotal = (date: Date) => {
-    const dayTransactions = transactions.filter(t => 
-      isSameDay(new Date(t.date), date) && (!showMock ? !t.isMock : true)
-    );
+    const dayTransactions = transactions.filter(t => {
+      if (showMock) {
+        if (!t.isMock) return false;
+        if (selectedScenarioId && t.scenario_id !== selectedScenarioId) return false;
+      } else {
+        if (t.isMock) return false;
+      }
+      return isSameDay(new Date(t.date), date);
+    });
     const income = dayTransactions
       .filter(t => t.type === 'income')
       .reduce((sum, t) => sum + t.amount, 0);
@@ -239,13 +247,15 @@ const SwipeableCalendar = ({
   onDateSelect, 
   onMonthChange, 
   currentMonth,
-  showMock
+  showMock,
+  selectedScenarioId
 }: {
   selectedDate: Date;
   onDateSelect: (date: Date | null) => void;
   onMonthChange: (date: Date) => void;
   currentMonth: Date;
   showMock: boolean;
+  selectedScenarioId?: string;
 }) => {
   const swipeHandlers = useSwipeable({
     onSwipedLeft: () => {
@@ -281,7 +291,7 @@ const SwipeableCalendar = ({
           onChange={onDateSelect}
           onMonthChange={onMonthChange}
           slots={{
-            day: (props) => <CustomDay {...props} showMock={showMock} />,
+            day: (props) => <CustomDay {...props} showMock={showMock} selectedScenarioId={selectedScenarioId} />, // ←修正
             calendarHeader: CustomCalendarHeader,
           }}
         />
@@ -295,12 +305,14 @@ export const CalendarPage = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
   const { transactions, fetchTransactions, deleteTransaction, deleteTransactions } = useTransactionStore();
+  const { scenarios, fetchScenarios, getDefaultScenario } = useScenarioStore();
   const [showGuide, setShowGuide] = useState(false);
   const [dontShowNext, setDontShowNext] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [rakutenLoading, setRakutenLoading] = useState(false);
   const [showAllTransactions, setShowAllTransactions] = useState(false);
   const [showMock, setShowMock] = useState(false);
+  const [selectedScenarioId, setSelectedScenarioId] = useState<string>('');
   const [swipeDeltaX, setSwipeDeltaX] = useState(0);
   const [isSwiping, setIsSwiping] = useState(false);
   const segmentRef = useRef<HTMLDivElement>(null);
@@ -316,6 +328,7 @@ export const CalendarPage = () => {
   const [isBulkSelectMode, setIsBulkSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
+  const [isSummaryFixed, setIsSummaryFixed] = useState(false);
 
   const segmentSwipeHandlers = useSwipeable({
     onSwipedLeft: () => {
@@ -343,24 +356,48 @@ export const CalendarPage = () => {
 
   useEffect(() => {
     fetchTransactions();
+    fetchScenarios();
     if (localStorage.getItem('calendarGuideShown') !== '1') {
       setShowGuide(true);
     }
-  }, [fetchTransactions]);
+  }, [fetchTransactions, fetchScenarios]);
+
+  // デフォルトシナリオを自動選択
+  useEffect(() => {
+    if (showMock && scenarios.length > 0 && !selectedScenarioId) {
+      const defaultScenario = getDefaultScenario();
+      if (defaultScenario) {
+        setSelectedScenarioId(defaultScenario.id);
+      }
+    }
+  }, [showMock, scenarios, selectedScenarioId, getDefaultScenario]);
 
   // Get transactions for the current month
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
   const monthTransactions = transactions.filter(t => {
     const transactionDate = new Date(t.date);
-    if (!showMock && t.isMock) return false;
+    if (showMock) {
+      // 予定タブ: isMock=true かつシナリオ一致のみ
+      if (!t.isMock) return false;
+      if (selectedScenarioId && t.scenario_id !== selectedScenarioId) return false;
+    } else {
+      // 実際タブ: isMock=falseのみ
+      if (t.isMock) return false;
+    }
     return transactionDate >= monthStart && transactionDate <= monthEnd;
   });
 
   // Get transactions for selected date
-  const selectedDateTransactions = transactions.filter(t => 
-    (!t.isMock || showMock) && isSameDay(new Date(t.date), selectedDate)
-  );
+  const selectedDateTransactions = transactions.filter(t => {
+    if (showMock) {
+      if (!t.isMock) return false;
+      if (selectedScenarioId && t.scenario_id !== selectedScenarioId) return false;
+    } else {
+      if (t.isMock) return false;
+    }
+    return isSameDay(new Date(t.date), selectedDate);
+  });
 
   const formatAmount = (amount: number) => {
     return amount.toLocaleString('ja-JP');
@@ -599,7 +636,10 @@ export const CalendarPage = () => {
                   type="button"
                   className={`flex-1 px-3 py-2 rounded-l-full flex items-center justify-center gap-1 text-base font-semibold border border-gray-300
                     ${!showMock ? 'bg-blue-100 text-blue-800' : 'bg-white text-gray-400'}`}
-                  onClick={() => setShowMock(false)}
+                  onClick={() => {
+                    setShowMock(false);
+                    setSelectedScenarioId(''); // 実際収支に切り替え時はシナリオをリセット
+                  }}
                   aria-pressed={!showMock}
                   style={{ borderRight: 'none', borderTopRightRadius: 0, borderBottomRightRadius: 0, boxShadow: 'none', transition: 'color 0.2s, background 0.2s' }}
                 >
@@ -638,6 +678,18 @@ export const CalendarPage = () => {
                   }}
                 />
               </div>
+              
+              {/* シナリオ選択（予定収支の場合のみ表示） */}
+              {showMock && (
+                <div className="mt-4 w-full max-w-xs">
+                  <ScenarioSelector
+                    value={selectedScenarioId}
+                    onValueChange={setSelectedScenarioId}
+                    placeholder="シナリオを選択"
+                    className="bg-white"
+                  />
+                </div>
+              )}
             </div>
             {/* カレンダー本体 */}
             <SwipeableCalendar
@@ -646,6 +698,7 @@ export const CalendarPage = () => {
               onMonthChange={handleMonthChange}
               currentMonth={currentMonth}
               showMock={showMock}
+              selectedScenarioId={selectedScenarioId}
             />
             {/* 楽天明細インポートボタン: 右下に絶対配置（白背景＋赤枠＋赤文字、元のデザイン） */}
             <div style={{ position: 'absolute', bottom: 16, right: 16, zIndex: 10 }}>
@@ -707,70 +760,160 @@ export const CalendarPage = () => {
       </motion.div>
 
       {/* Monthly Summary */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-      >
-        <Card>
-          <CardContent className="p-2 sm:p-4">
-            <div className="flex flex-col gap-1 w-full">
-              <div className="text-center py-2 bg-green-50 rounded-lg border border-green-200">
-                <div className="flex items-center justify-center gap-1 text-base sm:text-xl font-bold text-green-600 truncate">
-                  <ArrowUpCircle className="inline-block w-5 h-5 text-green-500 mr-1" />
-                  <span>¥{formatAmount(monthTransactions
-                    .filter(t => t.type === 'income')
-                    .reduce((sum, t) => sum + t.amount, 0)
-                  )}</span>
+      {!isSummaryFixed && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <Card>
+            <CardContent className="p-2 sm:p-4">
+              <div className="flex flex-col gap-1 w-full">
+                <div className="text-center py-2 bg-green-50 rounded-lg border border-green-200">
+                  <div className="flex items-center justify-center gap-1 text-base sm:text-xl font-bold text-green-600 truncate">
+                    <ArrowUpCircle className="inline-block w-5 h-5 text-green-500 mr-1" />
+                    <span>¥{formatAmount(monthTransactions
+                      .filter(t => t.type === 'income')
+                      .reduce((sum, t) => sum + t.amount, 0)
+                    )}</span>
+                  </div>
+                  <div className="text-xs sm:text-sm text-green-700 font-medium">収入</div>
                 </div>
-                <div className="text-xs sm:text-sm text-green-700 font-medium">収入</div>
-              </div>
-              <div className="text-center py-2 bg-red-50 rounded-lg border border-red-200">
-                <div className="flex items-center justify-center gap-1 text-base sm:text-xl font-bold text-red-600 truncate">
-                  <ArrowDownCircle className="inline-block w-5 h-5 text-red-500 mr-1" />
-                  <span>¥{formatAmount(monthTransactions
-                    .filter(t => t.type === 'expense')
-                    .reduce((sum, t) => sum + t.amount, 0)
-                  )}</span>
+                <div className="text-center py-2 bg-red-50 rounded-lg border border-red-200">
+                  <div className="flex items-center justify-center gap-1 text-base sm:text-xl font-bold text-red-600 truncate">
+                    <ArrowDownCircle className="inline-block w-5 h-5 text-red-500 mr-1" />
+                    <span>¥{formatAmount(monthTransactions
+                      .filter(t => t.type === 'expense')
+                      .reduce((sum, t) => sum + t.amount, 0)
+                    )}</span>
+                  </div>
+                  <div className="text-xs sm:text-sm text-red-700 font-medium">支出</div>
                 </div>
-                <div className="text-xs sm:text-sm text-red-700 font-medium">支出</div>
-              </div>
-              <div className={`text-center py-2 rounded-lg border ${
-                monthTransactions.reduce((sum, t) => 
-                  sum + (t.type === 'income' ? t.amount : -t.amount), 0
-                ) >= 0 
-                  ? 'bg-blue-50 border-blue-200' 
-                  : 'bg-orange-50 border-orange-200'
-              }`}>
-                <div className={`flex items-center justify-center gap-1 text-base sm:text-xl font-bold truncate ${
+                <div className={`text-center py-2 rounded-lg border ${
                   monthTransactions.reduce((sum, t) => 
                     sum + (t.type === 'income' ? t.amount : -t.amount), 0
-                  ) >= 0 ? 'text-blue-600' : 'text-orange-600'
+                  ) >= 0 
+                    ? 'bg-blue-50 border-blue-200' 
+                    : 'bg-orange-50 border-orange-200'
                 }`}>
-                  <Wallet className={`inline-block w-5 h-5 mr-1 ${
+                  <div className={`flex items-center justify-center gap-1 text-base sm:text-xl font-bold truncate ${
                     monthTransactions.reduce((sum, t) => 
                       sum + (t.type === 'income' ? t.amount : -t.amount), 0
-                    ) >= 0 ? 'text-blue-500' : 'text-orange-500'
-                  }`} />
-                  <span>¥{formatAmount(monthTransactions.reduce((sum, t) => 
-                    sum + (t.type === 'income' ? t.amount : -t.amount), 0
-                  ))}</span>
-                </div>
-                <div className={`text-xs sm:text-sm font-medium ${
-                  monthTransactions.reduce((sum, t) => 
-                    sum + (t.type === 'income' ? t.amount : -t.amount), 0
-                  ) >= 0 ? 'text-blue-700' : 'text-orange-700'
-                }`}>
-                  残高
+                    ) >= 0 ? 'text-blue-600' : 'text-orange-600'
+                  }`}>
+                    <Wallet className={`inline-block w-5 h-5 mr-1 ${
+                      monthTransactions.reduce((sum, t) => 
+                        sum + (t.type === 'income' ? t.amount : -t.amount), 0
+                      ) >= 0 ? 'text-blue-500' : 'text-orange-500'
+                    }`} />
+                    <span>¥{formatAmount(monthTransactions.reduce((sum, t) => 
+                      sum + (t.type === 'income' ? t.amount : -t.amount), 0
+                    ))}</span>
+                  </div>
+                  <div className={`text-xs sm:text-sm font-medium ${
+                    monthTransactions.reduce((sum, t) => 
+                      sum + (t.type === 'income' ? t.amount : -t.amount), 0
+                    ) >= 0 ? 'text-blue-700' : 'text-orange-700'
+                  }`}>
+                    残高
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="text-xs text-gray-500 text-center mt-2">
-              {format(currentMonth, 'yyyy', { locale: ja })}年{format(currentMonth, 'M', { locale: ja })}月の概要
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
+              <div className="text-xs text-gray-500 text-center mt-2">
+                {format(currentMonth, 'yyyy', { locale: ja })}年{format(currentMonth, 'M', { locale: ja })}月の概要
+              </div>
+              {/* 固定表示ボタン */}
+              <div className="flex justify-end mt-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex items-center gap-1 border-blue-400 text-blue-600 hover:bg-blue-50 hover:border-blue-500"
+                  onClick={() => setIsSummaryFixed(true)}
+                >
+                  <Pin className="w-4 h-4" />
+                  概要を下部に固定
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+      {isSummaryFixed && (
+        <div className="fixed left-0 w-full z-[300] flex justify-center pointer-events-none" style={{ bottom: '66px' }}>
+          <div className="w-full max-w-md px-2 pb-2 pointer-events-auto">
+            <Card className="shadow-2xl border-2 border-blue-400 ring-2 ring-blue-200 animate-fade-in">
+              <CardContent className="relative p-2 sm:p-4">
+                {/* 固定中バッジ */}
+                <div className="absolute top-2 left-2">
+                  <span className="bg-blue-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow">固定中</span>
+                </div>
+                <button
+                  className="absolute top-2 right-2 bg-white/80 text-blue-600 hover:bg-blue-100 hover:text-blue-800 border border-blue-300 rounded-full p-2 w-10 h-10 flex items-center justify-center shadow transition-all focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  style={{ fontWeight: 'bold', fontSize: '1.5rem', lineHeight: 1 }}
+                  onClick={() => setIsSummaryFixed(false)}
+                  aria-label="概要を閉じる"
+                >
+                  <X className="w-7 h-7" strokeWidth={3} />
+                </button>
+                <div className="flex flex-col gap-1 w-full">
+                  <div className="text-center py-2 bg-green-50 rounded-lg border border-green-200">
+                    <div className="flex items-center justify-center gap-1 text-base sm:text-xl font-bold text-green-600 truncate">
+                      <ArrowUpCircle className="inline-block w-5 h-5 text-green-500 mr-1" />
+                      <span>¥{formatAmount(monthTransactions
+                        .filter(t => t.type === 'income')
+                        .reduce((sum, t) => sum + t.amount, 0)
+                      )}</span>
+                    </div>
+                    <div className="text-xs sm:text-sm text-green-700 font-medium">収入</div>
+                  </div>
+                  <div className="text-center py-2 bg-red-50 rounded-lg border border-red-200">
+                    <div className="flex items-center justify-center gap-1 text-base sm:text-xl font-bold text-red-600 truncate">
+                      <ArrowDownCircle className="inline-block w-5 h-5 text-red-500 mr-1" />
+                      <span>¥{formatAmount(monthTransactions
+                        .filter(t => t.type === 'expense')
+                        .reduce((sum, t) => sum + t.amount, 0)
+                      )}</span>
+                    </div>
+                    <div className="text-xs sm:text-sm text-red-700 font-medium">支出</div>
+                  </div>
+                  <div className={`text-center py-2 rounded-lg border ${
+                    monthTransactions.reduce((sum, t) => 
+                      sum + (t.type === 'income' ? t.amount : -t.amount), 0
+                    ) >= 0 
+                      ? 'bg-blue-50 border-blue-200' 
+                      : 'bg-orange-50 border-orange-200'
+                  }`}>
+                    <div className={`flex items-center justify-center gap-1 text-base sm:text-xl font-bold truncate ${
+                      monthTransactions.reduce((sum, t) => 
+                        sum + (t.type === 'income' ? t.amount : -t.amount), 0
+                      ) >= 0 ? 'text-blue-600' : 'text-orange-600'
+                    }`}>
+                      <Wallet className={`inline-block w-5 h-5 mr-1 ${
+                        monthTransactions.reduce((sum, t) => 
+                          sum + (t.type === 'income' ? t.amount : -t.amount), 0
+                        ) >= 0 ? 'text-blue-500' : 'text-orange-500'
+                      }`} />
+                      <span>¥{formatAmount(monthTransactions.reduce((sum, t) => 
+                        sum + (t.type === 'income' ? t.amount : -t.amount), 0
+                      ))}</span>
+                    </div>
+                    <div className={`text-xs sm:text-sm font-medium ${
+                      monthTransactions.reduce((sum, t) => 
+                        sum + (t.type === 'income' ? t.amount : -t.amount), 0
+                      ) >= 0 ? 'text-blue-700' : 'text-orange-700'
+                    }`}>
+                      残高
+                    </div>
+                  </div>
+                </div>
+                <div className="text-xs text-gray-500 text-center mt-2">
+                  {format(currentMonth, 'yyyy', { locale: ja })}年{format(currentMonth, 'M', { locale: ja })}月の概要
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
 
       {/* Transaction Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

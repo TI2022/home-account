@@ -12,7 +12,8 @@ import { useTransactionStore } from '@/store/useTransactionStore';
 import { useSnackbar } from '@/hooks/use-toast';
 import { EXPENSE_CATEGORIES } from '@/types';
 import type { RecurringExpense } from '@/types';
-import { Plus, Edit, Trash2, Receipt, Calendar, Clock } from 'lucide-react';
+import { Plus, Edit, Trash2, Receipt, Calendar, Clock, CheckSquare, Square } from 'lucide-react';
+import { ScenarioSelector } from '@/components/ui/scenario-selector';
 
 const MONTH_NAMES = [
   '1月', '2月', '3月', '4月', '5月', '6月',
@@ -27,6 +28,7 @@ export const RecurringExpenseSettings = () => {
     updateRecurringExpense, 
     deleteRecurringExpense,
     reflectRecurringExpensesForPeriod,
+    reflectSingleRecurringExpenseForPeriod,
   } = useTransactionStore();
   const { showSnackbar } = useSnackbar();
   
@@ -57,10 +59,23 @@ export const RecurringExpenseSettings = () => {
   const [reflectLoading, setReflectLoading] = useState(false);
   const [isReflectDialogOpen, setIsReflectDialogOpen] = useState(false);
   const [isMock, setIsMock] = useState(false);
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedExpenseIds, setSelectedExpenseIds] = useState<string[]>([]);
+  const [selectedScenarioId, setSelectedScenarioId] = useState<string>('');
 
   useEffect(() => {
     fetchRecurringExpenses();
   }, [fetchRecurringExpenses]);
+
+  // 無効化されたものは選択リストから外す
+  useEffect(() => {
+    if (isSelectMode) {
+      setSelectedExpenseIds(ids => ids.filter(id => {
+        const expense = recurringExpenses.find(e => e.id === id);
+        return expense && expense.is_active;
+      }));
+    }
+  }, [recurringExpenses, isSelectMode]);
 
   const resetForm = () => {
     setFormData({
@@ -182,80 +197,95 @@ export const RecurringExpenseSettings = () => {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-row items-center gap-2">
+      <div className="flex items-center gap-2 mb-2">
         <Button className="bg-red-500 hover:bg-red-600" onClick={() => setIsReflectDialogOpen(true)}>
           支出一括反映
         </Button>
+        <Button
+          variant={isSelectMode ? 'default' : 'outline'}
+          className={isSelectMode ? 'bg-blue-500 text-white' : ''}
+          onClick={() => {
+            setIsSelectMode(v => !v);
+            setSelectedExpenseIds([]);
+          }}
+        >
+          {isSelectMode ? <CheckSquare className="w-4 h-4 mr-1" /> : <Square className="w-4 h-4 mr-1" />}
+          {isSelectMode ? '選択解除' : '選択モード'}
+        </Button>
+        <Dialog open={isReflectDialogOpen} onOpenChange={setIsReflectDialogOpen}>
+          <DialogContent className="sm:max-w-xs">
+            <DialogHeader>
+              <DialogTitle>定期支出の一括反映</DialogTitle>
+            </DialogHeader>
+            <div className="flex flex-col gap-2">
+              <div>
+                <Label>反映開始日</Label>
+                <input
+                  type="date"
+                  className="border rounded px-2 py-1 w-full"
+                  value={periodStartDate}
+                  onChange={e => setPeriodStartDate(e.target.value)}
+                  max={periodEndDate}
+                />
+              </div>
+              <div>
+                <Label>反映終了日</Label>
+                <input
+                  type="date"
+                  className="border rounded px-2 py-1 w-full"
+                  value={periodEndDate}
+                  onChange={e => setPeriodEndDate(e.target.value)}
+                  min={periodStartDate}
+                />
+              </div>
+              <div className="flex items-center gap-4 mt-2">
+                <Label>反映種別</Label>
+                <label className="flex items-center gap-1">
+                  <input
+                    type="radio"
+                    name="reflectType"
+                    checked={!isMock}
+                    onChange={() => setIsMock(false)}
+                  />
+                  <span>本番データ</span>
+                </label>
+                <label className="flex items-center gap-1">
+                  <input
+                    type="radio"
+                    name="reflectType"
+                    checked={isMock}
+                    onChange={() => setIsMock(true)}
+                  />
+                  <span>仮データ</span>
+                </label>
+              </div>
+              <div>
+                <Label>シナリオ</Label>
+                <ScenarioSelector value={selectedScenarioId} onValueChange={setSelectedScenarioId} />
+              </div>
+              <Button
+                className="bg-red-500 hover:bg-red-600 mt-2"
+                disabled={reflectLoading || periodEndDate < periodStartDate}
+                onClick={async () => {
+                  setReflectLoading(true);
+                  try {
+                    await reflectRecurringExpensesForPeriod(periodStartDate, periodEndDate, isMock, selectedScenarioId);
+                    showSnackbar('指定期間の定期支出を反映しました');
+                    setIsReflectDialogOpen(false);
+                  } catch (error) {
+                    console.error('一括反映エラー:', error);
+                    showSnackbar('一括反映に失敗しました', 'destructive');
+                  } finally {
+                    setReflectLoading(false);
+                  }
+                }}
+              >
+                {reflectLoading ? '反映中...' : '定期支出を反映'}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
-      <Dialog open={isReflectDialogOpen} onOpenChange={setIsReflectDialogOpen}>
-        <DialogContent className="sm:max-w-xs">
-          <DialogHeader>
-            <DialogTitle>定期支出の一括反映</DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col gap-2">
-            <div>
-              <Label>反映開始日</Label>
-              <input
-                type="date"
-                className="border rounded px-2 py-1 w-full"
-                value={periodStartDate}
-                onChange={e => setPeriodStartDate(e.target.value)}
-                max={periodEndDate}
-              />
-            </div>
-            <div>
-              <Label>反映終了日</Label>
-              <input
-                type="date"
-                className="border rounded px-2 py-1 w-full"
-                value={periodEndDate}
-                onChange={e => setPeriodEndDate(e.target.value)}
-                min={periodStartDate}
-              />
-            </div>
-            <div className="flex items-center gap-4 mt-2">
-              <Label>反映種別</Label>
-              <label className="flex items-center gap-1">
-                <input
-                  type="radio"
-                  name="reflectType"
-                  checked={!isMock}
-                  onChange={() => setIsMock(false)}
-                />
-                <span><span className="text-red-700">実際</span>の支出</span>
-              </label>
-              <label className="flex items-center gap-1">
-                <input
-                  type="radio"
-                  name="reflectType"
-                  checked={isMock}
-                  onChange={() => setIsMock(true)}
-                />
-                <span><span className="text-blue-700">予定</span>の支出</span>
-              </label>
-            </div>
-            <Button
-              className="bg-green-500 hover:bg-green-600 mt-2"
-              disabled={reflectLoading || periodEndDate < periodStartDate}
-              onClick={async () => {
-                setReflectLoading(true);
-                try {
-                  await reflectRecurringExpensesForPeriod(periodStartDate, periodEndDate, isMock);
-                  showSnackbar('反映完了', 'default');
-                  setIsReflectDialogOpen(false);
-                } catch (error) {
-                  console.error('一括反映エラー:', error);
-                  showSnackbar('一括反映に失敗しました', 'destructive');
-                } finally {
-                  setReflectLoading(false);
-                }
-              }}
-            >
-              {reflectLoading ? '反映中...' : '定期支出を反映'}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-gray-900">定期支出設定</h3>
         <Dialog open={isDialogOpen} onOpenChange={(open) => {
@@ -457,15 +487,15 @@ export const RecurringExpenseSettings = () => {
         </Dialog>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-3">
         {recurringExpenses.length === 0 ? (
           <Card>
             <CardContent className="p-6 text-center text-gray-500">
               <Receipt className="h-12 w-12 mx-auto mb-4 text-gray-400" />
               <p className="text-lg font-medium mb-2">定期支出が設定されていません</p>
-              <p>税金や保険料などの定期的な支出を管理しましょう</p>
+              <p>家賃やサブスクなどの定期的な支出を管理しましょう</p>
               <p className="mt-2 text-gray-400">
-                住民税、所得税、健康保険、国民年金など
+                家賃、サブスク、保険料など
               </p>
             </CardContent>
           </Card>
@@ -484,26 +514,32 @@ export const RecurringExpenseSettings = () => {
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
-                          <div className="flex items-center space-x-2 mb-1">
-                            <h4 className="font-medium text-gray-900">{expense.name}</h4>
-                            <span className={`text-xs px-2 py-1 rounded-full ${
-                              expense.is_active 
-                                ? 'bg-green-100 text-green-800' 
-                                : 'bg-gray-100 text-gray-600'
-                            }`}>
-                              {expense.is_active ? '有効' : '無効'}
-                            </span>
+                          <div className="flex items-start space-x-2 mb-1">
+                            {isSelectMode && (
+                              <input
+                                type="checkbox"
+                                checked={selectedExpenseIds.includes(expense.id)}
+                                disabled={!expense.is_active}
+                                onChange={e => {
+                                  if (e.target.checked) {
+                                    setSelectedExpenseIds(ids => [...ids, expense.id]);
+                                  } else {
+                                    setSelectedExpenseIds(ids => ids.filter(id => id !== expense.id));
+                                  }
+                                }}
+                                className="w-5 h-5 accent-blue-500 mr-2 disabled:opacity-50"
+                              />
+                            )}
+                            <h5 className="font-medium text-gray-900 text-left self-start">{expense.name}</h5>
                           </div>
-                          <div className="flex items-center space-x-4 text-gray-600">
+                          <div className="flex items-start space-x-4 text-gray-600">
                             <div className="flex items-center space-x-1">
                               <Calendar className="h-3 w-3" />
                               <span>
                                 {expense.payment_schedule && expense.payment_schedule.length > 0 ? (
                                   expense.payment_schedule.length === 12 ? (
-                                    // 毎月
                                     `毎月${expense.payment_schedule[0].day}日`
                                   ) : (
-                                    // 四半期・年1回・カスタム
                                     expense.payment_schedule
                                       .sort((a, b) => a.month - b.month)
                                       .map(s => `${s.month}/${s.day}`).join('、')
@@ -515,30 +551,39 @@ export const RecurringExpenseSettings = () => {
                           {expense.description && (
                             <p className="text-gray-500 mt-1">{expense.description}</p>
                           )}
-                          <p className="text-lg font-bold text-red-600 mt-2">
+                          <p className="text-lg font-bold text-red-600 mt-1">
                             ¥{formatAmount(expense.amount)}
                           </p>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <Switch
-                            checked={expense.is_active}
-                            onCheckedChange={(checked) => handleToggleActive(expense.id, checked)}
-                          />
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEdit(expense)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDelete(expense.id)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex flex-col gap-2 items-end">
+                            <div className="flex items-center gap-2 w-full justify-end mb-2">
+                              <Switch
+                                checked={expense.is_active}
+                                onCheckedChange={(checked) => handleToggleActive(expense.id, checked)}
+                                id={`active-switch-${expense.id}`}
+                              />
+                              <Label htmlFor={`active-switch-${expense.id}`} className="text-xs text-gray-600 select-none">
+                                {expense.is_active ? '有効' : '無効'}
+                              </Label>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEdit(expense)}
+                            >
+                              <Edit className="h-4 w-4" />
+                              編集
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => handleDelete(expense.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              削除
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </CardContent>
@@ -549,48 +594,53 @@ export const RecurringExpenseSettings = () => {
           ))
         )}
       </div>
-
-      {/* Summary Cards */}
+      {/* 年間定期支出合計カード */}
       {recurringExpenses.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
           <Card className="bg-red-50 border-red-200">
             <CardContent className="p-4">
               <div className="text-center">
-                <p className="text-sm text-red-700 font-medium mb-1">月間定期支出合計</p>
+                <p className="text-red-700 font-medium mb-1">年間定期支出合計</p>
                 <p className="text-2xl font-bold text-red-600">
                   ¥{formatAmount(
                     recurringExpenses
-                      .filter(expense => expense.is_active && (expense.payment_schedule || []).some(s => s.month === new Date().getMonth() + 1))
-                      .reduce((sum, expense) => sum + expense.amount, 0)
-                  )}
-                </p>
-                <p className="text-xs text-red-600 mt-1">
-                  今月の支払い予定
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-orange-50 border-orange-200">
-            <CardContent className="p-4">
-              <div className="text-center">
-                <p className="text-sm text-orange-700 font-medium mb-1">年間定期支出合計</p>
-                <p className="text-2xl font-bold text-orange-600">
-                  ¥{formatAmount(
-                    recurringExpenses
                       .filter(expense => expense.is_active)
-                      .reduce((sum, expense) => {
-                        const monthsCount = (expense.payment_schedule || []).length;
-                        return sum + (expense.amount * monthsCount);
-                      }, 0)
+                      .reduce((sum, expense) => sum + expense.amount * 12, 0)
                   )}
                 </p>
-                <p className="text-xs text-orange-600 mt-1">
+                <p className="text-red-600 mt-1">
                   有効な定期支出: {recurringExpenses.filter(e => e.is_active).length}件
                 </p>
               </div>
             </CardContent>
           </Card>
+        </div>
+      )}
+      {/* 選択モード時の一括反映ボタン */}
+      {isSelectMode && selectedExpenseIds.length > 0 && (
+        <div className="fixed bottom-20 left-0 w-full flex justify-center z-50 pointer-events-none">
+          <ScenarioSelector value={selectedScenarioId} onValueChange={setSelectedScenarioId} className="mr-2 w-48" />
+          <Button
+            className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-full shadow-lg px-8 py-3 pointer-events-auto"
+            onClick={async () => {
+              setLoading(true);
+              try {
+                for (const id of selectedExpenseIds) {
+                  await reflectSingleRecurringExpenseForPeriod(id, periodStartDate, periodEndDate, isMock, selectedScenarioId);
+                }
+                showSnackbar('選択した定期支出を反映しました');
+                setSelectedExpenseIds([]);
+                setIsSelectMode(false);
+              } catch {
+                showSnackbar('反映に失敗しました', 'destructive');
+              } finally {
+                setLoading(false);
+              }
+            }}
+            disabled={loading}
+          >
+            選択した定期支出を反映
+          </Button>
         </div>
       )}
     </div>

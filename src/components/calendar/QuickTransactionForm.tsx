@@ -10,6 +10,7 @@ import { useSnackbar } from '@/hooks/use-toast';
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '@/types';
 import { format } from 'date-fns';
 import { Transaction } from '@/types';
+import { ScenarioSelector } from '@/components/ui/scenario-selector';
 
 interface QuickTransactionFormProps {
   selectedDate: Date;
@@ -45,6 +46,7 @@ export const QuickTransactionForm = ({
   const [errorToast, setErrorToast] = useState<string | null>(null);
   const [lastAction, setLastAction] = useState<'add' | 'update' | null>(null);
   const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [selectedScenarioId, setSelectedScenarioId] = useState<string>('');
 
   // 外部からeditingTransactionが渡されたら内部stateに反映
   useEffect(() => {
@@ -83,6 +85,7 @@ export const QuickTransactionForm = ({
         isMock: !!editingTransaction.isMock,
         date: editingTransaction.date,
       });
+      setSelectedScenarioId(editingTransaction.scenario_id || '');
     }
   }, [editingTransaction]);
 
@@ -100,6 +103,7 @@ export const QuickTransactionForm = ({
       category: formData.category,
       memo: formData.memo,
       isMock: formData.isMock,
+      scenario_id: formData.isMock ? selectedScenarioId : undefined,
     };
     if (
       lastSubmitted &&
@@ -129,6 +133,7 @@ export const QuickTransactionForm = ({
           memo: formData.memo,
           isMock: formData.isMock,
           date: formData.date,
+          scenario_id: formData.isMock ? selectedScenarioId : undefined,
         });
         setLastAction('update');
         setSuccessToastOpen(true);
@@ -144,6 +149,7 @@ export const QuickTransactionForm = ({
           category: submitData.category,
           memo: submitData.memo,
           isMock: submitData.isMock,
+          scenario_id: submitData.scenario_id,
         });
         setLastAction('add');
         setSuccessToastOpen(true);
@@ -161,6 +167,7 @@ export const QuickTransactionForm = ({
         date: format(selectedDate, 'yyyy-MM-dd'),
       });
       setEditingTransaction(null);
+      setSelectedScenarioId('');
     } catch (error: unknown) {
       console.error('Transaction operation failed:', error);
       let message = '操作に失敗しました';
@@ -306,6 +313,18 @@ export const QuickTransactionForm = ({
             </SelectContent>
           </Select>
         </div>
+
+        {formData.isMock && (
+          <div className="space-y-2">
+            <Label htmlFor="scenario">シナリオ</Label>
+            <ScenarioSelector
+              value={selectedScenarioId}
+              onValueChange={setSelectedScenarioId}
+              placeholder="シナリオを選択してください"
+              className="bg-white"
+            />
+          </div>
+        )}
 
         <div className="space-y-2">
           <Label>メモ</Label>

@@ -23,9 +23,11 @@ interface TransactionState {
   deleteRecurringExpense: (id: string) => Promise<void>;
   updateTransaction: (transaction: Transaction) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
-  reflectRecurringExpensesForPeriod: (startDate: string, endDate: string, isMock?: boolean) => Promise<void>;
-  reflectRecurringIncomesForPeriod: (startDate: string, endDate: string, isMock?: boolean) => Promise<void>;
+  reflectRecurringExpensesForPeriod: (startDate: string, endDate: string, isMock?: boolean, scenario_id?: string) => Promise<void>;
+  reflectRecurringIncomesForPeriod: (startDate: string, endDate: string, isMock?: boolean, scenario_id?: string) => Promise<void>;
   deleteTransactions: (ids: string[]) => Promise<void>;
+  reflectSingleRecurringIncomeForPeriod: (incomeId: string, startDate: string, endDate: string, isMock?: boolean, scenario_id?: string) => Promise<void>;
+  reflectSingleRecurringExpenseForPeriod: (expenseId: string, startDate: string, endDate: string, isMock?: boolean, scenario_id?: string) => Promise<void>;
 }
 
 export const useTransactionStore = create<TransactionState>((set, get) => ({
@@ -120,6 +122,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
             ...transaction,
             user_id: user.user.id,
             card_used_date: transaction.card_used_date || null,
+            scenario_id: transaction.scenario_id || null,
           }
         ])
         .select()
@@ -424,7 +427,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
     }
   },
 
-  reflectRecurringExpensesForPeriod: async (startDate: string, endDate: string, isMock?: boolean) => {
+  reflectRecurringExpensesForPeriod: async (startDate: string, endDate: string, isMock?: boolean, scenario_id?: string) => {
     const { addTransaction, fetchRecurringExpenses, fetchTransactions } = get();
     await fetchRecurringExpenses();
     await fetchTransactions();
@@ -460,6 +463,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
                 date: paymentDateStr,
                 memo: exp.name,
                 isMock: !!isMock,
+                scenario_id: scenario_id || null,
               });
             }
           }
@@ -470,7 +474,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
     }
   },
 
-  reflectRecurringIncomesForPeriod: async (startDate: string, endDate: string, isMock?: boolean) => {
+  reflectRecurringIncomesForPeriod: async (startDate: string, endDate: string, isMock?: boolean, scenario_id?: string) => {
     const { addTransaction, fetchRecurringIncomes, fetchTransactions } = get();
     await fetchRecurringIncomes();
     await fetchTransactions();
@@ -506,6 +510,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
                 date: paymentDateStr,
                 memo: inc.name,
                 isMock: !!isMock,
+                scenario_id: scenario_id || null,
               });
             }
           }
@@ -532,6 +537,96 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
     } catch (error) {
       console.error('Error deleting transactions:', error);
       throw error;
+    }
+  },
+
+  reflectSingleRecurringIncomeForPeriod: async (incomeId: string, startDate: string, endDate: string, isMock?: boolean, scenario_id?: string) => {
+    const { addTransaction, fetchRecurringIncomes, fetchTransactions } = get();
+    await fetchRecurringIncomes();
+    await fetchTransactions();
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const inc = (get().recurringIncomes || []).find(i => i.id === incomeId);
+    if (!inc || !inc.is_active) return;
+    const d = new Date(start);
+    while (d <= end) {
+      const month = d.getMonth() + 1;
+      const year = d.getFullYear();
+      let paymentDay: number | undefined = undefined;
+      if (inc.payment_schedule) {
+        const schedule = inc.payment_schedule.find(s => s.month === month);
+        if (schedule) paymentDay = schedule.day;
+      }
+      if (paymentDay !== undefined) {
+        const paymentDate = new Date(year, month - 1, paymentDay);
+        if (paymentDate >= start && paymentDate <= end) {
+          const paymentDateStr = format(paymentDate, 'yyyy-MM-dd');
+          const exists = (get().transactions || []).some(t =>
+            t.date === paymentDateStr &&
+            t.amount === inc.amount &&
+            t.category === inc.category &&
+            t.type === 'income'
+          );
+          if (!exists) {
+            await addTransaction({
+              type: 'income',
+              amount: inc.amount,
+              category: inc.category,
+              date: paymentDateStr,
+              memo: inc.name,
+              isMock: !!isMock,
+              scenario_id: scenario_id || null,
+            });
+          }
+        }
+      }
+      d.setMonth(d.getMonth() + 1);
+      d.setDate(1);
+    }
+  },
+
+  reflectSingleRecurringExpenseForPeriod: async (expenseId: string, startDate: string, endDate: string, isMock?: boolean, scenario_id?: string) => {
+    const { addTransaction, fetchRecurringExpenses, fetchTransactions } = get();
+    await fetchRecurringExpenses();
+    await fetchTransactions();
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const exp = (get().recurringExpenses || []).find(e => e.id === expenseId);
+    if (!exp || !exp.is_active) return;
+    const d = new Date(start);
+    while (d <= end) {
+      const month = d.getMonth() + 1;
+      const year = d.getFullYear();
+      let paymentDay: number | undefined = undefined;
+      if (exp.payment_schedule) {
+        const schedule = exp.payment_schedule.find(s => s.month === month);
+        if (schedule) paymentDay = schedule.day;
+      }
+      if (paymentDay !== undefined) {
+        const paymentDate = new Date(year, month - 1, paymentDay);
+        if (paymentDate >= start && paymentDate <= end) {
+          const paymentDateStr = format(paymentDate, 'yyyy-MM-dd');
+          const exists = (get().transactions || []).some(t =>
+            t.date === paymentDateStr &&
+            t.amount === exp.amount &&
+            t.category === exp.category &&
+            t.type === 'expense'
+          );
+          if (!exists) {
+            await addTransaction({
+              type: 'expense',
+              amount: exp.amount,
+              category: exp.category,
+              date: paymentDateStr,
+              memo: exp.name,
+              isMock: !!isMock,
+              scenario_id: scenario_id || null,
+            });
+          }
+        }
+      }
+      d.setMonth(d.getMonth() + 1);
+      d.setDate(1);
     }
   },
 }));

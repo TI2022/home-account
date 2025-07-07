@@ -12,7 +12,9 @@ import { useTransactionStore } from '@/store/useTransactionStore';
 import { useSnackbar } from '@/hooks/use-toast';
 import { INCOME_CATEGORIES } from '@/types';
 import type { RecurringIncome } from '@/types';
-import { Plus, Edit, Trash2, Receipt, Calendar, Clock } from 'lucide-react';
+import { Plus, Edit, Trash2, Receipt, Calendar, Clock, CheckSquare, Square } from 'lucide-react';
+import { ScenarioSelector } from '@/components/ui/scenario-selector';
+import { format } from 'date-fns';
 
 const MONTH_NAMES = [
   '1月', '2月', '3月', '4月', '5月', '6月',
@@ -26,7 +28,7 @@ export const RecurringIncomeSettings = () => {
     addRecurringIncome, 
     updateRecurringIncome, 
     deleteRecurringIncome,
-    reflectRecurringIncomesForPeriod
+    reflectSingleRecurringIncomeForPeriod
   } = useTransactionStore();
   const { showSnackbar } = useSnackbar();
   
@@ -43,24 +45,25 @@ export const RecurringIncomeSettings = () => {
   const [loading, setLoading] = useState(false);
   const [allMonthsChecked, setAllMonthsChecked] = useState(false);
   const [allMonthsDay, setAllMonthsDay] = useState(25);
-  const [periodStartDate, setPeriodStartDate] = useState(() => {
-    const d = new Date();
-    d.setDate(1);
-    return d.toISOString().slice(0, 10);
-  });
-  const [periodEndDate, setPeriodEndDate] = useState(() => {
-    const d = new Date();
-    d.setMonth(d.getMonth() + 1);
-    d.setDate(0);
-    return d.toISOString().slice(0, 10);
-  });
-  const [reflectLoading, setReflectLoading] = useState(false);
-  const [isReflectDialogOpen, setIsReflectDialogOpen] = useState(false);
-  const [isMock, setIsMock] = useState(false);
+  // 一括反映・ダイアログ関連のstateは不要になったので削除
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedIncomeIds, setSelectedIncomeIds] = useState<string[]>([]);
+  const [selectedScenarioId, setSelectedScenarioId] = useState<string>('');
+  const [isScenarioDialogOpen, setIsScenarioDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchRecurringIncomes();
   }, [fetchRecurringIncomes]);
+
+  // 無効化されたものは選択リストから外す
+  useEffect(() => {
+    if (isSelectMode) {
+      setSelectedIncomeIds(ids => ids.filter(id => {
+        const income = recurringIncomes.find(i => i.id === id);
+        return income && income.is_active;
+      }));
+    }
+  }, [recurringIncomes, isSelectMode]);
 
   const resetForm = () => {
     setFormData({
@@ -181,80 +184,74 @@ export const RecurringIncomeSettings = () => {
 
   return (
     <div className="space-y-4">
-      {/* 一括反映ボタンとモーダル */}
-      <div>
-        <Button className="bg-green-500 hover:bg-green-600" onClick={() => setIsReflectDialogOpen(true)}>
-          収入一括反映
+      <div className="flex items-center gap-2 mb-2">
+        <Button
+          variant={isSelectMode ? 'default' : 'outline'}
+          className={isSelectMode ? 'bg-blue-500 text-white' : ''}
+          onClick={() => {
+            setIsSelectMode(v => !v);
+            setSelectedIncomeIds([]);
+          }}
+        >
+          {isSelectMode ? <CheckSquare className="w-4 h-4 mr-1" /> : <Square className="w-4 h-4 mr-1" />}
+          {isSelectMode ? '選択解除' : '選択モード'}
         </Button>
-        <Dialog open={isReflectDialogOpen} onOpenChange={setIsReflectDialogOpen}>
-          <DialogContent className="sm:max-w-xs">
-            <DialogHeader>
-              <DialogTitle>定期収入の一括反映</DialogTitle>
-            </DialogHeader>
-            <div className="flex flex-col gap-2">
-              <div>
-                <Label>反映開始日</Label>
-                <input
-                  type="date"
-                  className="border rounded px-2 py-1 w-full"
-                  value={periodStartDate}
-                  onChange={e => setPeriodStartDate(e.target.value)}
-                  max={periodEndDate}
-                />
-              </div>
-              <div>
-                <Label>反映終了日</Label>
-                <input
-                  type="date"
-                  className="border rounded px-2 py-1 w-full"
-                  value={periodEndDate}
-                  onChange={e => setPeriodEndDate(e.target.value)}
-                  min={periodStartDate}
-                />
-              </div>
-              <div className="flex items-center gap-4 mt-2">
-                <Label>反映種別</Label>
-                <label className="flex items-center gap-1">
-                  <input
-                    type="radio"
-                    name="reflectType"
-                    checked={!isMock}
-                    onChange={() => setIsMock(false)}
-                  />
-                  <span>本番データ</span>
-                </label>
-                <label className="flex items-center gap-1">
-                  <input
-                    type="radio"
-                    name="reflectType"
-                    checked={isMock}
-                    onChange={() => setIsMock(true)}
-                  />
-                  <span>仮データ</span>
-                </label>
-              </div>
+        {/* 上部のisSelectModeトグルボタンを削除 */}
+        {isSelectMode && (
+          <div className="flex w-full gap-2 items-start flex-wrap sm:flex-nowrap">
+            <div className="flex flex-col gap-2 min-w-[100px]">
+              {selectedIncomeIds.length === recurringIncomes.filter(i => i.is_active).length ? (
+                <Button
+                  className="bg-gray-500 hover:bg-gray-600 text-white font-bold rounded-full shadow-lg px-4 py-2"
+                  onClick={() => setSelectedIncomeIds([])}
+                >
+                  全解除
+                </Button>
+              ) : (
+                <Button
+                  className="bg-gray-500 hover:bg-gray-600 text-white font-bold rounded-full shadow-lg px-4 py-2"
+                  onClick={() => {
+                    setSelectedIncomeIds(recurringIncomes.filter(i => i.is_active).map(i => i.id));
+                  }}
+                >
+                  全選択
+                </Button>
+              )}
+            </div>
+            {/* 右側: 一括反映・一括削除（横並び） */}
+            <div className="flex gap-2 flex-1">
               <Button
-                className="bg-green-500 hover:bg-green-600 mt-2"
-                disabled={reflectLoading || periodEndDate < periodStartDate}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-full shadow-lg px-4 py-2 w-full"
+                onClick={() => setIsScenarioDialogOpen(true)}
+                disabled={selectedIncomeIds.length === 0}
+              >
+                一括反映
+              </Button>
+              <Button
+                className="bg-red-600 hover:bg-red-700 text-white font-bold rounded-full shadow-lg px-4 py-2 w-full"
                 onClick={async () => {
-                  setReflectLoading(true);
+                  if (!window.confirm('選択した定期収入を削除しますか？')) return;
+                  setLoading(true);
                   try {
-                    await reflectRecurringIncomesForPeriod(periodStartDate, periodEndDate, isMock);
-                    showSnackbar('指定期間の定期収入を反映しました');
-                    setIsReflectDialogOpen(false);
-                  } catch (error) {
-                    console.error('一括反映エラー:', error);
-                    showSnackbar('一括反映に失敗しました', 'destructive');
+                    for (const id of selectedIncomeIds) {
+                      await deleteRecurringIncome(id);
+                    }
+                    showSnackbar('選択した定期収入を削除しました');
+                    setSelectedIncomeIds([]);
+                    setIsSelectMode(false);
+                  } catch {
+                    showSnackbar('削除に失敗しました', 'destructive');
                   } finally {
-                    setReflectLoading(false);
+                    setLoading(false);
                   }
                 }}
+                disabled={selectedIncomeIds.length === 0}
               >
-                {reflectLoading ? '反映中...' : '定期収入を反映'}
+                一括削除
               </Button>
             </div>
-          </DialogContent>
-        </Dialog>
+          </div>
+        )}
       </div>
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-gray-900">定期収入設定</h3>
@@ -484,17 +481,25 @@ export const RecurringIncomeSettings = () => {
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
-                          <div className="flex items-center space-x-2 mb-1">
-                            <h5 className="font-medium text-gray-900">{income.name}</h5>
-                            <span className={`text-xs px-2 py-1 rounded-full ${
-                              income.is_active 
-                                ? 'bg-green-100 text-green-800' 
-                                : 'bg-gray-100 text-gray-600'
-                            }`}>
-                              {income.is_active ? '有効' : '無効'}
-                            </span>
+                          <div className="flex items-start space-x-2 mb-1">
+                            {isSelectMode && (
+                              <input
+                                type="checkbox"
+                                checked={selectedIncomeIds.includes(income.id)}
+                                disabled={!income.is_active}
+                                onChange={e => {
+                                  if (e.target.checked) {
+                                    setSelectedIncomeIds(ids => [...ids, income.id]);
+                                  } else {
+                                    setSelectedIncomeIds(ids => ids.filter(id => id !== income.id));
+                                  }
+                                }}
+                                className="w-5 h-5 accent-blue-500 mr-2 disabled:opacity-50"
+                              />
+                            )}
+                            <h5 className="font-medium text-gray-900 text-left self-start">{income.name}</h5>
                           </div>
-                          <div className="flex items-center space-x-4 text-gray-600">
+                          <div className="flex items-start space-x-4 text-gray-600">
                             <div className="flex items-center space-x-1">
                               <Calendar className="h-3 w-3" />
                               <span>
@@ -520,25 +525,34 @@ export const RecurringIncomeSettings = () => {
                           </p>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <Switch
-                            checked={income.is_active}
-                            onCheckedChange={(checked) => handleToggleActive(income.id, checked)}
-                          />
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEdit(income)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDelete(income.id)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex flex-col gap-2 items-end">
+                            <div className="flex items-center gap-2 w-full justify-end mb-2">
+                              <Switch
+                                checked={income.is_active}
+                                onCheckedChange={(checked) => handleToggleActive(income.id, checked)}
+                                id={`active-switch-${income.id}`}
+                              />
+                              <Label htmlFor={`active-switch-${income.id}`} className="text-xs text-gray-600 select-none">
+                                {income.is_active ? '有効' : '無効'}
+                              </Label>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEdit(income)}
+                            >
+                              <Edit className="h-4 w-4" />
+                              編集
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => handleDelete(income.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              削除
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </CardContent>
@@ -572,6 +586,40 @@ export const RecurringIncomeSettings = () => {
           </Card>
         </div>
       )}
+      {/* シナリオ選択モーダル */}
+      <Dialog open={isScenarioDialogOpen} onOpenChange={setIsScenarioDialogOpen}>
+        <DialogContent className="sm:max-w-xs">
+          <DialogHeader>
+            <DialogTitle>一括反映するシナリオを選択</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-2">
+            <ScenarioSelector value={selectedScenarioId} onValueChange={setSelectedScenarioId} />
+            <Button
+              className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded shadow mt-4"
+              onClick={async () => {
+                setLoading(true);
+                const today = format(new Date(), 'yyyy-MM-dd');
+                try {
+                  for (const id of selectedIncomeIds) {
+                    await reflectSingleRecurringIncomeForPeriod(id, today, today, undefined, selectedScenarioId);
+                  }
+                  showSnackbar('選択した定期収入を反映しました');
+                  setSelectedIncomeIds([]);
+                  setIsSelectMode(false);
+                  setIsScenarioDialogOpen(false);
+                } catch {
+                  showSnackbar('反映に失敗しました', 'destructive');
+                } finally {
+                  setLoading(false);
+                }
+              }}
+              disabled={loading || !selectedScenarioId}
+            >
+              このシナリオで一括反映
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
