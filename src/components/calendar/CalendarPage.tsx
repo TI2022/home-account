@@ -309,6 +309,7 @@ export const CalendarPage = () => {
   const [showGuide, setShowGuide] = useState(false);
   const [dontShowNext, setDontShowNext] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [copyingTransaction, setCopyingTransaction] = useState<Transaction | null>(null);
   const [rakutenLoading, setRakutenLoading] = useState(false);
   const [showAllTransactions, setShowAllTransactions] = useState(false);
   const [showMock, setShowMock] = useState(false);
@@ -1021,14 +1022,11 @@ export const CalendarPage = () => {
                           variant="ghost"
                           size="sm"
                           onClick={() => {
-                            console.log('CalendarPage: Edit button clicked for transaction:', transaction);
-                            console.log('CalendarPage: Current editingTransaction:', editingTransaction);
                             if (editingTransaction?.id === transaction.id) {
                               setEditingTransaction(null);
                             } else {
                               setEditingTransaction(transaction);
                             }
-                            console.log('CalendarPage: Setting editingTransaction to:', editingTransaction?.id === transaction.id ? null : transaction);
                           }}
                         >
                           <Edit className="h-4 w-4" />
@@ -1039,6 +1037,16 @@ export const CalendarPage = () => {
                           onClick={() => handleDelete(transaction.id)}
                         >
                           <Trash2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setCopyingTransaction(transaction)}
+                          title="コピーして新規追加"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 6v-1.125A2.625 2.625 0 0 0 13.875 2.25h-7.5A2.625 2.625 0 0 0 3.75 4.875v7.5A2.625 2.625 0 0 0 6.375 15H7.5m3 0h7.125A2.625 2.625 0 0 0 20.25 12.375v-7.5A2.625 2.625 0 0 0 17.625 2.25H13.5" />
+                          </svg>
                         </Button>
                       </>
                     )}
@@ -1052,7 +1060,9 @@ export const CalendarPage = () => {
           <QuickTransactionForm
             selectedDate={selectedDate}
             editingTransaction={editingTransaction}
+            copyingTransaction={copyingTransaction}
             onEditCancel={() => setEditingTransaction(null)}
+            onCopyFinish={() => setCopyingTransaction(null)}
           />
         </DialogContent>
       </Dialog>

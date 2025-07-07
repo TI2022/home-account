@@ -314,22 +314,22 @@ export const RecurringExpenseSettings = () => {
             <DialogTitle>一括反映するシナリオ・期間を選択</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-2">
-            <Label>反映開始日</Label>
-            <input
-              type="date"
-              className="border rounded px-2 py-1 w-full"
-              value={periodStartDate}
-              onChange={e => setPeriodStartDate(e.target.value)}
-              max={periodEndDate}
-            />
-            <Label>反映終了日</Label>
-            <input
-              type="date"
-              className="border rounded px-2 py-1 w-full"
-              value={periodEndDate}
-              onChange={e => setPeriodEndDate(e.target.value)}
-              min={periodStartDate}
-            />
+              <Label>反映開始日</Label>
+              <input
+                type="date"
+                className="border rounded px-2 py-1 w-full"
+                value={periodStartDate}
+                onChange={e => setPeriodStartDate(e.target.value)}
+                max={periodEndDate}
+              />
+              <Label>反映終了日</Label>
+              <input
+                type="date"
+                className="border rounded px-2 py-1 w-full"
+                value={periodEndDate}
+                onChange={e => setPeriodEndDate(e.target.value)}
+                min={periodStartDate}
+              />
             <Label>シナリオ</Label>
             <ScenarioSelector value={selectedScenarioId} onValueChange={setSelectedScenarioId} />
             <Label className="mt-2">区分</Label>
@@ -392,14 +392,27 @@ export const RecurringExpenseSettings = () => {
                         const paymentDate = new Date(year, month - 1, schedule.day);
                         if (paymentDate >= start && paymentDate <= end) {
                           const paymentDateStr = paymentDate.toISOString().slice(0, 10);
-                          const exists = (useTransactionStore.getState().transactions || []).some(t =>
+                          const existing = (useTransactionStore.getState().transactions || []).find(t =>
                             t.date === paymentDateStr &&
                             t.amount === expense.amount &&
                             t.category === expense.category &&
-                            t.type === 'expense' &&
-                            t.scenario_id === (selectedScenarioId || undefined) &&
-                            (t.isMock ?? false) === isMock
+                            t.type === 'expense'
                           );
+                          let isScenarioMatch = false;
+                          let isMockMatch = false;
+                          if (existing) {
+                            isScenarioMatch = String(existing.scenario_id || '') === String(selectedScenarioId || '');
+                            isMockMatch = (existing.isMock ?? false) === isMock;
+                          }
+                          const exists = !!existing && isScenarioMatch && isMockMatch;
+                          if (exists) {
+                            const details = [];
+                            if (isScenarioMatch) details.push('scenario_id');
+                            if (isMockMatch) details.push('isMock');
+                            skipped.push({ id, name: expense.name, reason: `${paymentDateStr}：既に同じ内容のトランザクションが存在します（${details.join(', ')} が一致）` });
+                          } else if (!exists && existing) {
+                            // 既存トランザクションはあるがscenario_idやisMockが一致しない場合、何もしない（登録する）
+                          }
                           if (exists) {
                             skipped.push({ id, name: expense.name, reason: `${paymentDateStr}：既に同じ内容のトランザクションが存在します` });
                           } else {
@@ -719,9 +732,9 @@ export const RecurringExpenseSettings = () => {
                     <SortableExpenseCard key={expense.id} expense={expense}>
                       {/* 既存のCard描画ロジックをここに */}
                       <Card className={expense.is_active ? '' : 'opacity-60'}>
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
                               <div className="flex items-start space-x-2 mb-1">
                                 {isSelectMode && (
                                   <input
@@ -739,63 +752,63 @@ export const RecurringExpenseSettings = () => {
                                   />
                                 )}
                                 <h5 className="font-medium text-gray-900 text-left self-start">{expense.name}</h5>
-                              </div>
+                          </div>
                               <div className="flex items-start space-x-4 text-gray-600">
-                                <div className="flex items-center space-x-1">
-                                  <Calendar className="h-3 w-3" />
-                                  <span>
-                                    {expense.payment_schedule && expense.payment_schedule.length > 0 ? (
-                                      expense.payment_schedule.length === 12 ? (
-                                        `毎月${expense.payment_schedule[0].day}日`
-                                      ) : (
-                                        expense.payment_schedule
-                                          .sort((a, b) => a.month - b.month)
-                                          .map(s => `${s.month}/${s.day}`).join('、')
-                                      )
-                                    ) : ''}
-                                  </span>
-                                </div>
-                              </div>
-                              {expense.description && (
-                                <p className="text-gray-500 mt-1">{expense.description}</p>
-                              )}
-                              <p className="text-lg font-bold text-red-600 mt-1">
-                                ¥{formatAmount(expense.amount)}
-                              </p>
+                            <div className="flex items-center space-x-1">
+                              <Calendar className="h-3 w-3" />
+                              <span>
+                                {expense.payment_schedule && expense.payment_schedule.length > 0 ? (
+                                  expense.payment_schedule.length === 12 ? (
+                                    `毎月${expense.payment_schedule[0].day}日`
+                                  ) : (
+                                    expense.payment_schedule
+                                      .sort((a, b) => a.month - b.month)
+                                      .map(s => `${s.month}/${s.day}`).join('、')
+                                  )
+                                ) : ''}
+                              </span>
                             </div>
-                            <div className="flex items-center space-x-2">
+                          </div>
+                          {expense.description && (
+                            <p className="text-gray-500 mt-1">{expense.description}</p>
+                          )}
+                              <p className="text-lg font-bold text-red-600 mt-1">
+                            ¥{formatAmount(expense.amount)}
+                          </p>
+                        </div>
+                        <div className="flex items-center space-x-2">
                               <div className="flex flex-col gap-2 items-end">
                                 <div className="flex items-center gap-2 w-full justify-end mb-2">
-                                  <Switch
-                                    checked={expense.is_active}
-                                    onCheckedChange={(checked) => handleToggleActive(expense.id, checked)}
+                          <Switch
+                            checked={expense.is_active}
+                            onCheckedChange={(checked) => handleToggleActive(expense.id, checked)}
                                     id={`active-switch-${expense.id}`}
-                                  />
+                          />
                                   <Label htmlFor={`active-switch-${expense.id}`} className="text-xs text-gray-600 select-none">
                                     {expense.is_active ? '有効' : '無効'}
                                   </Label>
                                 </div>
-                                <Button
+                          <Button
                                   variant="outline"
-                                  size="sm"
-                                  onClick={() => handleEdit(expense)}
-                                >
-                                  <Edit className="h-4 w-4" />
+                            size="sm"
+                            onClick={() => handleEdit(expense)}
+                          >
+                            <Edit className="h-4 w-4" />
                                   編集
-                                </Button>
-                                <Button
+                          </Button>
+                          <Button
                                   variant="destructive"
-                                  size="sm"
-                                  onClick={() => handleDelete(expense.id)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
+                            size="sm"
+                            onClick={() => handleDelete(expense.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
                                   削除
-                                </Button>
+                          </Button>
                               </div>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
                     </SortableExpenseCard>
                   );
                 })}
@@ -811,7 +824,7 @@ export const RecurringExpenseSettings = () => {
                       <CardContent className="p-4">
                         <div className="flex items-center">
                           <h5 className="font-medium text-gray-900">{expense.name}</h5>
-                        </div>
+            </div>
                       </CardContent>
                     </Card>
                   );

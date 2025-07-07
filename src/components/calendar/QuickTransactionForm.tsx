@@ -16,12 +16,16 @@ interface QuickTransactionFormProps {
   selectedDate: Date;
   editingTransaction?: Transaction | null;
   onEditCancel?: () => void;
+  copyingTransaction?: Transaction | null;
+  onCopyFinish?: () => void;
 }
 
 export const QuickTransactionForm = ({ 
   selectedDate, 
   editingTransaction: externalEditingTransaction = null,
-  onEditCancel
+  onEditCancel,
+  copyingTransaction = null,
+  onCopyFinish
 }: QuickTransactionFormProps) => {
   const { addTransaction, updateTransaction } = useTransactionStore();
   const { showSnackbar } = useSnackbar();
@@ -88,6 +92,23 @@ export const QuickTransactionForm = ({
       setSelectedScenarioId(editingTransaction.scenario_id || '');
     }
   }, [editingTransaction]);
+
+  // コピー用トランザクションが渡されたらフォームにセット（新規追加モード）
+  useEffect(() => {
+    if (copyingTransaction) {
+      setEditingTransaction(null);
+      setFormData({
+        type: copyingTransaction.type,
+        amount: copyingTransaction.amount.toString(),
+        category: copyingTransaction.category,
+        memo: copyingTransaction.memo || '',
+        isMock: !!copyingTransaction.isMock,
+        date: format(selectedDate, 'yyyy-MM-dd'), // コピー時は選択中日付に
+      });
+      setSelectedScenarioId(copyingTransaction.scenario_id || '');
+      if (onCopyFinish) onCopyFinish();
+    }
+  }, [copyingTransaction, selectedDate, onCopyFinish]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
