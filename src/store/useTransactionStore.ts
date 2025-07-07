@@ -215,15 +215,18 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
   updateRecurringIncome: async (id: string, income) => {
     try {
       console.log('Updating recurring income:', { id, income });
+      const updateObj: any = {
+        ...income,
+        payment_schedule: income.payment_schedule
+          ? JSON.stringify(income.payment_schedule)
+          : undefined,
+      };
+      if ('description' in income) {
+        updateObj.description = income.description || null;
+      }
       const { data, error } = await supabase
         .from('recurring_income')
-        .update({
-          ...income,
-          payment_schedule: income.payment_schedule
-            ? JSON.stringify(income.payment_schedule)
-            : undefined,
-          description: income.description || null,
-        })
+        .update(updateObj)
         .eq('id', id)
         .select()
         .single();
@@ -308,15 +311,18 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
   updateRecurringExpense: async (id: string, expense) => {
     try {
       console.log('Updating recurring expense:', { id, expense });
+      const updateObj: any = {
+        ...expense,
+        payment_schedule: expense.payment_schedule
+          ? JSON.stringify(expense.payment_schedule)
+          : undefined,
+      };
+      if ('description' in expense) {
+        updateObj.description = expense.description || null;
+      }
       const { data, error } = await supabase
         .from('recurring_expenses')
-        .update({
-          ...expense,
-          payment_schedule: expense.payment_schedule
-            ? JSON.stringify(expense.payment_schedule)
-            : undefined,
-          description: expense.description || null,
-        })
+        .update(updateObj)
         .eq('id', id)
         .select()
         .single();

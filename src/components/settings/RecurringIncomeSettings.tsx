@@ -14,7 +14,6 @@ import { INCOME_CATEGORIES } from '@/types';
 import type { RecurringIncome } from '@/types';
 import { Plus, Edit, Trash2, Receipt, Calendar, CheckSquare, Square } from 'lucide-react';
 import { ScenarioSelector } from '@/components/ui/scenario-selector';
-import { format } from 'date-fns';
 import {
   DndContext,
   closestCenter,
@@ -43,7 +42,6 @@ export const RecurringIncomeSettings = () => {
     addRecurringIncome, 
     updateRecurringIncome, 
     deleteRecurringIncome,
-    reflectSingleRecurringIncomeForPeriod
   } = useTransactionStore();
   const { showSnackbar } = useSnackbar();
   
@@ -68,6 +66,21 @@ export const RecurringIncomeSettings = () => {
   const [incomeOrder, setIncomeOrder] = useState<string[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [isSortMode, setIsSortMode] = useState(false);
+  // 追加: 期間・エラー詳細用state
+  const [periodStartDate, setPeriodStartDate] = useState(() => {
+    const d = new Date();
+    d.setDate(1);
+    return d.toISOString().slice(0, 10);
+  });
+  const [periodEndDate, setPeriodEndDate] = useState(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() + 1);
+    d.setDate(0);
+    return d.toISOString().slice(0, 10);
+  });
+  const [failedReflects, setFailedReflects] = useState<{id: string; name: string; error: string}[]>([]);
+  const [isFailedDialogOpen, setIsFailedDialogOpen] = useState(false);
+  const [isMock, setIsMock] = useState(false); // false: 実際, true: 予定
 
   useEffect(() => {
     fetchRecurringIncomes();
@@ -653,38 +666,143 @@ export const RecurringIncomeSettings = () => {
           </Card>
         </div>
       )}
-      {/* シナリオ選択モーダル */}
+      {/* シナリオ・期間選択モーダル */}
       <Dialog open={isScenarioDialogOpen} onOpenChange={setIsScenarioDialogOpen}>
         <DialogContent className="sm:max-w-xs">
           <DialogHeader>
-            <DialogTitle>一括反映するシナリオを選択</DialogTitle>
+            <DialogTitle>一括反映するシナリオ・期間を選択</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-2">
+            <Label>反映開始日</Label>
+            <input
+              type="date"
+              className="border rounded px-2 py-1 w-full"
+              value={periodStartDate}
+              onChange={e => setPeriodStartDate(e.target.value)}
+              max={periodEndDate}
+            />
+            <Label>反映終了日</Label>
+            <input
+              type="date"
+              className="border rounded px-2 py-1 w-full"
+              value={periodEndDate}
+              onChange={e => setPeriodEndDate(e.target.value)}
+              min={periodStartDate}
+            />
+            <Label>シナリオ</Label>
             <ScenarioSelector value={selectedScenarioId} onValueChange={setSelectedScenarioId} />
+            <Label className="mt-2">区分</Label>
+            <div className="flex gap-4 items-center">
+              <label className="flex items-center gap-1">
+                <input type="radio" name="isMock" value="false" checked={!isMock} onChange={() => setIsMock(false)} />
+                <span>実際</span>
+              </label>
+              <label className="flex items-center gap-1">
+                <input type="radio" name="isMock" value="true" checked={isMock} onChange={() => setIsMock(true)} />
+                <span>予定</span>
+              </label>
+            </div>
             <Button
               className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded shadow mt-4"
               onClick={async () => {
                 setLoading(true);
-                const today = format(new Date(), 'yyyy-MM-dd');
-                try {
-                  for (const id of selectedIncomeIds) {
-                    await reflectSingleRecurringIncomeForPeriod(id, today, today, undefined, selectedScenarioId);
+                const failed: {id: string; name: string; error: string}[] = [];
+                for (const id of selectedIncomeIds) {
+                  const income = recurringIncomes.find(i => i.id === id);
+                  if (!income) continue;
+                  try {
+                    const start = new Date(periodStartDate);
+                    const end = new Date(periodEndDate);
+                    let didRegister = false;
+                    const d = new Date(start);
+                    while (d <= end) {
+                      const month = d.getMonth() + 1;
+                      const year = d.getFullYear();
+                      const schedule = income.payment_schedule?.find(s => s.month === month);
+                      if (schedule) {
+                        const paymentDate = new Date(year, month - 1, schedule.day);
+                        if (paymentDate >= start && paymentDate <= end) {
+                          const paymentDateStr = paymentDate.toISOString().slice(0, 10);
+                          const exists = (useTransactionStore.getState().transactions || []).some(t =>
+                            t.date === paymentDateStr &&
+                            t.amount === income.amount &&
+                            t.category === income.category &&
+                            t.type === 'income' &&
+                            t.scenario_id === (selectedScenarioId || undefined) &&
+                            (t.isMock ?? false) === isMock
+                          );
+                          if (exists) {
+                            failed.push({ id, name: income.name, error: `${paymentDateStr}：既に同じ内容のトランザクションが存在します` });
+                          } else {
+                            await useTransactionStore.getState().addTransaction({
+                              type: 'income',
+                              amount: income.amount,
+                              category: income.category,
+                              date: paymentDateStr,
+                              memo: income.name,
+                              isMock,
+                              scenario_id: selectedScenarioId || undefined,
+                            });
+                            didRegister = true;
+                          }
+                        }
+                      }
+                      d.setMonth(d.getMonth() + 1);
+                      d.setDate(1);
+                    }
+                    if (!didRegister) {
+                      // すべてスキップされた場合
+                      // 既に同じ内容が存在 or 期間外
+                    }
+                  } catch (e: unknown) {
+                    let errorMsg = '';
+                    if (e instanceof Error) {
+                      errorMsg = e.message;
+                    } else if (typeof e === 'string') {
+                      errorMsg = e;
+                    } else {
+                      errorMsg = JSON.stringify(e);
+                    }
+                    failed.push({ id, name: income?.name || id, error: errorMsg });
+                    console.error('一括反映失敗:', id, e);
                   }
-                  showSnackbar('選択した定期収入を反映しました');
-                  setSelectedIncomeIds([]);
-                  setIsSelectMode(false);
-                  setIsScenarioDialogOpen(false);
-                } catch {
-                  showSnackbar('反映に失敗しました', 'destructive');
-                } finally {
-                  setLoading(false);
                 }
+                if (failed.length === 0) {
+                  showSnackbar('選択した定期収入を反映しました');
+                } else {
+                  setFailedReflects(failed);
+                  setIsFailedDialogOpen(true);
+                  showSnackbar(`一部の定期収入（${failed.length}件）で反映に失敗しました`, 'destructive');
+                }
+                setSelectedIncomeIds([]);
+                setIsSelectMode(false);
+                setIsScenarioDialogOpen(false);
+                setLoading(false);
               }}
-              disabled={loading || !selectedScenarioId}
+              disabled={loading || !selectedScenarioId || periodEndDate < periodStartDate}
             >
-              このシナリオで一括反映
+              このシナリオ・期間で一括反映
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+      {/* 失敗詳細ダイアログ */}
+      <Dialog open={isFailedDialogOpen} onOpenChange={setIsFailedDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>一部の定期収入で反映に失敗しました</DialogTitle>
+          </DialogHeader>
+          <div className="max-h-60 overflow-y-auto">
+            {failedReflects.map(f => (
+              <div key={f.id} className="mb-2">
+                <div className="font-bold text-red-600">{f.name}</div>
+                <div className="text-xs text-gray-600 break-all">{f.error}</div>
+              </div>
+            ))}
+          </div>
+          <Button className="mt-4 w-full" onClick={() => setIsFailedDialogOpen(false)}>
+            閉じる
+          </Button>
         </DialogContent>
       </Dialog>
     </div>
