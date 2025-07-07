@@ -463,7 +463,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
                 date: paymentDateStr,
                 memo: exp.name,
                 isMock: !!isMock,
-                scenario_id: scenario_id || null,
+                scenario_id: scenario_id ?? undefined,
               });
             }
           }
@@ -510,7 +510,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
                 date: paymentDateStr,
                 memo: inc.name,
                 isMock: !!isMock,
-                scenario_id: scenario_id || null,
+                scenario_id: scenario_id ?? undefined,
               });
             }
           }
@@ -575,7 +575,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
               date: paymentDateStr,
               memo: inc.name,
               isMock: !!isMock,
-              scenario_id: scenario_id || null,
+              scenario_id: scenario_id ?? undefined,
             });
           }
         }
@@ -620,7 +620,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
               date: paymentDateStr,
               memo: exp.name,
               isMock: !!isMock,
-              scenario_id: scenario_id || null,
+              scenario_id: scenario_id ?? undefined,
             });
           }
         }

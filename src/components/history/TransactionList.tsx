@@ -52,6 +52,7 @@ export const TransactionList = () => {
     setFormData({
       ...transaction,
       amount: transaction.amount.toString(),
+      memo: transaction.memo ?? '',
       isMock: !!transaction.isMock,
     });
     setSelectedScenarioId(transaction.scenario_id || '');

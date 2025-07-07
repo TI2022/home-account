@@ -12,9 +12,24 @@ import { useTransactionStore } from '@/store/useTransactionStore';
 import { useSnackbar } from '@/hooks/use-toast';
 import { EXPENSE_CATEGORIES } from '@/types';
 import type { RecurringExpense } from '@/types';
-import { Plus, Edit, Trash2, Receipt, Calendar, Clock, CheckSquare, Square } from 'lucide-react';
+import { Plus, Edit, Trash2, Receipt, Calendar, CheckSquare, Square } from 'lucide-react';
 import { ScenarioSelector } from '@/components/ui/scenario-selector';
 import { format } from 'date-fns';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragOverlay
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 const MONTH_NAMES = [
   '1月', '2月', '3月', '4月', '5月', '6月',
@@ -49,10 +64,17 @@ export const RecurringExpenseSettings = () => {
   const [selectedExpenseIds, setSelectedExpenseIds] = useState<string[]>([]);
   const [selectedScenarioId, setSelectedScenarioId] = useState<string>('');
   const [isScenarioDialogOpen, setIsScenarioDialogOpen] = useState(false);
+  const [expenseOrder, setExpenseOrder] = useState<string[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [isSortMode, setIsSortMode] = useState(false);
 
   useEffect(() => {
     fetchRecurringExpenses();
   }, [fetchRecurringExpenses]);
+
+  useEffect(() => {
+    setExpenseOrder(recurringExpenses.map(e => e.id));
+  }, [recurringExpenses]);
 
   // 無効化されたものは選択リストから外す
   useEffect(() => {
@@ -63,6 +85,15 @@ export const RecurringExpenseSettings = () => {
       }));
     }
   }, [recurringExpenses, isSelectMode]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        delay: 200,
+        tolerance: 8,
+      },
+    })
+  );
 
   const resetForm = () => {
     setFormData({
@@ -167,24 +198,34 @@ export const RecurringExpenseSettings = () => {
     return amount.toLocaleString('ja-JP');
   };
 
-  // Group expenses by frequency for better organization
-  const groupedExpenses = recurringExpenses.reduce((groups, expense) => {
-    const frequency = expense.payment_schedule.length > 0 ? 'monthly' : 'custom';
-    if (!groups[frequency]) {
-      groups[frequency] = [];
-    }
-    groups[frequency].push(expense);
-    return groups;
-  }, {} as Record<string, typeof recurringExpenses>);
-
-  const frequencyLabels = {
-    monthly: '毎月の支出',
-    custom: 'その他の支出'
-  };
+  function SortableExpenseCard({ expense, children }: { expense: RecurringExpense; children: React.ReactNode }) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: expense.id });
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      zIndex: isDragging ? 50 : undefined,
+      opacity: isDragging ? 0.5 : 1,
+      cursor: isSortMode ? 'grab' : undefined,
+    };
+    return (
+      <div ref={setNodeRef} style={style} {...attributes} {...(isSortMode ? listeners : {})}>
+        {children}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
+      {/* 並べ替えモードトグルボタン */}
       <div className="flex items-center gap-2 mb-2">
+        <Button
+          variant={isSortMode ? 'default' : 'outline'}
+          className={isSortMode ? 'bg-green-600 text-white' : ''}
+          onClick={() => setIsSortMode(v => !v)}
+        >
+          {isSortMode ? '並べ替え終了' : '並べ替えモード'}
+        </Button>
+        {/* 既存の選択モードボタン等 */}
         <Button
           variant={isSelectMode ? 'default' : 'outline'}
           className={isSelectMode ? 'bg-blue-500 text-white' : ''}
@@ -501,98 +542,128 @@ export const RecurringExpenseSettings = () => {
             </CardContent>
           </Card>
         ) : (
-          Object.entries(groupedExpenses).map(([frequency, expenses]) => (
-            <div key={frequency}>
-              <div className="flex items-center space-x-2 mb-3">
-                <Clock className="h-4 w-4 text-gray-500" />
-                <h4 className="text-sm font-medium text-gray-700">
-                  {frequencyLabels[frequency as keyof typeof frequencyLabels]}
-                </h4>
-              </div>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={e => setActiveId(e.active.id as string)}
+            onDragEnd={e => {
+              setActiveId(null);
+              const { active, over } = e;
+              if (active.id !== over?.id && over) {
+                setExpenseOrder(items => arrayMove(items, items.indexOf(active.id as string), items.indexOf(over.id as string)));
+              }
+            }}
+            onDragCancel={() => setActiveId(null)}
+          >
+            <SortableContext items={expenseOrder} strategy={verticalListSortingStrategy}>
               <div className="space-y-2">
-                {expenses.map((expense) => (
-                  <Card key={expense.id} className={expense.is_active ? '' : 'opacity-60'}>
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-start space-x-2 mb-1">
-                            {isSelectMode && (
-                              <input
-                                type="checkbox"
-                                checked={selectedExpenseIds.includes(expense.id)}
-                                disabled={!expense.is_active}
-                                onChange={e => {
-                                  if (e.target.checked) {
-                                    setSelectedExpenseIds(ids => [...ids, expense.id]);
-                                  } else {
-                                    setSelectedExpenseIds(ids => ids.filter(id => id !== expense.id));
-                                  }
-                                }}
-                                className="w-5 h-5 accent-blue-500 mr-2 disabled:opacity-50"
-                              />
-                            )}
-                            <h5 className="font-medium text-gray-900 text-left self-start">{expense.name}</h5>
-                          </div>
-                          <div className="flex items-start space-x-4 text-gray-600">
-                            <div className="flex items-center space-x-1">
-                              <Calendar className="h-3 w-3" />
-                              <span>
-                                {expense.payment_schedule && expense.payment_schedule.length > 0 ? (
-                                  expense.payment_schedule.length === 12 ? (
-                                    `毎月${expense.payment_schedule[0].day}日`
-                                  ) : (
-                                    expense.payment_schedule
-                                      .sort((a, b) => a.month - b.month)
-                                      .map(s => `${s.month}/${s.day}`).join('、')
-                                  )
-                                ) : ''}
-                              </span>
+                {expenseOrder.map(id => {
+                  const expense = recurringExpenses.find(e => e.id === id);
+                  if (!expense) return null;
+                  return (
+                    <SortableExpenseCard key={expense.id} expense={expense}>
+                      {/* 既存のCard描画ロジックをここに */}
+                      <Card className={expense.is_active ? '' : 'opacity-60'}>
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-start space-x-2 mb-1">
+                                {isSelectMode && (
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedExpenseIds.includes(expense.id)}
+                                    disabled={!expense.is_active}
+                                    onChange={e => {
+                                      if (e.target.checked) {
+                                        setSelectedExpenseIds(ids => [...ids, expense.id]);
+                                      } else {
+                                        setSelectedExpenseIds(ids => ids.filter(id => id !== expense.id));
+                                      }
+                                    }}
+                                    className="w-5 h-5 accent-blue-500 mr-2 disabled:opacity-50"
+                                  />
+                                )}
+                                <h5 className="font-medium text-gray-900 text-left self-start">{expense.name}</h5>
+                              </div>
+                              <div className="flex items-start space-x-4 text-gray-600">
+                                <div className="flex items-center space-x-1">
+                                  <Calendar className="h-3 w-3" />
+                                  <span>
+                                    {expense.payment_schedule && expense.payment_schedule.length > 0 ? (
+                                      expense.payment_schedule.length === 12 ? (
+                                        `毎月${expense.payment_schedule[0].day}日`
+                                      ) : (
+                                        expense.payment_schedule
+                                          .sort((a, b) => a.month - b.month)
+                                          .map(s => `${s.month}/${s.day}`).join('、')
+                                      )
+                                    ) : ''}
+                                  </span>
+                                </div>
+                              </div>
+                              {expense.description && (
+                                <p className="text-gray-500 mt-1">{expense.description}</p>
+                              )}
+                              <p className="text-lg font-bold text-red-600 mt-1">
+                                ¥{formatAmount(expense.amount)}
+                              </p>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <div className="flex flex-col gap-2 items-end">
+                                <div className="flex items-center gap-2 w-full justify-end mb-2">
+                                  <Switch
+                                    checked={expense.is_active}
+                                    onCheckedChange={(checked) => handleToggleActive(expense.id, checked)}
+                                    id={`active-switch-${expense.id}`}
+                                  />
+                                  <Label htmlFor={`active-switch-${expense.id}`} className="text-xs text-gray-600 select-none">
+                                    {expense.is_active ? '有効' : '無効'}
+                                  </Label>
+                                </div>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleEdit(expense)}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                  編集
+                                </Button>
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => handleDelete(expense.id)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                  削除
+                                </Button>
+                              </div>
                             </div>
                           </div>
-                          {expense.description && (
-                            <p className="text-gray-500 mt-1">{expense.description}</p>
-                          )}
-                          <p className="text-lg font-bold text-red-600 mt-1">
-                            ¥{formatAmount(expense.amount)}
-                          </p>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <div className="flex flex-col gap-2 items-end">
-                            <div className="flex items-center gap-2 w-full justify-end mb-2">
-                              <Switch
-                                checked={expense.is_active}
-                                onCheckedChange={(checked) => handleToggleActive(expense.id, checked)}
-                                id={`active-switch-${expense.id}`}
-                              />
-                              <Label htmlFor={`active-switch-${expense.id}`} className="text-xs text-gray-600 select-none">
-                                {expense.is_active ? '有効' : '無効'}
-                              </Label>
-                            </div>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleEdit(expense)}
-                            >
-                              <Edit className="h-4 w-4" />
-                              編集
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => handleDelete(expense.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                              削除
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                        </CardContent>
+                      </Card>
+                    </SortableExpenseCard>
+                  );
+                })}
               </div>
-            </div>
-          ))
+            </SortableContext>
+            <DragOverlay>
+              {activeId ? (
+                (() => {
+                  const expense = recurringExpenses.find(e => e.id === activeId);
+                  if (!expense) return null;
+                  return (
+                    <Card className="opacity-80">
+                      <CardContent className="p-4">
+                        <div className="flex items-center">
+                          <h5 className="font-medium text-gray-900">{expense.name}</h5>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })()
+              ) : null}
+            </DragOverlay>
+          </DndContext>
         )}
       </div>
       {/* 年間定期支出合計カード */}

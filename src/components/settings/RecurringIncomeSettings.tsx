@@ -12,9 +12,24 @@ import { useTransactionStore } from '@/store/useTransactionStore';
 import { useSnackbar } from '@/hooks/use-toast';
 import { INCOME_CATEGORIES } from '@/types';
 import type { RecurringIncome } from '@/types';
-import { Plus, Edit, Trash2, Receipt, Calendar, Clock, CheckSquare, Square } from 'lucide-react';
+import { Plus, Edit, Trash2, Receipt, Calendar, CheckSquare, Square } from 'lucide-react';
 import { ScenarioSelector } from '@/components/ui/scenario-selector';
 import { format } from 'date-fns';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragOverlay
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 const MONTH_NAMES = [
   '1月', '2月', '3月', '4月', '5月', '6月',
@@ -50,10 +65,18 @@ export const RecurringIncomeSettings = () => {
   const [selectedIncomeIds, setSelectedIncomeIds] = useState<string[]>([]);
   const [selectedScenarioId, setSelectedScenarioId] = useState<string>('');
   const [isScenarioDialogOpen, setIsScenarioDialogOpen] = useState(false);
+  const [incomeOrder, setIncomeOrder] = useState<string[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [isSortMode, setIsSortMode] = useState(false);
 
   useEffect(() => {
     fetchRecurringIncomes();
   }, [fetchRecurringIncomes]);
+
+  useEffect(() => {
+    // 初期並び順はID順
+    setIncomeOrder(recurringIncomes.map(i => i.id));
+  }, [recurringIncomes]);
 
   // 無効化されたものは選択リストから外す
   useEffect(() => {
@@ -64,6 +87,15 @@ export const RecurringIncomeSettings = () => {
       }));
     }
   }, [recurringIncomes, isSelectMode]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        delay: 200,
+        tolerance: 8,
+      },
+    })
+  );
 
   const resetForm = () => {
     setFormData({
@@ -167,24 +199,35 @@ export const RecurringIncomeSettings = () => {
     return amount.toLocaleString('ja-JP');
   };
 
-  // Group incomes by frequency for better organization
-  const groupedIncomes = recurringIncomes.reduce((groups, income) => {
-    const frequency = income.payment_schedule.length > 0 ? 'monthly' : 'custom';
-    if (!groups[frequency]) {
-      groups[frequency] = [];
-    }
-    groups[frequency].push(income);
-    return groups;
-  }, {} as Record<string, typeof recurringIncomes>);
-  
-  const frequencyLabels = {
-    monthly: '毎月の収入',
-    custom: 'その他の収入'
-  };
+  // 並べ替え用SortableItem
+  function SortableIncomeCard({ income, children }: { income: RecurringIncome; children: React.ReactNode }) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: income.id });
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      zIndex: isDragging ? 50 : undefined,
+      opacity: isDragging ? 0.5 : 1,
+      cursor: isSortMode ? 'grab' : undefined,
+    };
+    return (
+      <div ref={setNodeRef} style={style} {...attributes} {...(isSortMode ? listeners : {})}>
+        {children}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
+      {/* 並べ替えモードトグルボタン */}
       <div className="flex items-center gap-2 mb-2">
+        <Button
+          variant={isSortMode ? 'default' : 'outline'}
+          className={isSortMode ? 'bg-green-600 text-white' : ''}
+          onClick={() => setIsSortMode(v => !v)}
+        >
+          {isSortMode ? '並べ替え終了' : '並べ替えモード'}
+        </Button>
+        {/* 既存の選択モードボタン等 */}
         <Button
           variant={isSelectMode ? 'default' : 'outline'}
           className={isSelectMode ? 'bg-blue-500 text-white' : ''}
@@ -461,100 +504,130 @@ export const RecurringIncomeSettings = () => {
             </CardContent>
           </Card>
         ) : (
-          Object.entries(groupedIncomes).map(([frequency, incomes]) => (
-            <div key={frequency}>
-              <div className="flex items-center space-x-2 mb-3">
-                <Clock className="h-4 w-4 text-gray-500" />
-                <h4 className="text-sm font-medium text-gray-700">
-                  {frequencyLabels[frequency as keyof typeof frequencyLabels]}
-                </h4>
-              </div>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={e => setActiveId(e.active.id as string)}
+            onDragEnd={e => {
+              setActiveId(null);
+              const { active, over } = e;
+              if (active.id !== over?.id && over) {
+                setIncomeOrder(items => arrayMove(items, items.indexOf(active.id as string), items.indexOf(over.id as string)));
+              }
+            }}
+            onDragCancel={() => setActiveId(null)}
+          >
+            <SortableContext items={incomeOrder} strategy={verticalListSortingStrategy}>
               <div className="space-y-2">
-                {incomes.map((income) => (
-                  <Card key={income.id} className={income.is_active ? '' : 'opacity-60'}>
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-start space-x-2 mb-1">
-                            {isSelectMode && (
-                              <input
-                                type="checkbox"
-                                checked={selectedIncomeIds.includes(income.id)}
-                                disabled={!income.is_active}
-                                onChange={e => {
-                                  if (e.target.checked) {
-                                    setSelectedIncomeIds(ids => [...ids, income.id]);
-                                  } else {
-                                    setSelectedIncomeIds(ids => ids.filter(id => id !== income.id));
-                                  }
-                                }}
-                                className="w-5 h-5 accent-blue-500 mr-2 disabled:opacity-50"
-                              />
-                            )}
-                            <h5 className="font-medium text-gray-900 text-left self-start">{income.name}</h5>
-                          </div>
-                          <div className="flex items-start space-x-4 text-gray-600">
-                            <div className="flex items-center space-x-1">
-                              <Calendar className="h-3 w-3" />
-                              <span>
-                                {income.payment_schedule && income.payment_schedule.length > 0 ? (
-                                  income.payment_schedule.length === 12 ? (
-                                    // 毎月
-                                    `毎月${income.payment_schedule[0].day}日`
-                                  ) : (
-                                    // 四半期・年1回・カスタム
-                                    income.payment_schedule
-                                      .sort((a, b) => a.month - b.month)
-                                      .map(s => `${s.month}/${s.day}`).join('、')
-                                  )
-                                ) : ''}
-                              </span>
+                {incomeOrder.map(id => {
+                  const income = recurringIncomes.find(i => i.id === id);
+                  if (!income) return null;
+                  return (
+                    <SortableIncomeCard key={income.id} income={income}>
+                      {/* 既存のCard描画ロジックをここに */}
+                      <Card className={income.is_active ? '' : 'opacity-60'}>
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-start space-x-2 mb-1">
+                                {isSelectMode && (
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedIncomeIds.includes(income.id)}
+                                    disabled={!income.is_active}
+                                    onChange={e => {
+                                      if (e.target.checked) {
+                                        setSelectedIncomeIds(ids => [...ids, income.id]);
+                                      } else {
+                                        setSelectedIncomeIds(ids => ids.filter(id => id !== income.id));
+                                      }
+                                    }}
+                                    className="w-5 h-5 accent-blue-500 mr-2 disabled:opacity-50"
+                                  />
+                                )}
+                                <h5 className="font-medium text-gray-900 text-left self-start">{income.name}</h5>
+                              </div>
+                              <div className="flex items-start space-x-4 text-gray-600">
+                                <div className="flex items-center space-x-1">
+                                  <Calendar className="h-3 w-3" />
+                                  <span>
+                                    {income.payment_schedule && income.payment_schedule.length > 0 ? (
+                                      income.payment_schedule.length === 12 ? (
+                                        // 毎月
+                                        `毎月${income.payment_schedule[0].day}日`
+                                      ) : (
+                                        // 四半期・年1回・カスタム
+                                        income.payment_schedule
+                                          .sort((a, b) => a.month - b.month)
+                                          .map(s => `${s.month}/${s.day}`).join('、')
+                                      )
+                                    ) : ''}
+                                  </span>
+                                </div>
+                              </div>
+                              {income.description && (
+                                <p className="text-gray-500 mt-1">{income.description}</p>
+                              )}
+                              <p className="text-lg font-bold text-green-600 mt-1">
+                                ¥{formatAmount(income.amount)}
+                              </p>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <div className="flex flex-col gap-2 items-end">
+                                <div className="flex items-center gap-2 w-full justify-end mb-2">
+                                  <Switch
+                                    checked={income.is_active}
+                                    onCheckedChange={(checked) => handleToggleActive(income.id, checked)}
+                                    id={`active-switch-${income.id}`}
+                                  />
+                                  <Label htmlFor={`active-switch-${income.id}`} className="text-xs text-gray-600 select-none">
+                                    {income.is_active ? '有効' : '無効'}
+                                  </Label>
+                                </div>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleEdit(income)}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                  編集
+                                </Button>
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => handleDelete(income.id)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                  削除
+                                </Button>
+                              </div>
                             </div>
                           </div>
-                          {income.description && (
-                            <p className="text-gray-500 mt-1">{income.description}</p>
-                          )}
-                          <p className="text-lg font-bold text-green-600 mt-1">
-                            ¥{formatAmount(income.amount)}
-                          </p>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <div className="flex flex-col gap-2 items-end">
-                            <div className="flex items-center gap-2 w-full justify-end mb-2">
-                              <Switch
-                                checked={income.is_active}
-                                onCheckedChange={(checked) => handleToggleActive(income.id, checked)}
-                                id={`active-switch-${income.id}`}
-                              />
-                              <Label htmlFor={`active-switch-${income.id}`} className="text-xs text-gray-600 select-none">
-                                {income.is_active ? '有効' : '無効'}
-                              </Label>
-                            </div>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleEdit(income)}
-                            >
-                              <Edit className="h-4 w-4" />
-                              編集
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => handleDelete(income.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                              削除
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                        </CardContent>
+                      </Card>
+                    </SortableIncomeCard>
+                  );
+                })}
               </div>
-            </div>
-          ))
+            </SortableContext>
+            <DragOverlay>
+              {activeId ? (
+                (() => {
+                  const income = recurringIncomes.find(i => i.id === activeId);
+                  if (!income) return null;
+                  return (
+                    <Card className="opacity-80">
+                      <CardContent className="p-4">
+                        <div className="flex items-center">
+                          <h5 className="font-medium text-gray-900">{income.name}</h5>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })()
+              ) : null}
+            </DragOverlay>
+          </DndContext>
         )}
       </div>
 
