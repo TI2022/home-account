@@ -389,6 +389,37 @@ export const CalendarPage = () => {
     return transactionDate >= monthStart && transactionDate <= monthEnd;
   });
 
+  // デバッグ用：カレンダー概要計算の確認
+  if (showMock && selectedScenarioId) {
+    console.log('=== カレンダー概要計算デバッグ ===');
+    console.log('現在月:', format(currentMonth, 'yyyy-MM'));
+    console.log('月開始日:', format(monthStart, 'yyyy-MM-dd'));
+    console.log('月終了日:', format(monthEnd, 'yyyy-MM-dd'));
+    console.log('選択されたシナリオID:', selectedScenarioId);
+    console.log('月次取引数:', monthTransactions.length);
+    
+    // 月次取引の詳細を表示
+    const monthlyIncome = monthTransactions.filter(t => t.type === 'income');
+    const monthlyExpense = monthTransactions.filter(t => t.type === 'expense');
+    
+    console.log('月次収入取引数:', monthlyIncome.length);
+    console.log('月次支出取引数:', monthlyExpense.length);
+    
+    const totalIncome = monthlyIncome.reduce((sum, t) => sum + t.amount, 0);
+    const totalExpense = monthlyExpense.reduce((sum, t) => sum + t.amount, 0);
+    const balance = totalIncome - totalExpense;
+    
+    console.log('月次収入合計:', totalIncome.toLocaleString());
+    console.log('月次支出合計:', totalExpense.toLocaleString());
+    console.log('月次残高:', balance.toLocaleString());
+    
+    // 各取引の詳細を表示
+    console.log('=== 月次取引詳細 ===');
+    monthTransactions.forEach(t => {
+      console.log(`${t.date}: ${t.type} ${t.amount.toLocaleString()}円 (${t.category}) - ${t.memo || 'メモなし'}`);
+    });
+  }
+
   // Get transactions for selected date
   const selectedDateTransactions = transactions.filter(t => {
     if (showMock) {

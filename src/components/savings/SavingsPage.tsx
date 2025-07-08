@@ -39,11 +39,72 @@ export const SavingsPage = () => {
 
   // 月ごとの貯金額（収入-支出）を集計（isMockで切り替え）
   const filteredTransactions = transactions.filter(t => {
-    if (!showMock && t.isMock) return false;
-    if (showMock && t.isMock && selectedScenarioId && t.scenario_id !== selectedScenarioId) return false;
-    return true;
+    if (showMock) {
+      // 予定のみ、かつシナリオ一致
+      return t.isMock && (!selectedScenarioId || t.scenario_id === selectedScenarioId);
+    } else {
+      // 実際のみ
+      return !t.isMock;
+    }
   });
+
+  // デバッグ用：悲観シナリオの計算過程を確認
+  if (showMock && selectedScenarioId) {
+    console.log('=== 悲観シナリオ計算デバッグ ===');
+    console.log('選択されたシナリオID:', selectedScenarioId);
+    console.log('全取引数:', transactions.length);
+    console.log('フィルタ後取引数:', filteredTransactions.length);
+    
+    // 悲観シナリオの取引を月別に集計して表示
+    const debugMonthlyData = filteredTransactions.reduce((acc, t) => {
+      const ym = t.date.slice(0, 7);
+      if (!acc[ym]) acc[ym] = { income: 0, expense: 0, transactions: [] };
+      if (t.type === 'income') acc[ym].income += t.amount;
+      if (t.type === 'expense') acc[ym].expense += t.amount;
+      acc[ym].transactions.push({
+        date: t.date,
+        type: t.type,
+        amount: t.amount,
+        category: t.category,
+        memo: t.memo || '',
+        scenario_id: t.scenario_id || '',
+        isMock: t.isMock || false
+      });
+      return acc;
+    }, {} as Record<string, { income: number; expense: number; transactions: Array<{
+      date: string;
+      type: 'income' | 'expense';
+      amount: number;
+      category: string;
+      memo: string;
+      scenario_id: string;
+      isMock: boolean;
+    }> }>);
+
+    console.log('月別集計データ:', debugMonthlyData);
+    
+    // データの期間範囲を確認
+    const months = Object.keys(debugMonthlyData).sort();
+    console.log('データ期間範囲:', months[0], '〜', months[months.length - 1]);
+    console.log('データ月数:', months.length);
+    
+    // 2025年6月のデータを特に詳しく確認
+    const june2025 = debugMonthlyData['2025-06'];
+    if (june2025) {
+      console.log('2025年6月の詳細:', june2025);
+      console.log('2025年6月の収入:', june2025.income);
+      console.log('2025年6月の支出:', june2025.expense);
+      console.log('2025年6月の貯金額:', june2025.income - june2025.expense);
+      
+      // 2025年6月の各取引を詳細表示
+      console.log('=== 2025年6月の取引詳細 ===');
+      june2025.transactions.forEach(t => {
+        console.log(`${t.date}: ${t.type} ${t.amount.toLocaleString()}円 (${t.category}) - ${t.memo || 'メモなし'}`);
+      });
+    }
+  }
   
+  // 全期間の月次データを集計
   const monthlySavings = filteredTransactions.reduce((acc, t) => {
     const ym = t.date.slice(0, 7); // YYYY-MM
     if (!acc[ym]) acc[ym] = { income: 0, expense: 0 };
@@ -51,6 +112,8 @@ export const SavingsPage = () => {
     if (t.type === 'expense') acc[ym].expense += t.amount;
     return acc;
   }, {} as Record<string, { income: number; expense: number }>);
+  
+  // 全期間の月次貯金額リストを作成（時系列順）
   const monthlySavingsList = Object.entries(monthlySavings)
     .map(([ym, { income, expense }]) => ({
       ym,
@@ -58,18 +121,37 @@ export const SavingsPage = () => {
     }))
     .sort((a, b) => a.ym.localeCompare(b.ym));
 
-  // 過去1年分のデータを取得（最新12ヶ月）
-  const last12Months = monthlySavingsList.slice(-12);
-
-  // 1年分の貯金合計（isMockで切り替え）
-  const yearlySavingsOpportunity = last12Months.reduce((total, { savings }) => total + savings, 0);
-
-  // 累積貯金額リストを作成
-  const cumulativeSavingsList = last12Months.reduce<{ ym: string; cumulative: number }[]>((acc, { ym, savings }, idx) => {
-    const prev = acc[idx - 1]?.cumulative ?? 0;
-    acc.push({ ym, cumulative: prev + savings });
+  // 全期間の累積貯金額リストを作成（最初から累積計算）
+  const cumulativeSavingsList = monthlySavingsList.reduce<{ ym: string; cumulative: number }[]>((acc, { ym, savings }, idx) => {
+    const prevCumulative = idx > 0 ? acc[idx - 1].cumulative : 0;
+    acc.push({ ym, cumulative: prevCumulative + savings });
     return acc;
   }, []);
+
+  // デバッグ用：累積計算の過程を確認
+  if (showMock && selectedScenarioId) {
+    console.log('月次貯金額リスト:', monthlySavingsList);
+    console.log('累積貯金額リスト:', cumulativeSavingsList);
+    
+    // 各月の詳細を表示
+    console.log('=== 各月の詳細 ===');
+    monthlySavingsList.forEach((item, index) => {
+      console.log(`${item.ym}: 月次貯金額 ${item.savings.toLocaleString()}円, 累積貯金額 ${cumulativeSavingsList[index].cumulative.toLocaleString()}円`);
+    });
+    
+    // 2025年6月の累積値を確認
+    const june2025Cumulative = cumulativeSavingsList.find(item => item.ym === '2025-06');
+    if (june2025Cumulative) {
+      console.log('2025年6月の累積貯金額:', june2025Cumulative.cumulative);
+    }
+  }
+
+  // 表示用：最新12ヶ月分を抽出
+  const last12Months = monthlySavingsList.slice(-12);
+  const last12Cumulative = cumulativeSavingsList.slice(-12);
+  
+  // 1年分の貯金合計（過去12ヶ月分の合計）
+  const yearlySavingsOpportunity = last12Months.reduce((total, { savings }) => total + savings, 0);
 
   const handleSave = async () => {
     const value = Number(inputValue);
@@ -161,10 +243,10 @@ export const SavingsPage = () => {
             </TabsContent>
             <TabsContent value="cumulative">
               <div className="space-y-2">
-                {cumulativeSavingsList.length === 0 ? (
+                {last12Cumulative.length === 0 ? (
                   <div className="text-gray-500">記録がありません</div>
                 ) : (
-                  cumulativeSavingsList.map(({ ym, cumulative }) => (
+                  last12Cumulative.map(({ ym, cumulative }) => (
                     <div key={ym} className="flex justify-between border-b pb-1">
                       <span>{format(new Date(ym + '-01'), 'yyyy年M月')}</span>
                       <span className={cumulative >= 0 ? 'text-blue-600' : 'text-red-600'}>
