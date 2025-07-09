@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useSnackbar } from '@/hooks/use-toast';
 import { Plus, Edit, Trash2, Star } from 'lucide-react';
+import { useTransactionStore } from '@/store/useTransactionStore';
 
 export const ScenarioSettings = () => {
   const { scenarios, fetchScenarios, createScenario, updateScenario, deleteScenario, setDefaultScenario, loading } = useScenarioStore();
@@ -13,6 +14,16 @@ export const ScenarioSettings = () => {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: '', description: '' });
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+
+  // 一括コピー用state
+  const { transactions, fetchTransactions, addTransaction } = useTransactionStore();
+  const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
+  const [copyFromScenarioId, setCopyFromScenarioId] = useState<string>('');
+  const [copyToScenarioId, setCopyToScenarioId] = useState<string>('');
+  const [copyStartDate, setCopyStartDate] = useState('');
+  const [copyEndDate, setCopyEndDate] = useState('');
+  const [copyIsMock, setCopyIsMock] = useState<'planned' | 'actual'>('planned');
+  const [isCopying, setIsCopying] = useState(false);
 
   useEffect(() => {
     fetchScenarios();
@@ -85,6 +96,12 @@ export const ScenarioSettings = () => {
             >
               <Plus className="h-4 w-4" />
               シナリオ追加
+            </Button>
+          </div>
+
+          <div className="flex justify-end mb-4">
+            <Button size="sm" variant="outline" onClick={() => setIsCopyModalOpen(true)}>
+              トランザクション一括コピー
             </Button>
           </div>
 
@@ -225,6 +242,115 @@ export const ScenarioSettings = () => {
                 onClick={() => setDeleteTargetId(null)}
               >
                 キャンセル
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 一括コピー用モーダル */}
+      {isCopyModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-2">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md mx-auto">
+            <h2 className="text-lg font-bold mb-4">トランザクション一括コピー</h2>
+            {/* 区分をタイトル直下に移動 */}
+            <div className="mb-4">
+              <label className="block mb-1">区分</label>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-1">
+                  <input type="radio" name="copyIsMock" value="planned" checked={copyIsMock === 'planned'} onChange={() => setCopyIsMock('planned')} />
+                  <span>予定の収支</span>
+                </label>
+                <label className="flex items-center gap-1">
+                  <input type="radio" name="copyIsMock" value="actual" checked={copyIsMock === 'actual'} onChange={() => setCopyIsMock('actual')} />
+                  <span>実際の収支</span>
+                </label>
+              </div>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="block mb-1">コピー元</label>
+                <select className="border rounded px-2 py-1 w-full" value={copyFromScenarioId} onChange={e => setCopyFromScenarioId(e.target.value)}>
+                  <option value="">選択してください</option>
+                  <option value="__actual__">実際の収支</option>
+                  {scenarios.map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block mb-1">コピー先</label>
+                <select className="border rounded px-2 py-1 w-full" value={copyToScenarioId} onChange={e => setCopyToScenarioId(e.target.value)}>
+                  <option value="">選択してください</option>
+                  <option value="__actual__">実際の収支</option>
+                  {scenarios.map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="block mb-1">開始日</label>
+                  <input type="date" className="border rounded px-2 py-1 w-full" value={copyStartDate} onChange={e => setCopyStartDate(e.target.value)} />
+                </div>
+                <div className="flex-1">
+                  <label className="block mb-1">終了日</label>
+                  <input type="date" className="border rounded px-2 py-1 w-full" value={copyEndDate} onChange={e => setCopyEndDate(e.target.value)} />
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-6">
+              <Button variant="outline" onClick={() => setIsCopyModalOpen(false)} disabled={isCopying}>キャンセル</Button>
+              <Button onClick={async () => {
+                if (!copyFromScenarioId || !copyToScenarioId || !copyStartDate || !copyEndDate) {
+                  showSnackbar('全ての項目を入力してください', 'destructive');
+                  return;
+                }
+                if (copyFromScenarioId === copyToScenarioId) {
+                  showSnackbar('コピー元とコピー先は異なるシナリオを選択してください', 'destructive');
+                  return;
+                }
+                setIsCopying(true);
+                try {
+                  await fetchTransactions();
+                  const isMock = copyIsMock === 'planned';
+                  // コピー元の判定
+                  const fromScenarioId = copyFromScenarioId === '__actual__' ? undefined : copyFromScenarioId;
+                  // コピー先の判定
+                  const toScenarioId = copyToScenarioId === '__actual__' ? undefined : copyToScenarioId;
+                  // コピー対象トランザクション抽出
+                  const filtered = transactions.filter(t =>
+                    ((fromScenarioId ? t.scenario_id === fromScenarioId : !t.scenario_id) &&
+                     (t.isMock ?? false) === isMock &&
+                     t.date >= copyStartDate && t.date <= copyEndDate)
+                  );
+                  let success = 0, fail = 0;
+                  for (const t of filtered) {
+                    try {
+                      await addTransaction({
+                        type: t.type,
+                        amount: t.amount,
+                        category: t.category,
+                        date: t.date,
+                        memo: t.memo,
+                        isMock,
+                        scenario_id: toScenarioId,
+                        card_used_date: t.card_used_date || undefined,
+                      });
+                      success++;
+                    } catch {
+                      fail++;
+                    }
+                  }
+                  showSnackbar(`コピー完了: ${success}件, 失敗: ${fail}件`, fail === 0 ? 'default' : 'destructive');
+                  setIsCopyModalOpen(false);
+                } catch {
+                  showSnackbar('コピー処理に失敗しました', 'destructive');
+                } finally {
+                  setIsCopying(false);
+                }
+              }} disabled={isCopying}>
+                {isCopying ? 'コピー中...' : 'コピー実行'}
               </Button>
             </div>
           </div>
