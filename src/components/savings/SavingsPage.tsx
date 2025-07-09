@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Wishlist } from './Wishlist';
 import { format } from 'date-fns';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { ScenarioSelector } from '@/components/ui/scenario-selector';
 
 export const SavingsPage = () => {
   const { savingsAmount, setSavingsAmount, fetchSavingsAmount } = useSavingsStore();
@@ -169,44 +168,36 @@ export const SavingsPage = () => {
           <CardTitle>貯金額の推移</CardTitle>
         </CardHeader>
         <CardContent>
-          {/* 実際/予定切り替えセグメントコントロール */}
-          <div className="flex flex-col items-center space-y-1 mb-4">
-            <div className="flex w-full max-w-xs bg-gray-100 rounded-full p-1">
-              <button
+          {/* 実際/予定切り替えセグメントコントロールを廃止し、ボタン群に置換 */}
+          <div className="flex flex-wrap gap-2 mb-4 justify-center">
+            <Button
+              type="button"
+              variant={!showMock ? 'default' : 'outline'}
+              className={`font-bold ${!showMock ? 'bg-blue-500 text-white' : ''}`}
+              onClick={() => {
+                setShowMock(false);
+                setSelectedScenarioId('');
+              }}
+            >
+              💰 実際の貯金額
+            </Button>
+            {scenarios.map(scenario => (
+              <Button
+                key={scenario.id}
                 type="button"
-                className={`flex-1 flex items-center justify-center gap-1 px-3 py-2 rounded-full font-bold transition-all
-                  ${!showMock ? 'bg-blue-500 text-white shadow' : 'bg-white text-gray-500'}`}
+                variant={showMock && selectedScenarioId === scenario.id ? 'default' : 'outline'}
+                className={`font-bold ${showMock && selectedScenarioId === scenario.id ? 'bg-orange-400 text-white' : ''}`}
                 onClick={() => {
-                  setShowMock(false);
-                  setSelectedScenarioId(''); // 実際収支に切り替え時はシナリオをリセット
+                  setShowMock(true);
+                  setSelectedScenarioId(scenario.id);
                 }}
-                aria-pressed={!showMock}
               >
-                <span className="text-lg">💰</span> 実際の貯金額
-              </button>
-              <button
-                type="button"
-                className={`flex-1 flex items-center justify-center gap-1 px-3 py-2 rounded-full font-bold transition-all
-                  ${showMock ? 'bg-orange-400 text-white shadow' : 'bg-white text-gray-500'}`}
-                onClick={() => setShowMock(true)}
-                aria-pressed={showMock}
-              >
-                <span className="text-lg">🕒</span> 予定の貯金額
-              </button>
-            </div>
+                🕒 {scenario.name}
+              </Button>
+            ))}
           </div>
 
-          {/* シナリオ選択（予定収支の場合のみ表示） */}
-          {showMock && (
-            <div className="mb-4">
-              <ScenarioSelector
-                value={selectedScenarioId}
-                onValueChange={setSelectedScenarioId}
-                placeholder="シナリオを選択"
-                className="bg-white"
-              />
-            </div>
-          )}
+          {/* シナリオセレクターは不要なので削除 */}
 
           <Tabs defaultValue="monthly" className="w-full">
             <TabsList className="mb-4">

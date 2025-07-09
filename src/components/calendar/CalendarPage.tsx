@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -21,7 +21,6 @@ import Papa from 'papaparse';
 import { EXPENSE_CATEGORIES } from '@/types';
 import { Input } from '@/components/ui/input';
 import { useSnackbar } from '@/hooks/use-toast';
-import { ScenarioSelector } from '@/components/ui/scenario-selector';
 
 // カスタムスタイルの定義
 const StyledDateCalendar = styled(DateCalendar)(({ theme }) => ({
@@ -314,9 +313,6 @@ export const CalendarPage = () => {
   const [showAllTransactions, setShowAllTransactions] = useState(false);
   const [showMock, setShowMock] = useState(false);
   const [selectedScenarioId, setSelectedScenarioId] = useState<string>('');
-  const [swipeDeltaX, setSwipeDeltaX] = useState(0);
-  const [isSwiping, setIsSwiping] = useState(false);
-  const segmentRef = useRef<HTMLDivElement>(null);
   const [rakutenImportDialogOpen, setRakutenImportDialogOpen] = useState(false);
   const [rakutenImportFile, setRakutenImportFile] = useState<File | null>(null);
   const [rakutenImportMonth, setRakutenImportMonth] = useState(() => {
@@ -330,30 +326,6 @@ export const CalendarPage = () => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [isSummaryFixed, setIsSummaryFixed] = useState(false);
-
-  const segmentSwipeHandlers = useSwipeable({
-    onSwipedLeft: () => {
-      setShowMock(true);
-      setSwipeDeltaX(0);
-      setIsSwiping(false);
-    },
-    onSwipedRight: () => {
-      setShowMock(false);
-      setSwipeDeltaX(0);
-      setIsSwiping(false);
-    },
-    onSwiping: (e) => {
-      setIsSwiping(true);
-      setSwipeDeltaX(e.deltaX);
-    },
-    onSwiped: () => {
-      setSwipeDeltaX(0);
-      setIsSwiping(false);
-    },
-    delta: 30,
-    trackTouch: true,
-    trackMouse: false,
-  });
 
   useEffect(() => {
     fetchTransactions();
@@ -661,68 +633,35 @@ export const CalendarPage = () => {
         )}
         <Card className="w-full max-w-4xl">
           <CardContent className="p-2 sm:p-4 w-full min-h-[450px] relative" style={{ overflowY: 'hidden' }}>
-            {/* 直感的なトグルデザイン */}
-            <div {...segmentSwipeHandlers} className="flex flex-col items-center justify-center select-none">
-              <div ref={segmentRef} className="flex w-full max-w-xs relative">
-                <button
+            {/* 直感的なトグルデザインを廃止し、ボタン群に置換 */}
+            <div className="flex flex-wrap gap-2 mb-4 justify-center">
+              <Button
+                type="button"
+                variant={!showMock ? 'default' : 'outline'}
+                className={`font-bold ${!showMock ? 'bg-blue-500 text-white' : ''}`}
+                onClick={() => {
+                  setShowMock(false);
+                  setSelectedScenarioId('');
+                }}
+              >
+                実際の収支
+              </Button>
+              {scenarios.map(scenario => (
+                <Button
+                  key={scenario.id}
                   type="button"
-                  className={`flex-1 px-3 py-2 rounded-l-full flex items-center justify-center gap-1 text-base font-semibold border border-gray-300
-                    ${!showMock ? 'bg-blue-100 text-blue-800' : 'bg-white text-gray-400'}`}
+                  variant={showMock && selectedScenarioId === scenario.id ? 'default' : 'outline'}
+                  className={`font-bold ${showMock && selectedScenarioId === scenario.id ? 'bg-orange-400 text-white' : ''}`}
                   onClick={() => {
-                    setShowMock(false);
-                    setSelectedScenarioId(''); // 実際収支に切り替え時はシナリオをリセット
+                    setShowMock(true);
+                    setSelectedScenarioId(scenario.id);
                   }}
-                  aria-pressed={!showMock}
-                  style={{ borderRight: 'none', borderTopRightRadius: 0, borderBottomRightRadius: 0, boxShadow: 'none', transition: 'color 0.2s, background 0.2s' }}
                 >
-                  <span className="relative z-10">実際の収支</span>
-                </button>
-                <button
-                  type="button"
-                  className={`flex-1 px-3 py-2 rounded-r-full flex items-center justify-center gap-1 text-base font-semibold border border-gray-300
-                    ${showMock ? 'bg-blue-100 text-blue-800' : 'bg-white text-gray-400'}`}
-                  onClick={() => setShowMock(true)}
-                  aria-pressed={showMock}
-                  style={{ borderLeft: 'none', borderTopLeftRadius: 0, borderBottomLeftRadius: 0, boxShadow: 'none', transition: 'color 0.2s, background 0.2s' }}
-                >
-                  <span className="relative z-10">予定の収支</span>
-                </button>
-                {/* トグルのアニメーション部分（右端遅延解消） */}
-                <span
-                  className="absolute top-0 h-full w-1/2 transition-all duration-200 pointer-events-none bg-blue-100"
-                  style={{
-                    left: isSwiping
-                      ? (() => {
-                          if (!segmentRef.current) return showMock ? '50%' : '0%';
-                          const width = segmentRef.current.offsetWidth;
-                          const percent = Math.max(-1, Math.min(1, swipeDeltaX / width));
-                          const base = showMock ? 50 : 0;
-                          let move = base + percent * 50;
-                          move = Math.max(0, Math.min(50, move));
-                          return `${move}%`;
-                        })()
-                      : showMock ? '50%' : '0%',
-                    right: isSwiping ? 'auto' : showMock ? 0 : 'auto',
-                    width: '50%',
-                    borderRadius: '9999px',
-                    zIndex: 0,
-                    transition: 'left 0.2s cubic-bezier(0.4,0,0.2,1)',
-                  }}
-                />
-              </div>
-              
-              {/* シナリオ選択（予定収支の場合のみ表示） */}
-              {showMock && (
-                <div className="mt-4 w-full max-w-xs">
-                  <ScenarioSelector
-                    value={selectedScenarioId}
-                    onValueChange={setSelectedScenarioId}
-                    placeholder="シナリオを選択"
-                    className="bg-white"
-                  />
-                </div>
-              )}
+                  {scenario.name}
+                </Button>
+              ))}
             </div>
+            {/* シナリオセレクターは不要なので削除 */}
             {/* カレンダー本体 */}
             <SwipeableCalendar
               selectedDate={selectedDate}
@@ -799,7 +738,16 @@ export const CalendarPage = () => {
           transition={{ delay: 0.3 }}
         >
           <Card>
-            <CardContent className="p-2 sm:p-4">
+            <CardContent className="p-2 sm:p-4 relative">
+              {/* 固定表示ボタン: 概要の中、右上に絶対配置・ピンアイコンのみ */}
+              <button
+                className="absolute top-2 right-2 bg-white/80 text-blue-600 hover:bg-blue-100 hover:text-blue-800 border border-blue-300 rounded-full p-2 w-8 h-8 flex items-center justify-center shadow transition-all focus:outline-none focus:ring-2 focus:ring-blue-400 z-10"
+                style={{ fontWeight: 'bold', fontSize: '1.2rem', lineHeight: 1 }}
+                onClick={() => setIsSummaryFixed(true)}
+                aria-label="概要を下部に固定"
+              >
+                <Pin className="w-5 h-5" />
+              </button>
               <div className="flex flex-col gap-1 w-full">
                 <div className="text-center py-2 bg-green-50 rounded-lg border border-green-200">
                   <div className="flex items-center justify-center gap-1 text-base sm:text-xl font-bold text-green-600 truncate">
@@ -853,18 +801,6 @@ export const CalendarPage = () => {
               </div>
               <div className="text-xs text-gray-500 text-center mt-2">
                 {format(currentMonth, 'yyyy', { locale: ja })}年{format(currentMonth, 'M', { locale: ja })}月の概要
-              </div>
-              {/* 固定表示ボタン */}
-              <div className="flex justify-end mt-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="flex items-center gap-1 border-blue-400 text-blue-600 hover:bg-blue-50 hover:border-blue-500"
-                  onClick={() => setIsSummaryFixed(true)}
-                >
-                  <Pin className="w-4 h-4" />
-                  概要を下部に固定
-                </Button>
               </div>
             </CardContent>
           </Card>
