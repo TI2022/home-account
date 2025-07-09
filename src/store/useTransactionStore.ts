@@ -215,18 +215,23 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
   updateRecurringIncome: async (id: string, income) => {
     try {
       console.log('Updating recurring income:', { id, income });
-      const updateObj: any = {
+      // payment_scheduleはupdateObjには型通り配列で持たせる
+      const updateObj: Partial<Omit<RecurringIncome, 'id' | 'user_id' | 'created_at' | 'updated_at'>> = {
         ...income,
-        payment_schedule: income.payment_schedule
-          ? JSON.stringify(income.payment_schedule)
-          : undefined,
+        payment_schedule: income.payment_schedule,
       };
       if ('description' in income) {
-        updateObj.description = income.description || null;
+        updateObj.description = income.description || undefined;
       }
+      const supabaseUpdateObj = {
+        ...updateObj,
+        payment_schedule: updateObj.payment_schedule
+          ? JSON.stringify(updateObj.payment_schedule)
+          : undefined,
+      };
       const { data, error } = await supabase
         .from('recurring_income')
-        .update(updateObj)
+        .update(supabaseUpdateObj)
         .eq('id', id)
         .select()
         .single();
@@ -311,18 +316,23 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
   updateRecurringExpense: async (id: string, expense) => {
     try {
       console.log('Updating recurring expense:', { id, expense });
-      const updateObj: any = {
+      // payment_scheduleはupdateObjには型通り配列で持たせる
+      const updateObj: Partial<Omit<RecurringExpense, 'id' | 'user_id' | 'created_at' | 'updated_at'>> = {
         ...expense,
-        payment_schedule: expense.payment_schedule
-          ? JSON.stringify(expense.payment_schedule)
-          : undefined,
+        payment_schedule: expense.payment_schedule,
       };
       if ('description' in expense) {
-        updateObj.description = expense.description || null;
+        updateObj.description = expense.description || undefined;
       }
+      const supabaseUpdateObj = {
+        ...updateObj,
+        payment_schedule: updateObj.payment_schedule
+          ? JSON.stringify(updateObj.payment_schedule)
+          : undefined,
+      };
       const { data, error } = await supabase
         .from('recurring_expenses')
-        .update(updateObj)
+        .update(supabaseUpdateObj)
         .eq('id', id)
         .select()
         .single();
