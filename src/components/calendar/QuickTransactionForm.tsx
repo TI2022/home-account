@@ -12,7 +12,8 @@ import { format } from 'date-fns';
 import { Transaction } from '@/types';
 import { ScenarioSelector } from '@/components/ui/scenario-selector';
 
-interface QuickTransactionFormProps {
+export interface QuickTransactionFormProps {
+  mode: 'add' | 'edit';
   selectedDate: Date;
   editingTransaction?: Transaction | null;
   onEditCancel?: () => void;
@@ -21,6 +22,7 @@ interface QuickTransactionFormProps {
 }
 
 export const QuickTransactionForm = ({ 
+  mode,
   selectedDate, 
   editingTransaction: externalEditingTransaction = null,
   onEditCancel,
@@ -52,11 +54,39 @@ export const QuickTransactionForm = ({
   const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [selectedScenarioId, setSelectedScenarioId] = useState<string>('');
 
+  // 編集トランザクションまたは日付が変わった時にformDataを初期化
+  useEffect(() => {
+    if (mode === 'edit' && externalEditingTransaction) {
+      setEditingTransaction(externalEditingTransaction);
+      setFormData({
+        type: externalEditingTransaction.type,
+        amount: externalEditingTransaction.amount.toString(),
+        category: externalEditingTransaction.category,
+        memo: externalEditingTransaction.memo || '',
+        isMock: !!externalEditingTransaction.isMock,
+        date: externalEditingTransaction.date,
+      });
+      setSelectedScenarioId(externalEditingTransaction.scenario_id || '');
+    } else if (mode === 'add') {
+      setEditingTransaction(null);
+      setFormData({
+        type: 'expense',
+        amount: '',
+        category: '',
+        memo: '',
+        isMock: false,
+        date: format(selectedDate, 'yyyy-MM-dd'),
+      });
+      setSelectedScenarioId('');
+    }
+  }, [mode, externalEditingTransaction, selectedDate]);
+
   // 外部からeditingTransactionが渡されたら内部stateに反映
   useEffect(() => {
-    console.log('QuickTransactionForm: externalEditingTransaction changed:', externalEditingTransaction);
     if (externalEditingTransaction) {
       setEditingTransaction(externalEditingTransaction);
+    } else if (externalEditingTransaction === null) {
+      setEditingTransaction(null);
     }
   }, [externalEditingTransaction]);
 
@@ -74,7 +104,7 @@ export const QuickTransactionForm = ({
         date: format(selectedDate, 'yyyy-MM-dd'),
       });
     }
-  }, [externalEditingTransaction, selectedDate]);
+  }, [externalEditingTransaction]);
 
   // 編集モードの場合、フォームに既存のデータをセット
   useEffect(() => {
@@ -324,6 +354,9 @@ export const QuickTransactionForm = ({
             <SelectContent>
               {(() => {
                 console.log('Rendering category select - type:', formData.type, 'category:', formData.category);
+                console.log('Available categories:', formData.type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES);
+                const categories = formData.type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+                console.log('Category exists in list:', categories.some(cat => cat === formData.category));
                 return null;
               })()}
               {(formData.type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map((category) => (

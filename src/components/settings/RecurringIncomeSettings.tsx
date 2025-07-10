@@ -655,7 +655,12 @@ export const RecurringIncomeSettings = () => {
                   ¥{formatAmount(
                     recurringIncomes
                       .filter(income => income.is_active)
-                      .reduce((sum, income) => sum + income.amount * 12, 0)
+                      .reduce((sum, income) => {
+                        const count = Array.isArray(income.payment_schedule)
+                          ? income.payment_schedule.length
+                          : 12;
+                        return sum + income.amount * count;
+                      }, 0)
                   )}
                 </p>
                 <p className="text-green-600 mt-1">

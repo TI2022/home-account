@@ -326,6 +326,7 @@ export const CalendarPage = () => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [isSummaryFixed, setIsSummaryFixed] = useState(false);
+  const [dialogMode, setDialogMode] = useState<'add' | 'edit'>('add');
 
   useEffect(() => {
     fetchTransactions();
@@ -407,9 +408,12 @@ export const CalendarPage = () => {
     return amount.toLocaleString('ja-JP');
   };
 
+  // 日付クリック時
   const handleDateSelect = (date: Date | null) => {
     if (date) {
+      setDialogMode('add');
       setSelectedDate(date);
+      setEditingTransaction(null);
       setIsDialogOpen(true);
     }
   };
@@ -526,7 +530,6 @@ export const CalendarPage = () => {
   // モーダルが閉じた時は編集モードを解除
   useEffect(() => {
     if (!isDialogOpen) {
-      setEditingTransaction(null);
       setSelectedIds([]);
       setIsBulkSelectMode(false);
     }
@@ -989,11 +992,9 @@ export const CalendarPage = () => {
                           variant="ghost"
                           size="sm"
                           onClick={() => {
-                            if (editingTransaction?.id === transaction.id) {
-                              setEditingTransaction(null);
-                            } else {
-                              setEditingTransaction(transaction);
-                            }
+                            setDialogMode('edit');
+                            setEditingTransaction(transaction);
+                            setIsDialogOpen(true);
                           }}
                         >
                           <Edit className="h-4 w-4" />
@@ -1025,10 +1026,14 @@ export const CalendarPage = () => {
 
           {/* Quick transaction form */}
           <QuickTransactionForm
+            mode={dialogMode}
             selectedDate={selectedDate}
             editingTransaction={editingTransaction}
             copyingTransaction={copyingTransaction}
-            onEditCancel={() => setEditingTransaction(null)}
+            onEditCancel={() => {
+              setEditingTransaction(null);
+              setIsDialogOpen(false);
+            }}
             onCopyFinish={() => setCopyingTransaction(null)}
           />
         </DialogContent>

@@ -845,7 +845,12 @@ export const RecurringExpenseSettings = () => {
                   ¥{formatAmount(
                     recurringExpenses
                       .filter(expense => expense.is_active)
-                      .reduce((sum, expense) => sum + expense.amount * 12, 0)
+                      .reduce((sum, expense) => {
+                        const count = Array.isArray(expense.payment_schedule)
+                          ? expense.payment_schedule.length
+                          : 12;
+                        return sum + expense.amount * count;
+                      }, 0)
                   )}
                 </p>
                 <p className="text-red-600 mt-1">
