@@ -13,7 +13,7 @@ export const TabNavigation = () => {
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-sm border-t border-pink-100 safe-area-pb overflow-x-auto shadow-lg">
+    <div className="fixed bottom-0 left-0 right-0 bg-white/90 z-[100] backdrop-blur-sm border-t border-pink-100 safe-area-pb overflow-x-auto shadow-lg">
       <div className="flex">
         {tabs.map((tab) => (
           <motion.div

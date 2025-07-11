@@ -635,7 +635,7 @@ export const CalendarPage = () => {
             </button>
           </div>
         )}
-        <Card className="w-full max-w-4xl">
+        <Card className={`w-full max-w-4xl${isSummaryFixed ? ' mb-60' : ''}`}>
           <CardContent className="p-2 sm:p-4 w-full min-h-[450px] relative" style={{ overflowY: 'hidden' }}>
             {/* 直感的なトグルデザインを廃止し、ボタン群に置換 */}
             <div className="flex flex-wrap gap-2 mb-4 justify-center">
@@ -745,7 +745,7 @@ export const CalendarPage = () => {
             <CardContent className="p-2 sm:p-4 relative">
               {/* 固定表示ボタン: 概要の中、右上に絶対配置・ピンアイコンのみ */}
               <button
-                className="absolute top-2 right-2 bg-white/80 text-blue-600 hover:bg-blue-100 hover:text-blue-800 border border-blue-300 rounded-full p-2 w-8 h-8 flex items-center justify-center shadow transition-all focus:outline-none focus:ring-2 focus:ring-blue-400 z-10"
+                className="absolute top-2 right-2 bg-white/80 text-blue-600 hover:bg-blue-100 hover:text-blue-800 border border-blue-300 rounded-full p-2 w-8 h-8 flex items-center justify-center shadow transition-all focus:outline-none focus:ring-2 focus:ring-blue-400 z-20"
                 style={{ fontWeight: 'bold', fontSize: '1.2rem', lineHeight: 1 }}
                 onClick={() => setIsSummaryFixed(true)}
                 aria-label="概要を下部に固定"
