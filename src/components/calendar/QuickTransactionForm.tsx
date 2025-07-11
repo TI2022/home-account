@@ -13,11 +13,11 @@ import { Transaction } from '@/types';
 import { ScenarioSelector } from '@/components/ui/scenario-selector';
 
 export interface QuickTransactionFormProps {
-  mode: 'add' | 'edit';
+  mode: 'add' | 'edit' | 'copy';
   selectedDate: Date;
   editingTransaction?: Transaction | null;
-  onEditCancel?: () => void;
   copyingTransaction?: Transaction | null;
+  onEditCancel?: () => void;
   onCopyFinish?: () => void;
 }
 
@@ -25,8 +25,8 @@ export const QuickTransactionForm = ({
   mode,
   selectedDate, 
   editingTransaction: externalEditingTransaction = null,
-  onEditCancel,
   copyingTransaction = null,
+  onEditCancel,
   onCopyFinish
 }: QuickTransactionFormProps) => {
   const { addTransaction, updateTransaction } = useTransactionStore();
@@ -56,30 +56,55 @@ export const QuickTransactionForm = ({
 
   // 編集トランザクションまたは日付が変わった時にformDataを初期化
   useEffect(() => {
+    console.log('QuickTransactionForm useEffect - mode:', mode, 'copyingTransaction:', copyingTransaction, 'externalEditingTransaction:', externalEditingTransaction);
     if (mode === 'edit' && externalEditingTransaction) {
       setEditingTransaction(externalEditingTransaction);
-      setFormData({
-        type: externalEditingTransaction.type,
+      const newFormData = {
+        type: externalEditingTransaction.type as 'income' | 'expense',
         amount: externalEditingTransaction.amount.toString(),
         category: externalEditingTransaction.category,
         memo: externalEditingTransaction.memo || '',
         isMock: !!externalEditingTransaction.isMock,
         date: externalEditingTransaction.date,
-      });
+      };
+      setFormData(newFormData);
       setSelectedScenarioId(externalEditingTransaction.scenario_id || '');
-    } else if (mode === 'add') {
+      console.log('QuickTransactionForm: setFormData (edit)', newFormData);
+    } else if (mode === 'copy' && copyingTransaction) {
       setEditingTransaction(null);
-      setFormData({
-        type: 'expense',
+      const newFormData = {
+        type: copyingTransaction.type as 'income' | 'expense',
+        amount: copyingTransaction.amount.toString(),
+        category: copyingTransaction.category,
+        memo: copyingTransaction.memo || '',
+        isMock: !!copyingTransaction.isMock,
+        date: format(selectedDate, 'yyyy-MM-dd'),
+      };
+      setFormData(newFormData);
+      setSelectedScenarioId(copyingTransaction.scenario_id || '');
+      console.log('QuickTransactionForm: setFormData (copy)', newFormData);
+    } else if (mode === 'add' && !externalEditingTransaction && !copyingTransaction) {
+      setEditingTransaction(null);
+      const newFormData = {
+        type: 'expense' as 'income' | 'expense',
         amount: '',
         category: '',
         memo: '',
         isMock: false,
         date: format(selectedDate, 'yyyy-MM-dd'),
-      });
+      };
+      setFormData(newFormData);
       setSelectedScenarioId('');
+      console.log('QuickTransactionForm: setFormData (add)', newFormData);
     }
-  }, [mode, externalEditingTransaction, selectedDate]);
+  }, [mode, externalEditingTransaction, copyingTransaction]);
+
+  useEffect(() => {
+    console.log('QuickTransactionForm mounted');
+    return () => {
+      console.log('QuickTransactionForm unmounted');
+    };
+  }, []);
 
   // 外部からeditingTransactionが渡されたら内部stateに反映
   useEffect(() => {
@@ -128,7 +153,7 @@ export const QuickTransactionForm = ({
     if (copyingTransaction) {
       setEditingTransaction(null);
       setFormData({
-        type: copyingTransaction.type,
+        type: copyingTransaction.type as 'income' | 'expense',
         amount: copyingTransaction.amount.toString(),
         category: copyingTransaction.category,
         memo: copyingTransaction.memo || '',
@@ -353,15 +378,13 @@ export const QuickTransactionForm = ({
             </SelectTrigger>
             <SelectContent>
               {(() => {
-                console.log('Rendering category select - type:', formData.type, 'category:', formData.category);
-                console.log('Available categories:', formData.type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES);
                 const categories = formData.type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
-                console.log('Category exists in list:', categories.some(cat => cat === formData.category));
+                console.log('QuickTransactionForm: [copy debug] type:', formData.type, 'category:', formData.category, 'categories:', categories, 'exists:', categories.map(String).includes(String(formData.category)));
                 return null;
               })()}
-              {(formData.type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map((category) => (
-                <SelectItem key={category} value={category}>
-                  {category}
+              {(formData.type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map((cat) => (
+                <SelectItem key={cat} value={String(cat)}>
+                  {cat}
                 </SelectItem>
               ))}
             </SelectContent>

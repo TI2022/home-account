@@ -7,7 +7,7 @@ import { useScenarioStore } from '@/store/useScenarioStore';
 import { format, isSameDay, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { motion } from 'framer-motion';
-import { ArrowUpCircle, ArrowDownCircle, Trash2, Wallet, Edit, Loader2, ChevronDown, ChevronUp, X, Pin } from 'lucide-react';
+import { ArrowUpCircle, ArrowDownCircle, Trash2, Wallet, Edit, Loader2, ChevronDown, ChevronUp, X, Pin, Copy } from 'lucide-react';
 import { QuickTransactionForm } from './QuickTransactionForm';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -326,7 +326,7 @@ export const CalendarPage = () => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [isSummaryFixed, setIsSummaryFixed] = useState(false);
-  const [dialogMode, setDialogMode] = useState<'add' | 'edit'>('add');
+  const [dialogMode, setDialogMode] = useState<'add' | 'edit' | 'copy'>('add');
 
   useEffect(() => {
     fetchTransactions();
@@ -414,6 +414,7 @@ export const CalendarPage = () => {
       setDialogMode('add');
       setSelectedDate(date);
       setEditingTransaction(null);
+      setCopyingTransaction(null);
       setIsDialogOpen(true);
     }
   };
@@ -887,7 +888,14 @@ export const CalendarPage = () => {
       )}
 
       {/* Transaction Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      <Dialog open={isDialogOpen} onOpenChange={(open) => {
+        console.log('Dialog open change:', open, 'mode:', dialogMode, 'copyingTransaction:', copyingTransaction);
+        setIsDialogOpen(open);
+        if (!open) {
+          setEditingTransaction(null);
+          setCopyingTransaction(null);
+        }
+      }}>
         <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto [&>button]:w-10 [&>button]:h-10 [&>button]:bg-white [&>button]:border [&>button]:border-gray-200 [&>button]:shadow-lg [&>button]:rounded-full [&>button]:hover:bg-gray-100 [&>button]:opacity-100 [&>button]:transition-colors [&>button]:flex [&>button]:items-center [&>button]:justify-center [&>button>svg]:w-5 [&>button>svg]:h-5">
           <DialogHeader>
             <DialogTitle>
@@ -994,6 +1002,7 @@ export const CalendarPage = () => {
                           onClick={() => {
                             setDialogMode('edit');
                             setEditingTransaction(transaction);
+                            setCopyingTransaction(null);
                             setIsDialogOpen(true);
                           }}
                         >
@@ -1002,19 +1011,39 @@ export const CalendarPage = () => {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleDelete(transaction.id)}
+                          onClick={async () => {
+                            console.log('Copy button clicked, transaction:', transaction);
+                            // 新しいトランザクションを即時追加
+                            const rest = Object.fromEntries(Object.entries(transaction).filter(([k]) => !['id','created_at','updated_at','user_id'].includes(k)));
+                            const newTransaction = {
+                              ...rest,
+                              date: format(selectedDate, 'yyyy-MM-dd'),
+                              type: transaction.type,
+                              amount: transaction.amount,
+                              category: transaction.category,
+                              memo: transaction.memo,
+                              isMock: transaction.isMock,
+                              scenario_id: transaction.scenario_id,
+                              card_used_date: transaction.card_used_date,
+                            } as Omit<import('@/types').Transaction, 'id' | 'user_id' | 'created_at' | 'updated_at'>;
+                            try {
+                              await useTransactionStore.getState().addTransaction(newTransaction);
+                              useTransactionStore.getState().fetchTransactions();
+                              showSnackbar('トランザクションを複製しました', 'default');
+                            } catch {
+                              showSnackbar('複製に失敗しました', 'destructive');
+                            }
+                          }}
+                          title="複製"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Copy className="w-4 h-4" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => setCopyingTransaction(transaction)}
-                          title="コピーして新規追加"
+                          onClick={() => handleDelete(transaction.id)}
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 6v-1.125A2.625 2.625 0 0 0 13.875 2.25h-7.5A2.625 2.625 0 0 0 3.75 4.875v7.5A2.625 2.625 0 0 0 6.375 15H7.5m3 0h7.125A2.625 2.625 0 0 0 20.25 12.375v-7.5A2.625 2.625 0 0 0 17.625 2.25H13.5" />
-                          </svg>
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </>
                     )}
@@ -1034,7 +1063,7 @@ export const CalendarPage = () => {
               setEditingTransaction(null);
               setIsDialogOpen(false);
             }}
-            onCopyFinish={() => setCopyingTransaction(null)}
+            // onCopyFinishはcopyingTransactionをnullにしない
           />
         </DialogContent>
       </Dialog>
