@@ -391,6 +391,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
         memo: transaction.memo,
         card_used_date: transaction.card_used_date || null,
         isMock: transaction.isMock ?? false,
+        scenario_id: transaction.scenario_id || null,
       };
       console.log('Extracted update data:', updateData);
       console.log('Update data type:', typeof updateData.type);
