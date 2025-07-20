@@ -1,5 +1,5 @@
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 
 interface CharacterReactionProps {
   show: boolean;
@@ -12,12 +12,12 @@ export const CharacterReaction = ({ show, message, type, character = 'cat' }: Ch
   const [currentCharacter, setCurrentCharacter] = useState(character);
   const controls = useAnimation();
 
-  const characters = {
+  const characters = useMemo(() => ({
     cat: '🐱',
     rabbit: '🐰', 
     bear: '🐻',
     fox: '🦊'
-  };
+  }), []);
 
   const expressions = {
     happy: ['😊', '😄', '🥰', '😍'],
@@ -40,7 +40,7 @@ export const CharacterReaction = ({ show, message, type, character = 'cat' }: Ch
         transition: { duration: 0.6, ease: "easeOut" }
       });
     }
-  }, [show, controls]);
+  }, [show, controls, characters]);
 
   const getRandomExpression = () => {
     const expressionList = expressions[type];

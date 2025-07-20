@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/react-vite';
 import { AiSuggestPanel } from './ai-suggest-panel';
 import { FaRegLightbulb, FaRegSmile, FaRegFrown } from 'react-icons/fa';
 

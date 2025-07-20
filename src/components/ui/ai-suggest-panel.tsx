@@ -36,7 +36,7 @@ export const AiSuggestPanel: React.FC<AiSuggestPanelProps> = ({
           <div className="text-center text-gray-400 py-4">提案がありません</div>
         ) : (
           <ul className="space-y-2">
-            {suggestions.map((s, i) => (
+            {suggestions.map((s) => (
               <li key={s.value}>
                 <Button
                   variant="secondary"

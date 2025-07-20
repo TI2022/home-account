@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/react-vite';
 import { CalendarDayCard } from './CalendarDayCard';
 import { FaRegSmile, FaRegFrown, FaRegStar } from 'react-icons/fa';
 

@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
 import { Transaction, Budget, RecurringIncome, RecurringExpense } from '@/types';
-import { format } from 'date-fns';
 
 interface TransactionState {
   transactions: Transaction[];
@@ -9,6 +8,11 @@ interface TransactionState {
   recurringIncomes: RecurringIncome[];
   recurringExpenses: RecurringExpense[];
   loading: boolean;
+  _lastFetchTime: {
+    recurringExpenses: number;
+    recurringIncomes: number;
+    transactions: number;
+  };
   fetchTransactions: () => Promise<void>;
   fetchBudgets: () => Promise<void>;
   fetchRecurringIncomes: () => Promise<void>;
@@ -36,6 +40,12 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
   recurringIncomes: [],
   recurringExpenses: [],
   loading: false,
+  // キャッシュ用の状態を追加
+  _lastFetchTime: {
+    recurringExpenses: 0,
+    recurringIncomes: 0,
+    transactions: 0,
+  },
 
   fetchTransactions: async () => {
     set({ loading: true });
@@ -90,6 +100,15 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
   },
 
   fetchRecurringExpenses: async () => {
+    const now = Date.now();
+    const lastFetch = get()._lastFetchTime.recurringExpenses;
+    const CACHE_DURATION = 5000; // 5秒間キャッシュ
+
+    // キャッシュが有効な場合はスキップ
+    if (now - lastFetch < CACHE_DURATION && get().recurringExpenses.length > 0) {
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('recurring_expenses')
@@ -104,7 +123,10 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
           ? JSON.parse(item.payment_schedule)
           : item.payment_schedule || [],
       }));
-      set({ recurringExpenses: fixed });
+      set({ 
+        recurringExpenses: fixed,
+        _lastFetchTime: { ...get()._lastFetchTime, recurringExpenses: now }
+      });
     } catch (error) {
       console.error('Error fetching recurring expenses:', error);
     }
@@ -465,7 +487,10 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
         if (paymentDay !== undefined) {
           const paymentDate = new Date(year, month - 1, paymentDay);
           if (paymentDate >= start && paymentDate <= end) {
-            const paymentDateStr = format(paymentDate, 'yyyy-MM-dd');
+            // タイムゾーン問題を修正: ローカル日付として正しく処理
+            const paymentDateStr = paymentDate.getFullYear() + '-' + 
+              String(paymentDate.getMonth() + 1).padStart(2, '0') + '-' + 
+              String(paymentDate.getDate()).padStart(2, '0');
             const exists = (get().transactions || []).some(t =>
               t.date === paymentDateStr &&
               t.amount === exp.amount &&
@@ -512,7 +537,10 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
         if (paymentDay !== undefined) {
           const paymentDate = new Date(year, month - 1, paymentDay);
           if (paymentDate >= start && paymentDate <= end) {
-            const paymentDateStr = format(paymentDate, 'yyyy-MM-dd');
+            // タイムゾーン問題を修正: ローカル日付として正しく処理
+            const paymentDateStr = paymentDate.getFullYear() + '-' + 
+              String(paymentDate.getMonth() + 1).padStart(2, '0') + '-' + 
+              String(paymentDate.getDate()).padStart(2, '0');
             const exists = (get().transactions || []).some(t =>
               t.date === paymentDateStr &&
               t.amount === inc.amount &&
@@ -577,7 +605,10 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
       if (paymentDay !== undefined) {
         const paymentDate = new Date(year, month - 1, paymentDay);
         if (paymentDate >= start && paymentDate <= end) {
-          const paymentDateStr = format(paymentDate, 'yyyy-MM-dd');
+          // タイムゾーン問題を修正: ローカル日付として正しく処理
+          const paymentDateStr = paymentDate.getFullYear() + '-' + 
+            String(paymentDate.getMonth() + 1).padStart(2, '0') + '-' + 
+            String(paymentDate.getDate()).padStart(2, '0');
           const exists = (get().transactions || []).some(t =>
             t.date === paymentDateStr &&
             t.amount === inc.amount &&
@@ -622,7 +653,10 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
       if (paymentDay !== undefined) {
         const paymentDate = new Date(year, month - 1, paymentDay);
         if (paymentDate >= start && paymentDate <= end) {
-          const paymentDateStr = format(paymentDate, 'yyyy-MM-dd');
+          // タイムゾーン問題を修正: ローカル日付として正しく処理
+          const paymentDateStr = paymentDate.getFullYear() + '-' + 
+            String(paymentDate.getMonth() + 1).padStart(2, '0') + '-' + 
+            String(paymentDate.getDate()).padStart(2, '0');
           const exists = (get().transactions || []).some(t =>
             t.date === paymentDateStr &&
             t.amount === exp.amount &&

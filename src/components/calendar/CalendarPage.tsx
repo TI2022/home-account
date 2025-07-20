@@ -7,7 +7,7 @@ import { useScenarioStore } from '@/store/useScenarioStore';
 import { format, isSameDay, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { motion } from 'framer-motion';
-import { ArrowUpCircle, ArrowDownCircle, Trash2, Wallet, Edit, Loader2, ChevronDown, ChevronUp, X, Pin, Copy } from 'lucide-react';
+import { ArrowUpCircle, ArrowDownCircle, Trash2, Wallet, Edit, ChevronDown, ChevronUp, X, Pin, Copy } from 'lucide-react';
 import { QuickTransactionForm } from './QuickTransactionForm';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -17,9 +17,7 @@ import { PickersDay, PickersDayProps } from '@mui/x-date-pickers/PickersDay';
 import { useSwipeable } from 'react-swipeable';
 import bearImg from '@/assets/bear-guide.png';
 import { Transaction } from '@/types';
-import Papa from 'papaparse';
-import { EXPENSE_CATEGORIES } from '@/types';
-import { Input } from '@/components/ui/input';
+
 import { useSnackbar } from '@/hooks/use-toast';
 
 // カスタムスタイルの定義
@@ -309,17 +307,9 @@ export const CalendarPage = () => {
   const [dontShowNext, setDontShowNext] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [copyingTransaction, setCopyingTransaction] = useState<Transaction | null>(null);
-  const [rakutenLoading, setRakutenLoading] = useState(false);
   const [showAllTransactions, setShowAllTransactions] = useState(false);
   const [showMock, setShowMock] = useState(false);
   const [selectedScenarioId, setSelectedScenarioId] = useState<string>('');
-  const [rakutenImportDialogOpen, setRakutenImportDialogOpen] = useState(false);
-  const [rakutenImportFile, setRakutenImportFile] = useState<File | null>(null);
-  const [rakutenImportMonth, setRakutenImportMonth] = useState(() => {
-    const now = new Date();
-    // デフォルトは翌月
-    return now.toISOString().slice(0, 7);
-  });
   const [importResult, setImportResult] = useState<null | { success: number; fail: number; paymentDate: string; type: 'success' | 'fail', failedRows?: (Record<string, string> & { reason: string })[] }>(null);
   const { showSnackbar } = useSnackbar();
   const [isBulkSelectMode, setIsBulkSelectMode] = useState(false);
@@ -445,81 +435,7 @@ export const CalendarPage = () => {
     setSelectedDate(date); // カレンダーの表示月も切り替える
   };
 
-  // インポートボタンでファイル選択→月選択ダイアログ
-  const handleRakutenFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setRakutenImportFile(file);
-    setRakutenImportDialogOpen(true);
-    e.target.value = '';
-  };
 
-  // 月選択ダイアログでインポート実行
-  const handleRakutenImport = () => {
-    if (!rakutenImportFile) return;
-    setRakutenLoading(true);
-    setImportResult(null);
-    Papa.parse(rakutenImportFile, {
-      header: true,
-      skipEmptyLines: true,
-      complete: async (results: Papa.ParseResult<Record<string, string>>) => {
-        const rows = results.data;
-        let success = 0;
-        let fail = 0;
-        const failedRows: (Record<string, string> & { reason: string })[] = [];
-        const [paymentYear, paymentMonth] = rakutenImportMonth.split('-');
-        const paymentDate = `${paymentYear}-${paymentMonth}-27`;
-        for (const row of rows) {
-          const name = row['利用店名・商品名']?.trim() || '';
-          const amountKey = Object.keys(row).find(k => k.includes('支払金額'));
-          const amountStr = amountKey ? row[amountKey]?.replace(/,/g, '').trim() : '';
-          const dateStr = row['利用日']?.trim();
-          if (!name || !amountStr || !dateStr) {
-            fail++;
-            failedRows.push({ ...row, reason: '必須項目が不足しています' });
-            continue;
-          }
-          const amount = Number(amountStr);
-          if (isNaN(amount)) {
-            fail++;
-            failedRows.push({ ...row, reason: '金額が不正です' });
-            continue;
-          }
-          const date = paymentDate;
-          const cardUsedDate = paymentDate;
-          let category = 'その他';
-          for (const cat of EXPENSE_CATEGORIES) {
-            if (name.includes(cat)) { category = cat; break; }
-          }
-          try {
-            await useTransactionStore.getState().addTransaction({
-              type: 'expense',
-              amount,
-              category,
-              date,
-              memo: `${name}（利用日: ${dateStr}）`,
-              card_used_date: cardUsedDate,
-            });
-            success++;
-          } catch {
-            fail++;
-            failedRows.push({ ...row, reason: 'DB登録に失敗しました' });
-          }
-        }
-        useTransactionStore.getState().fetchTransactions();
-        setRakutenLoading(false);
-        setRakutenImportDialogOpen(false);
-        setRakutenImportFile(null);
-        setImportResult({ success, fail, paymentDate, type: success > 0 ? 'success' : 'fail', failedRows });
-      },
-      error: () => {
-        setRakutenLoading(false);
-        setRakutenImportDialogOpen(false);
-        setRakutenImportFile(null);
-        setImportResult({ success: 0, fail: 0, paymentDate: '', type: 'fail', failedRows: [] });
-      },
-    });
-  };
 
   // モーダルが開いた時はトランザクション一覧を展開状態にする
   useEffect(() => {
@@ -637,35 +553,6 @@ export const CalendarPage = () => {
         )}
         <Card className={`w-full max-w-4xl${isSummaryFixed ? ' mb-60' : ''}`}>
           <CardContent className="p-2 sm:p-4 w-full min-h-[450px] relative" style={{ overflowY: 'hidden' }}>
-            {/* 直感的なトグルデザインを廃止し、ボタン群に置換 */}
-            <div className="flex flex-wrap gap-2 mb-4 justify-center">
-              <Button
-                type="button"
-                variant={!showMock ? 'default' : 'outline'}
-                className={`font-bold ${!showMock ? 'bg-blue-500 text-white' : ''}`}
-                onClick={() => {
-                  setShowMock(false);
-                  setSelectedScenarioId('');
-                }}
-              >
-                実際の収支
-              </Button>
-              {scenarios.map(scenario => (
-                <Button
-                  key={scenario.id}
-                  type="button"
-                  variant={showMock && selectedScenarioId === scenario.id ? 'default' : 'outline'}
-                  className={`font-bold ${showMock && selectedScenarioId === scenario.id ? 'bg-orange-400 text-white' : ''}`}
-                  onClick={() => {
-                    setShowMock(true);
-                    setSelectedScenarioId(scenario.id);
-                  }}
-                >
-                  {scenario.name}
-                </Button>
-              ))}
-            </div>
-            {/* シナリオセレクターは不要なので削除 */}
             {/* カレンダー本体 */}
             <SwipeableCalendar
               selectedDate={selectedDate}
@@ -675,61 +562,37 @@ export const CalendarPage = () => {
               showMock={showMock}
               selectedScenarioId={selectedScenarioId}
             />
-            {/* 楽天明細インポートボタン: 右下に絶対配置（白背景＋赤枠＋赤文字、元のデザイン） */}
+            {/* 実際の収支・予定（シナリオ）ボタン群をインポートボタンの位置に移動 */}
             <div style={{ position: 'absolute', bottom: 16, right: 16, zIndex: 10 }}>
-              <label className="inline-flex items-center gap-2 cursor-pointer">
+              <div className="flex flex-wrap gap-2 justify-end">
                 <Button
-                  asChild
-                  disabled={rakutenLoading}
-                  className="bg-white border border-red-500 text-red-600 hover:bg-red-50 hover:border-red-600 font-semibold rounded-md px-4 py-2 shadow"
+                  type="button"
+                  variant={!showMock ? 'default' : 'outline'}
+                  className={`font-bold ${!showMock ? 'bg-blue-500 text-white' : ''}`}
+                  onClick={() => {
+                    setShowMock(false);
+                    setSelectedScenarioId('');
+                  }}
                 >
-                  <span className="flex items-center">
-                    {rakutenLoading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        インポート中...
-                      </>
-                    ) : (
-                      '楽天明細インポート'
-                    )}
-                  </span>
+                  実際の収支
                 </Button>
-                <input
-                  type="file"
-                  accept=".csv"
-                  className="hidden"
-                  onChange={handleRakutenFileChange}
-                />
-              </label>
-            </div>
-            {/* 楽天明細インポート用の反映月選択ダイアログ */}
-            <Dialog open={rakutenImportDialogOpen} onOpenChange={setRakutenImportDialogOpen}>
-              <DialogContent className="max-w-xs">
-                <DialogHeader>
-                  <DialogTitle>反映月を選択</DialogTitle>
-                </DialogHeader>
-                <div className="flex flex-col gap-4">
-                  <Input
-                    type="month"
-                    value={rakutenImportMonth}
-                    onChange={e => setRakutenImportMonth(e.target.value)}
-                    className="border rounded px-2 py-1 text-sm"
-                    min={(() => {
-                      const d = new Date();
-                      return d.toISOString().slice(0, 7);
-                    })()}
-                    max={(() => {
-                      const d = new Date();
-                      d.setMonth(d.getMonth() + 11);
-                      return d.toISOString().slice(0, 7);
-                    })()}
-                  />
-                  <Button onClick={handleRakutenImport} disabled={rakutenLoading}>
-                    この月でインポート
+                {scenarios.map(scenario => (
+                  <Button
+                    key={scenario.id}
+                    type="button"
+                    variant={showMock && selectedScenarioId === scenario.id ? 'default' : 'outline'}
+                    className={`font-bold ${showMock && selectedScenarioId === scenario.id ? 'bg-orange-400 text-white' : ''}`}
+                    onClick={() => {
+                      setShowMock(true);
+                      setSelectedScenarioId(scenario.id);
+                    }}
+                  >
+                    {scenario.name}
                   </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+                ))}
+              </div>
+            </div>
+            {/* 楽天明細インポートボタンとダイアログを削除 */}
           </CardContent>
         </Card>
       </motion.div>

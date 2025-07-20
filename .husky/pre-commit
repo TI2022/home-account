@@ -1,0 +1,11 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Run lint-staged first
+npx lint-staged
+
+# Run tests if not in CI environment
+if [ -z "$CI" ]; then
+  echo "🧪 Running tests before commit..."
+  npm run test:run
+fi

@@ -80,6 +80,8 @@ export const RecurringExpenseSettings = () => {
   const [skippedReflects, setSkippedReflects] = useState<{id: string; name: string; reason: string}[]>([]);
   const [isFailedDialogOpen, setIsFailedDialogOpen] = useState(false);
   const [isMock, setIsMock] = useState(false); // false: 実際, true: 予定
+  const [rakutenImportDialogOpen, setRakutenImportDialogOpen] = useState(false);
+  const [rakutenImportMonth, setRakutenImportMonth] = useState('');
 
   useEffect(() => {
     fetchRecurringExpenses();
@@ -227,6 +229,139 @@ export const RecurringExpenseSettings = () => {
     );
   }
 
+  const handleRakutenFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setRakutenImportDialogOpen(true);
+      setRakutenImportMonth(file.name.slice(0, 7)); // ファイル名から月を抽出
+    }
+  };
+
+  const handleRakutenImport = async () => {
+    if (!rakutenImportMonth) {
+      showSnackbar('反映月を選択してください', 'destructive');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch(file); // ファイルオブジェクトを直接使用
+      const text = await response.text();
+      const lines = text.split('\n');
+      const header = lines[0].split(',');
+      const dateIndex = header.indexOf('日付');
+      const amountIndex = header.indexOf('金額');
+      const categoryIndex = header.indexOf('カテゴリ');
+      const memoIndex = header.indexOf('メモ');
+
+      const transactions: { date: string; amount: number; category: string; memo: string }[] = [];
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (line) {
+          const columns = line.split(',');
+          if (columns.length > 4) {
+            const date = columns[dateIndex].trim();
+            const amount = parseFloat(columns[amountIndex].trim());
+            const category = columns[categoryIndex].trim();
+            const memo = columns[memoIndex].trim();
+
+            if (!isNaN(amount) && category) {
+              transactions.push({ date, amount, category, memo });
+            }
+          }
+        }
+      }
+
+      const failed: { id: string; name: string; error: string }[] = [];
+      const skipped: { id: string; name: string; reason: string }[] = [];
+
+      for (const expense of recurringExpenses) {
+        const matchingTransactions = transactions.filter(t => {
+          const paymentDate = new Date(t.date);
+          const start = new Date(rakutenImportMonth + '-01');
+          const end = new Date(rakutenImportMonth + '-31');
+          return paymentDate >= start && paymentDate <= end;
+        });
+
+        if (!expense.is_active) {
+          skipped.push({ id: expense.id, name: expense.name, reason: '無効化されています' });
+          continue;
+        }
+
+        let hasValidSchedule = false;
+        // 期間内に1つでも支払日があるか
+        const start = new Date(rakutenImportMonth + '-01');
+        const end = new Date(rakutenImportMonth + '-31');
+        const d = new Date(start);
+        while (d <= end) {
+          const month = d.getMonth() + 1;
+          const schedule = expense.payment_schedule?.find(s => s.month === month);
+          if (schedule) {
+            hasValidSchedule = true;
+            break;
+          }
+          d.setMonth(d.getMonth() + 1);
+          d.setDate(1);
+        }
+        if (!hasValidSchedule) {
+          // 支払日が未設定の場合は何もせずスキップ（UIにも表示しない）
+          continue;
+        }
+
+        for (const t of matchingTransactions) {
+          const paymentDate = new Date(t.date);
+          const month = paymentDate.getMonth() + 1;
+          const schedule = expense.payment_schedule?.find(s => s.month === month);
+          if (schedule) {
+            const paymentDateStr = paymentDate.toISOString().slice(0, 10);
+            const existing = (useTransactionStore.getState().transactions || []).find(trans =>
+              trans.date === paymentDateStr &&
+              trans.amount === expense.amount &&
+              trans.category === expense.category &&
+              trans.type === 'expense'
+            );
+            if (existing) {
+              skipped.push({ id: expense.id, name: expense.name, reason: `${paymentDateStr}：既に同じ内容のトランザクションが存在します` });
+            } else {
+              await useTransactionStore.getState().addTransaction({
+                type: 'expense',
+                amount: expense.amount,
+                category: expense.category,
+                date: paymentDateStr,
+                memo: expense.name,
+                isMock: false, // 楽天明細は予定ではないため
+                scenario_id: undefined, // シナリオは関係ない
+              });
+            }
+          }
+        }
+      }
+
+      if (failed.length === 0 && skipped.length === 0) {
+        showSnackbar('楽天明細をインポートしました');
+      } else {
+        setFailedReflects(failed);
+        setSkippedReflects(skipped);
+        setIsFailedDialogOpen(true);
+        showSnackbar(`一部の定期支出でインポートできませんでした`, 'destructive');
+      }
+      setRakutenImportDialogOpen(false);
+      setRakutenImportMonth('');
+    } catch (e: unknown) {
+      let errorMsg = '';
+      if (e instanceof Error) {
+        errorMsg = e.message;
+      } else if (typeof e === 'string') {
+        errorMsg = e;
+      } else {
+        errorMsg = JSON.stringify(e);
+      }
+      showSnackbar(`楽天明細のインポートに失敗しました: ${errorMsg}`, 'destructive');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* 並べ替えモードトグルボタン */}
@@ -250,7 +385,58 @@ export const RecurringExpenseSettings = () => {
           {isSelectMode ? <CheckSquare className="w-4 h-4 mr-1" /> : <Square className="w-4 h-4 mr-1" />}
           {isSelectMode ? '選択解除' : '選択モード'}
         </Button>
+        {/* 楽天明細インポートボタンを追加 */}
+        <label className="inline-flex items-center gap-2 cursor-pointer">
+          <Button
+            asChild
+            className="bg-white border border-red-500 text-red-600 hover:bg-red-50 hover:border-red-600 font-semibold rounded-md px-2 py-2 shadow min-w-0"
+            title="楽天明細インポート"
+          >
+            <span className="flex items-center">
+              {/* ファイル＋下向き矢印＋楽天文字のSVGアイコン */}
+              <svg width="28" height="32" viewBox="0 0 28 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M14 8v10" stroke="#BF0000" strokeWidth="2" strokeLinecap="round"/>
+                <path d="M10 14l4 4 4-4" stroke="#BF0000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <text x="14" y="28" textAnchor="middle" fill="#BF0000" fontSize="10" fontWeight="bold" fontFamily="Arial, sans-serif" dy=".3em">楽天</text>
+              </svg>
+            </span>
+          </Button>
+          <input
+            type="file"
+            accept=".csv"
+            className="hidden"
+            onChange={handleRakutenFileChange}
+          />
+        </label>
       </div>
+      {/* 楽天明細インポート用の反映月選択ダイアログ */}
+      <Dialog open={rakutenImportDialogOpen} onOpenChange={setRakutenImportDialogOpen}>
+        <DialogContent className="max-w-xs">
+          <DialogHeader>
+            <DialogTitle>反映月を選択</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            <Input
+              type="month"
+              value={rakutenImportMonth}
+              onChange={e => setRakutenImportMonth(e.target.value)}
+              className="border rounded px-2 py-1 text-sm"
+              min={(() => {
+                const d = new Date();
+                return d.toISOString().slice(0, 7);
+              })()}
+              max={(() => {
+                const d = new Date();
+                d.setMonth(d.getMonth() + 11);
+                return d.toISOString().slice(0, 7);
+              })()}
+            />
+            <Button onClick={handleRakutenImport}>
+              この月でインポート
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       {isSelectMode && (
         <div className="flex w-full gap-2 items-start flex-wrap sm:flex-nowrap">
           {/* 左側: 全選択/全解除（縦並び） */}
@@ -389,9 +575,12 @@ export const RecurringExpenseSettings = () => {
                       const year = d.getFullYear();
                       const schedule = expense.payment_schedule?.find(s => s.month === month);
                       if (schedule) {
+                        // タイムゾーン問題を修正: ローカル日付として正しく処理
                         const paymentDate = new Date(year, month - 1, schedule.day);
+                        const paymentDateStr = paymentDate.getFullYear() + '-' + 
+                          String(paymentDate.getMonth() + 1).padStart(2, '0') + '-' + 
+                          String(paymentDate.getDate()).padStart(2, '0');
                         if (paymentDate >= start && paymentDate <= end) {
-                          const paymentDateStr = paymentDate.toISOString().slice(0, 10);
                           const existing = (useTransactionStore.getState().transactions || []).find(t =>
                             t.date === paymentDateStr &&
                             t.amount === expense.amount &&

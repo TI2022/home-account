@@ -135,7 +135,7 @@ export const QuickTransactionForm = ({
     if (testInitialFormData && typeof testInitialFormData.category === 'string') {
       setFormData((prev) => ({ ...prev, category: testInitialFormData.category || '' }));
     }
-  }, [testInitialFormData?.category]);
+  }, [testInitialFormData?.category, testInitialFormData]);
 
   useEffect(() => {
     console.log('QuickTransactionForm mounted');
@@ -167,7 +167,7 @@ export const QuickTransactionForm = ({
         date: format(selectedDate, 'yyyy-MM-dd'),
       });
     }
-  }, [externalEditingTransaction]);
+  }, [externalEditingTransaction, selectedDate]);
 
   // 編集モードの場合、フォームに既存のデータをセット
   useEffect(() => {
@@ -371,26 +371,8 @@ export const QuickTransactionForm = ({
           <div className="text-xs text-gray-500 mt-1">
             <span className="font-bold text-blue-500">実際の収支</span>は確定した記録、<span className="font-bold text-orange-400">予定の収支</span>は将来の予定や仮の記録です
           </div>
-          <div className="flex w-full max-w-xs bg-gray-100 rounded-full p-1">
-            <button
-              type="button"
-              className={`flex-1 flex items-center justify-center gap-1 px-3 py-2 rounded-full font-bold transition-all
-                ${!formData.isMock ? 'bg-blue-500 text-white shadow' : 'bg-white text-gray-500'}`}
-              onClick={() => setFormData({ ...formData, isMock: false })}
-              aria-pressed={!formData.isMock}
-            >
-              実際の収支
-            </button>
-            <button
-              type="button"
-              className={`flex-1 flex items-center justify-center gap-1 px-3 py-2 rounded-full font-bold transition-all
-                ${formData.isMock ? 'bg-orange-400 text-white shadow' : 'bg-white text-gray-500'}`}
-              onClick={() => setFormData({ ...formData, isMock: true })}
-              aria-pressed={formData.isMock}
-            >
-              予定の収支
-            </button>
-          </div>
+          {/* 収支種別切り替えボタン（カレンダー画面からは削除） */}
+          {/* 削除済み */}
         </div>
         
 
