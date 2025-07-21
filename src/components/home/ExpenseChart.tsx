@@ -1,66 +1,42 @@
+import { memo, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
-import { useTransactionStore } from '@/store/useTransactionStore';
-import { useAppStore } from '@/store/useAppStore';
-import { CategorySummary } from '@/types';
-import { useState } from 'react';
+import { Badge } from '@/components/ui/badge';
 
-const COLORS = [
-  '#22C55E', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6',
-  '#EC4899', '#06B6D4', '#84CC16', '#F97316', '#6B7280'
-];
+interface ExpenseChartProps {
+  categoryData: Array<{ category: string; amount: number }>;
+  dailyData: Array<{ date: string; amount: number }>;
+}
 
-export const ExpenseChart = () => {
-  const { transactions } = useTransactionStore();
-  const { selectedMonth } = useAppStore();
+// メモ化された支出チャートコンポーネント
+export const ExpenseChart = memo(({ categoryData, dailyData }: ExpenseChartProps) => {
+  // メモ化: カテゴリー別の割合計算
+  const categoryPercentages = useMemo(() => {
+    const total = categoryData.reduce((sum, item) => sum + item.amount, 0);
+    return categoryData.map(item => ({
+      ...item,
+      percentage: total > 0 ? (item.amount / total) * 100 : 0
+    }));
+  }, [categoryData]);
 
-  // ポップアップ状態
-  const [popup, setPopup] = useState<{category: string, amount: number, x: number, y: number} | null>(null);
-
-  const monthExpenses = transactions.filter(t => 
-    t.type === 'expense' && t.date.startsWith(selectedMonth)
-  );
-
-  const categoryData: CategorySummary[] = monthExpenses.reduce((acc, transaction) => {
-    const existingCategory = acc.find(item => item.category === transaction.category);
-    if (existingCategory) {
-      existingCategory.amount += transaction.amount;
-    } else {
-      acc.push({
-        category: transaction.category,
-        amount: transaction.amount,
-        color: COLORS[acc.length % COLORS.length]
-      });
-    }
-    return acc;
-  }, [] as CategorySummary[]);
-
-  const formatAmount = (value: number) => {
-    return `¥${value.toLocaleString('ja-JP')}`;
-  };
-
-  const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: { payload: CategorySummary }[] }) => {
-    if (active && payload && payload.length) {
-      const data = payload[0].payload;
-      return (
-        <div className="bg-white p-3 shadow-lg rounded-lg border">
-          <p className="font-medium">{data.category}</p>
-          <p className="text-gray-600">{formatAmount(data.amount)}</p>
-        </div>
-      );
-    }
-    return null;
-  };
+  // メモ化: 日別データの集計
+  const chartData = useMemo(() => {
+    return dailyData.map(item => ({
+      ...item,
+      isExpense: item.amount < 0,
+      absAmount: Math.abs(item.amount)
+    }));
+  }, [dailyData]);
 
   if (categoryData.length === 0) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">支出内訳</CardTitle>
+          <CardTitle className="text-lg font-semibold">支出分析</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-center h-64 text-gray-500">
-            <p>今月の支出データがありません</p>
+          <div className="text-center py-8 text-gray-500">
+            支出データがありません
           </div>
         </CardContent>
       </Card>
@@ -68,70 +44,100 @@ export const ExpenseChart = () => {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-lg">支出内訳</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="h-80">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={categoryData}
-                cx="50%"
-                cy="50%"
-                outerRadius={80}
-                dataKey="amount"
-                label={() => null}
-                labelLine={false}
-              >
-                {categoryData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip content={<CustomTooltip />} />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-        <div className="mt-4 space-y-2">
-          {categoryData.map((item) => (
-            <div
-              key={item.category}
-              className="flex items-center justify-between cursor-pointer hover:bg-gray-100 rounded px-2 py-1"
-              onClick={e => {
-                const rect = (e.target as HTMLElement).getBoundingClientRect();
-                setPopup({
-                  category: item.category,
-                  amount: item.amount,
-                  x: rect.left + rect.width / 2,
-                  y: rect.top
-                });
-              }}
-            >
-              <div className="flex items-center space-x-2">
-                <div 
-                  className="w-3 h-3 rounded-full"
-                  style={{ backgroundColor: item.color }}
-                />
-                <span>{item.category}</span>
-              </div>
-              <span className="font-medium">{formatAmount(item.amount)}</span>
+    <div className="space-y-6">
+      {/* カテゴリー別支出 */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+      >
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold">カテゴリー別支出</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {categoryPercentages.map((item, index) => (
+                <motion.div
+                  key={item.category}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.1 + index * 0.1 }}
+                  className="flex items-center justify-between"
+                >
+                  <div className="flex items-center space-x-3">
+                    <Badge variant="secondary" className="min-w-[60px] text-center">
+                      {item.category}
+                    </Badge>
+                    <div className="flex-1 bg-gray-200 rounded-full h-2">
+                      <motion.div
+                        className="bg-blue-500 h-2 rounded-full"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${item.percentage}%` }}
+                        transition={{ delay: 0.2 + index * 0.1, duration: 0.8 }}
+                      />
+                    </div>
+                  </div>
+                  <div className="text-sm font-medium text-gray-700 min-w-[80px] text-right">
+                    ¥{item.amount.toLocaleString()}
+                  </div>
+                </motion.div>
+              ))}
             </div>
-          ))}
-          {/* ポップアップ */}
-          {popup && (
-            <div
-              className="fixed z-50 bg-white border shadow-lg rounded-lg px-4 py-2 text-sm font-medium animate-fade-in"
-              style={{ left: popup.x, top: popup.y - 48, transform: 'translate(-50%, -100%)' }}
-              onClick={() => setPopup(null)}
-            >
-              <div className="text-gray-700">{popup.category}</div>
-              <div className="text-gray-500">{formatAmount(popup.amount)}</div>
-              <div className="text-xs text-blue-500 mt-1">タップで閉じる</div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* 日別収支チャート */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+      >
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold">日別収支</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {chartData.slice(-7).map((item, index) => (
+                <motion.div
+                  key={item.date}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.4 + index * 0.05 }}
+                  className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50"
+                >
+                  <div className="flex items-center space-x-3">
+                    <span className="text-sm text-gray-600 min-w-[80px]">
+                      {new Date(item.date).getDate()}日
+                    </span>
+                    <div className="flex-1 bg-gray-200 rounded-full h-3">
+                      <motion.div
+                        className={`h-3 rounded-full ${
+                          item.isExpense ? 'bg-red-500' : 'bg-green-500'
+                        }`}
+                        initial={{ width: 0 }}
+                        animate={{ 
+                          width: `${Math.min((item.absAmount / 10000) * 100, 100)}%` 
+                        }}
+                        transition={{ delay: 0.5 + index * 0.05, duration: 0.6 }}
+                      />
+                    </div>
+                  </div>
+                  <span className={`text-sm font-medium ${
+                    item.isExpense ? 'text-red-600' : 'text-green-600'
+                  }`}>
+                    {item.isExpense ? '-' : '+'}¥{item.absAmount.toLocaleString()}
+                  </span>
+                </motion.div>
+              ))}
             </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+          </CardContent>
+        </Card>
+      </motion.div>
+    </div>
   );
-};
+});
+
+ExpenseChart.displayName = 'ExpenseChart';

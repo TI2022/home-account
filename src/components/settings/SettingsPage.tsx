@@ -1,7 +1,17 @@
 import { motion } from 'framer-motion';
-import { RecurringIncomeSettings } from './RecurringIncomeSettings';
-import { RecurringExpenseSettings } from './RecurringExpenseSettings';
+import { lazy, Suspense } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
+// 遅延読み込みでパフォーマンスを改善
+const RecurringIncomeSettings = lazy(() => import('./RecurringIncomeSettings').then(module => ({ default: module.RecurringIncomeSettings })));
+const RecurringExpenseSettings = lazy(() => import('./RecurringExpenseSettings').then(module => ({ default: module.RecurringExpenseSettings })));
+
+// ローディングコンポーネント
+const SettingsLoading = () => (
+  <div className="flex items-center justify-center p-8">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+  </div>
+);
 
 export const SettingsPage = () => {
   return (
@@ -23,11 +33,15 @@ export const SettingsPage = () => {
           </TabsList>
           
           <TabsContent value="income" className="space-y-4">
-            <RecurringIncomeSettings />
+            <Suspense fallback={<SettingsLoading />}>
+              <RecurringIncomeSettings />
+            </Suspense>
           </TabsContent>
           
           <TabsContent value="expense" className="space-y-4">
-            <RecurringExpenseSettings />
+            <Suspense fallback={<SettingsLoading />}>
+              <RecurringExpenseSettings />
+            </Suspense>
           </TabsContent>
         </Tabs>
       </motion.div>

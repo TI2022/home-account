@@ -918,7 +918,7 @@ export const CalendarPage = () => {
 
           {/* Quick transaction form */}
           <QuickTransactionForm
-            mode={dialogMode}
+            mode={editingTransaction ? 'edit' : copyingTransaction ? 'copy' : 'add'}
             selectedDate={selectedDate}
             editingTransaction={editingTransaction}
             copyingTransaction={copyingTransaction}
@@ -926,7 +926,8 @@ export const CalendarPage = () => {
               setEditingTransaction(null);
               setIsDialogOpen(false);
             }}
-            // onCopyFinishはcopyingTransactionをnullにしない
+            onCopyFinish={() => setCopyingTransaction(null)}
+            testInitialFormData={showMock ? { isMock: true } : undefined}
           />
         </DialogContent>
       </Dialog>

@@ -13,7 +13,7 @@ import { useSnackbar } from '@/hooks/use-toast';
 import { EXPENSE_CATEGORIES } from '@/types';
 import type { RecurringExpense } from '@/types';
 import { Plus, Edit, Trash2, Receipt, Calendar, CheckSquare, Square } from 'lucide-react';
-import { ScenarioSelector } from '@/components/ui/scenario-selector';
+// import { ScenarioSelector } from '@/components/ui/scenario-selector';
 import {
   DndContext,
   closestCenter,
@@ -60,7 +60,6 @@ export const RecurringExpenseSettings = () => {
   const [allMonthsDay, setAllMonthsDay] = useState(27);
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedExpenseIds, setSelectedExpenseIds] = useState<string[]>([]);
-  const [selectedScenarioId, setSelectedScenarioId] = useState<string>('');
   const [isScenarioDialogOpen, setIsScenarioDialogOpen] = useState(false);
   const [expenseOrder, setExpenseOrder] = useState<string[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -500,35 +499,37 @@ export const RecurringExpenseSettings = () => {
             <DialogTitle>一括反映するシナリオ・期間を選択</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-2">
-              <Label>反映開始日</Label>
+              <div className="flex gap-4 items-center">
+                <label className="flex items-center gap-1">
+                  <input type="radio" name="isMock" value="false" checked={!isMock} onChange={() => setIsMock(false)} />
+                  <span>実際</span>
+                </label>
+                <label className="flex items-center gap-1">
+                  <input type="radio" name="isMock" value="true" checked={isMock} onChange={() => setIsMock(true)} />
+                  <span>予定</span>
+                </label>
+              </div>
+              <Label className="mt-2">反映開始日</Label>
               <input
                 type="date"
                 className="border rounded px-2 py-1 w-full"
                 value={periodStartDate}
                 onChange={e => setPeriodStartDate(e.target.value)}
                 max={periodEndDate}
+                tabIndex={-1}
+                autoFocus={false}
               />
-              <Label>反映終了日</Label>
+              <Label className="mt-2">反映終了日</Label>
               <input
                 type="date"
                 className="border rounded px-2 py-1 w-full"
                 value={periodEndDate}
                 onChange={e => setPeriodEndDate(e.target.value)}
                 min={periodStartDate}
+                tabIndex={-1}
+                autoFocus={false}
               />
-            <Label>シナリオ</Label>
-            <ScenarioSelector value={selectedScenarioId} onValueChange={setSelectedScenarioId} />
-            <Label className="mt-2">区分</Label>
-            <div className="flex gap-4 items-center">
-              <label className="flex items-center gap-1">
-                <input type="radio" name="isMock" value="false" checked={!isMock} onChange={() => setIsMock(false)} />
-                <span>実際</span>
-              </label>
-              <label className="flex items-center gap-1">
-                <input type="radio" name="isMock" value="true" checked={isMock} onChange={() => setIsMock(true)} />
-                <span>予定</span>
-              </label>
-            </div>
+            
             <Button
               className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded shadow mt-4"
               onClick={async () => {
@@ -651,7 +652,7 @@ export const RecurringExpenseSettings = () => {
                 setIsScenarioDialogOpen(false);
                 setLoading(false);
               }}
-              disabled={loading || !selectedScenarioId || periodEndDate < periodStartDate}
+              disabled={loading || periodEndDate < periodStartDate}
             >
               このシナリオ・期間で一括反映
             </Button>

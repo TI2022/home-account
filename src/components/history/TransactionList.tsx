@@ -1,386 +1,250 @@
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { useTransactionStore } from '@/store/useTransactionStore';
-import { useAppStore } from '@/store/useAppStore';
-import { Transaction } from '@/types';
+import { useMemo, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
-import { ArrowUpCircle, ArrowDownCircle, Pencil, Trash2 } from 'lucide-react';
-import { useSnackbar } from '@/hooks/use-toast';
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '@/types';
+import { Transaction } from '@/lib/domain/Transaction';
+import { useTransactionStore } from '@/store/useTransactionStore';
+import { useScenarioStore } from '@/store/useScenarioStore';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Trash2, Edit, TrendingUp, TrendingDown } from 'lucide-react';
 import { ScenarioSelector } from '@/components/ui/scenario-selector';
+import { useVirtualizer } from '@tanstack/react-virtual';
 
-export const TransactionList = () => {
-  const { transactions, deleteTransaction, updateTransaction, deleteTransactions } = useTransactionStore();
-  const { selectedMonth } = useAppStore();
-  const { showSnackbar } = useSnackbar();
-  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    type: 'expense' as 'income' | 'expense',
-    amount: '',
-    category: '',
-    memo: '',
-    date: '',
-    isMock: false,
-  });
-  const [isBulkSelectMode, setIsBulkSelectMode] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
-  const [selectedScenarioId, setSelectedScenarioId] = useState<string>('');
+interface TransactionListProps {
+  transactions: Transaction[];
+  onDelete?: (id: string) => void;
+  onEdit?: (transaction: Transaction) => void;
+  showScenarioSelector?: boolean;
+}
 
-  const filteredTransactions = transactions.filter(t => 
-    t.date.startsWith(selectedMonth)
+// 仮想化されたトランザクションアイテム
+const VirtualizedTransactionItem = ({ 
+  transaction, 
+  onDelete, 
+  onEdit, 
+  style 
+}: { 
+  transaction: Transaction; 
+  onDelete?: (id: string) => void; 
+  onEdit?: (transaction: Transaction) => void;
+  style: React.CSSProperties;
+}) => {
+  const isExpense = transaction.amount < 0;
+  const amount = Math.abs(transaction.amount);
+  
+  return (
+    <motion.div
+      style={style}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      transition={{ duration: 0.3 }}
+    >
+      <Card className="mb-2 hover:shadow-md transition-shadow">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center space-x-2 mb-2">
+                <div className={`p-1 rounded-full ${isExpense ? 'bg-red-100' : 'bg-green-100'}`}>
+                  {isExpense ? (
+                    <TrendingDown className="h-4 w-4 text-red-600" />
+                  ) : (
+                    <TrendingUp className="h-4 w-4 text-green-600" />
+                  )}
+                </div>
+                <h3 className="font-medium text-gray-900 truncate">{transaction.description}</h3>
+              </div>
+              
+              <div className="flex items-center justify-between text-sm text-gray-500">
+                <span>{format(new Date(transaction.date), 'M月d日 (E)', { locale: ja })}</span>
+                <div className="flex items-center space-x-2">
+                  {transaction.category && (
+                    <Badge variant="secondary" className="text-xs">
+                      {transaction.category}
+                    </Badge>
+                  )}
+                  {transaction.scenario_name && (
+                    <Badge variant="outline" className="text-xs">
+                      {transaction.scenario_name}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex items-center space-x-2 ml-4">
+              <span className={`font-bold text-lg ${isExpense ? 'text-red-600' : 'text-green-600'}`}>
+                ¥{amount.toLocaleString()}
+              </span>
+              
+              <div className="flex space-x-1">
+                {onEdit && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onEdit(transaction)}
+                    className="h-8 w-8 p-0"
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                )}
+                {onDelete && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onDelete(transaction.id)}
+                    className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
   );
+};
 
-  const formatAmount = (amount: number) => {
-    return amount.toLocaleString('ja-JP');
-  };
+export const TransactionList = ({ 
+  transactions, 
+  onDelete, 
+  onEdit, 
+  showScenarioSelector = false 
+}: TransactionListProps) => {
+  const { selectedScenarioId, setSelectedScenarioId } = useTransactionStore();
+  const { scenarios } = useScenarioStore();
+  
+  // メモ化: フィルタリングされたトランザクション
+  const filteredTransactions = useMemo(() => {
+    if (!selectedScenarioId) return transactions;
+    return transactions.filter(t => t.scenario_id === selectedScenarioId);
+  }, [transactions, selectedScenarioId]);
 
-  const formatDate = (dateString: string) => {
-    return format(new Date(dateString), 'M月d日(E)', { locale: ja });
-  };
-
-  const handleEdit = (transaction: Transaction) => {
-    setFormData({
-      ...transaction,
-      amount: transaction.amount.toString(),
-      memo: transaction.memo ?? '',
-      isMock: !!transaction.isMock,
-    });
-    setSelectedScenarioId(transaction.scenario_id || '');
-    setEditingTransaction(transaction);
-    setIsDialogOpen(true);
-  };
-
-  const handleDelete = async (transaction: Transaction) => {
-    if (window.confirm('この収支を削除してもよろしいですか？')) {
-      try {
-        await deleteTransaction(transaction.id);
-        showSnackbar('収支を削除しました');
-      } catch {
-        showSnackbar('削除に失敗しました', 'destructive');
-      }
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // メモ化: 日付ごとにグループ化
+  const groupedTransactions = useMemo(() => {
+    const groups: { [key: string]: Transaction[] } = {};
     
-    if (!formData.amount || !formData.category || !editingTransaction || !formData.date) {
-      showSnackbar('エラー', 'destructive');
-      return;
+    filteredTransactions.forEach(transaction => {
+      const dateKey = format(new Date(transaction.date), 'yyyy-MM-dd');
+      if (!groups[dateKey]) {
+        groups[dateKey] = [];
+      }
+      groups[dateKey].push(transaction);
+    });
+    
+    return Object.entries(groups)
+      .sort(([a], [b]) => new Date(b).getTime() - new Date(a).getTime())
+      .map(([date, transactions]) => ({
+        date,
+        transactions,
+        totalAmount: transactions.reduce((sum, t) => sum + t.amount, 0)
+      }));
+  }, [filteredTransactions]);
+
+  // 仮想化の設定
+  const parentRef = useCallback((node: HTMLDivElement | null) => {
+    if (node !== null) {
+      // 仮想化の初期化
     }
+  }, []);
 
-    try {
-      const updateData = {
-        ...formData,
-        amount: parseInt(formData.amount),
-        scenario_id: formData.isMock ? selectedScenarioId : undefined,
-      };
-      await updateTransaction({
-        ...editingTransaction,
-        type: updateData.type,
-        amount: updateData.amount,
-        category: updateData.category,
-        memo: updateData.memo,
-        date: updateData.date,
-        scenario_id: updateData.scenario_id,
-      });
-      
-      showSnackbar('収支を更新しました');
-      
-      setIsDialogOpen(false);
-      setEditingTransaction(null);
-    } catch {
-      showSnackbar('更新に失敗しました', 'destructive');
-    }
-  };
+  const rowVirtualizer = useVirtualizer({
+    count: groupedTransactions.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 120, // 各グループの推定高さ
+    overscan: 5, // オーバースキャン
+  });
 
-  const handleCancel = () => {
-    setIsDialogOpen(false);
-    setEditingTransaction(null);
-  };
-
-  const handleBulkDelete = async () => {
-    setIsConfirmDialogOpen(false);
-    try {
-      await deleteTransactions(selectedIds);
-      setSelectedIds([]);
-      setIsBulkSelectMode(false);
-      showSnackbar('選択した収支を削除しました', 'default');
-    } catch {
-      showSnackbar('一括削除に失敗しました', 'destructive');
-    }
-  };
-
-  if (filteredTransactions.length === 0) {
+  if (transactions.length === 0) {
     return (
-      <div className="text-center py-12 text-gray-500">
-        <p>この月の記録はありません</p>
+      <div className="text-center py-8 text-gray-500">
+        トランザクションがありません
       </div>
     );
   }
 
-  // Group transactions by date
-  const groupedTransactions = filteredTransactions.reduce((groups, transaction) => {
-    const date = transaction.date;
-    if (!groups[date]) {
-      groups[date] = [];
-    }
-    groups[date].push(transaction);
-    return groups;
-  }, {} as Record<string, Transaction[]>);
-
   return (
     <div className="space-y-4">
-      <div className="flex justify-end mb-2">
-        {!isBulkSelectMode ? (
-          <Button variant="outline" size="sm" onClick={() => setIsBulkSelectMode(true)}>
-            一括選択モード
-          </Button>
-        ) : (
-          <Button variant="destructive" size="sm" onClick={() => { setIsBulkSelectMode(false); setSelectedIds([]); }}>
-            一括選択解除
-          </Button>
-        )}
-      </div>
-      {Object.entries(groupedTransactions)
-        .sort(([a], [b]) => b.localeCompare(a))
-        .map(([date, dayTransactions]) => (
-          <div key={date}>
-            <h3 className="font-medium text-gray-600 mb-2 px-1">
-              {formatDate(date)}
-            </h3>
-            <div className="space-y-2">
-              {dayTransactions.map((transaction) => (
-                <Card key={transaction.id} className={`shadow-sm ${isBulkSelectMode && selectedIds.includes(transaction.id) ? 'ring-2 ring-blue-400' : ''}`}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        {isBulkSelectMode && (
-                          <input
-                            type="checkbox"
-                            checked={selectedIds.includes(transaction.id)}
-                            onChange={e => {
-                              setSelectedIds(ids =>
-                                e.target.checked
-                                  ? [...ids, transaction.id]
-                                  : ids.filter(id => id !== transaction.id)
-                              );
-                            }}
-                            className="mr-2 w-6 h-6 min-w-[1.5rem] min-h-[1.5rem] accent-blue-500 rounded border-gray-300 focus:ring-2 focus:ring-blue-400"
-                            style={{ boxSizing: 'border-box' }}
-                          />
-                        )}
-                        <div className={`p-2 rounded-full ${
-                          transaction.type === 'income' 
-                            ? 'bg-green-100' 
-                            : 'bg-red-100'
-                        }`}>
-                          {transaction.type === 'income' ? (
-                            <ArrowUpCircle className="h-4 w-4 text-green-600" />
-                          ) : (
-                            <ArrowDownCircle className="h-4 w-4 text-red-600" />
-                          )}
-                        </div>
-                        <div>
-                          <p className="font-medium text-gray-900">
-                            {transaction.category}
-                          </p>
-                          {transaction.memo && (
-                            <p className="text-gray-500 mt-1">
-                              {transaction.memo}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <p className={`font-bold ${
-                          transaction.type === 'income' 
-                            ? 'text-green-600' 
-                            : 'text-red-600'
-                        }`}>
-                          {transaction.type === 'income' ? '+' : '-'}¥{formatAmount(transaction.amount)}
-                        </p>
-                        {!isBulkSelectMode && (
-                          <>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEdit(transaction)}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDelete(transaction)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-        ))}
-      {isBulkSelectMode && (
-        <div className="fixed right-6 z-[100] flex flex-col items-end space-y-2" style={{ bottom: '5rem' }}>
-          <Button
-            variant="destructive"
-            size="lg"
-            disabled={selectedIds.length === 0}
-            onClick={() => setIsConfirmDialogOpen(true)}
-          >
-            {selectedIds.length}件を削除
-          </Button>
+      {showScenarioSelector && scenarios.length > 0 && (
+        <div className="bg-white rounded-lg p-4 shadow-sm">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            シナリオで絞り込み
+          </label>
+          <ScenarioSelector
+            value={selectedScenarioId}
+            onValueChange={setSelectedScenarioId}
+            placeholder="すべてのシナリオ"
+          />
         </div>
       )}
-      <Dialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
-        <DialogContent className="max-w-xs">
-          <DialogHeader>
-            <DialogTitle>本当に削除しますか？</DialogTitle>
-          </DialogHeader>
-          <div className="py-2 text-sm text-gray-700">
-            <div>選択件数: <b>{selectedIds.length}</b></div>
-            {selectedIds.length > 0 && (
-              <div>
-                <span>期間: </span>
-                <b>
-                  {(() => {
-                    const sel = filteredTransactions.filter(t => selectedIds.includes(t.id));
-                    if (sel.length === 0) return '-';
-                    const dates = sel.map(t => t.date).sort();
-                    return dates[0] === dates[dates.length-1]
-                      ? dates[0]
-                      : `${dates[0]} ~ ${dates[dates.length-1]}`;
-                  })()}
-                </b>
-              </div>
-            )}
-          </div>
-          <div className="flex justify-end space-x-2 mt-4">
-            <Button variant="outline" onClick={() => setIsConfirmDialogOpen(false)}>キャンセル</Button>
-            <Button variant="destructive" onClick={handleBulkDelete}>削除</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-      {/* 編集ダイアログ */}
-      <Dialog open={isDialogOpen} onOpenChange={handleCancel}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              {editingTransaction && format(new Date(editingTransaction.date), 'M月d日(E)', { locale: ja })}の記録を編集
-            </DialogTitle>
-          </DialogHeader>
-          
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label>種類</Label>
-              <RadioGroup
-                value={formData.type}
-                onValueChange={(value) => setFormData({ ...formData, type: value as 'income' | 'expense' })}
-                className="flex space-x-4"
+
+      <div 
+        ref={parentRef}
+        className="h-[600px] overflow-auto"
+        style={{
+          contain: 'strict',
+        }}
+      >
+        <div
+          style={{
+            height: `${rowVirtualizer.getTotalSize()}px`,
+            width: '100%',
+            position: 'relative',
+          }}
+        >
+          {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+            const group = groupedTransactions[virtualRow.index];
+            const isExpense = group.totalAmount < 0;
+            const totalAmount = Math.abs(group.totalAmount);
+            
+            return (
+              <div
+                key={virtualRow.index}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: `${virtualRow.size}px`,
+                  transform: `translateY(${virtualRow.start}px)`,
+                }}
               >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="expense" id="expense" />
-                  <Label htmlFor="expense">支出</Label>
+                <div className="mb-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-semibold text-gray-700">
+                      {format(new Date(group.date), 'M月d日 (E)', { locale: ja })}
+                    </h3>
+                    <div className="flex items-center space-x-2">
+                      <span className={`font-bold ${isExpense ? 'text-red-600' : 'text-green-600'}`}>
+                        ¥{totalAmount.toLocaleString()}
+                      </span>
+                      <Badge variant={isExpense ? 'destructive' : 'default'}>
+                        {isExpense ? '支出' : '収入'}
+                      </Badge>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    {group.transactions.map((transaction) => (
+                      <VirtualizedTransactionItem
+                        key={transaction.id}
+                        transaction={transaction}
+                        onDelete={onDelete}
+                        onEdit={onEdit}
+                        style={{ height: 'auto' }}
+                      />
+                    ))}
+                  </div>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="income" id="income" />
-                  <Label htmlFor="income">収入</Label>
-                </div>
-              </RadioGroup>
-            </div>
-
-            <div className="space-y-2">
-              <Label>金額</Label>
-              <Input
-                type="number"
-                value={formData.amount}
-                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                placeholder="金額を入力"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>カテゴリー</Label>
-              <Select
-                value={formData.category}
-                onValueChange={(value) => setFormData({ ...formData, category: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="カテゴリーを選択" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(formData.type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>メモ</Label>
-              <Textarea
-                value={formData.memo}
-                onChange={(e) => setFormData({ ...formData, memo: e.target.value })}
-                placeholder="メモを入力（任意）"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="date">日付</Label>
-              <Input
-                id="date"
-                type="date"
-                value={formData.date}
-                onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
-                required
-              />
-            </div>
-
-            {formData.isMock && (
-              <div className="space-y-2">
-                <Label htmlFor="scenario">シナリオ</Label>
-                <ScenarioSelector
-                  value={selectedScenarioId}
-                  onValueChange={setSelectedScenarioId}
-                  placeholder="シナリオを選択してください"
-                  className="bg-white"
-                />
               </div>
-            )}
-
-            <div className="flex justify-end space-x-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleCancel}
-              >
-                キャンセル
-              </Button>
-              <Button type="submit">
-                更新
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 };

@@ -10,7 +10,8 @@ import { useSnackbar } from '@/hooks/use-toast';
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '@/types';
 import { format } from 'date-fns';
 import { Transaction } from '@/types';
-import { ScenarioSelector } from '@/components/ui/scenario-selector';
+import { useScenarioStore } from '@/store/useScenarioStore';
+// import { ScenarioSelector } from '@/components/ui/scenario-selector';
 
 export interface QuickTransactionFormProps {
   mode: 'add' | 'edit' | 'copy';
@@ -45,6 +46,7 @@ export const QuickTransactionForm = ({
 }: QuickTransactionFormProps) => {
   const { addTransaction, updateTransaction } = useTransactionStore();
   const { showSnackbar } = useSnackbar();
+  const { getDefaultScenario } = useScenarioStore();
   const [formData, setFormData] = useState({
     type: 'expense' as 'income' | 'expense',
     amount: '',
@@ -66,7 +68,7 @@ export const QuickTransactionForm = ({
   const [errorToast, setErrorToast] = useState<string | null>(null);
   const [lastAction, setLastAction] = useState<'add' | 'update' | null>(null);
   const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const [selectedScenarioId, setSelectedScenarioId] = useState<string>('');
+  // const [selectedScenarioId, setSelectedScenarioId] = useState<string>('');
 
   // 編集トランザクションまたは日付が変わった時にformDataを初期化
   useEffect(() => {
@@ -83,7 +85,7 @@ export const QuickTransactionForm = ({
         date: testInitialFormData.date || format(selectedDate, 'yyyy-MM-dd'),
       };
       setFormData(newFormData);
-      setSelectedScenarioId(testSelectedScenarioId || '');
+      // setSelectedScenarioId(testSelectedScenarioId || ''); // 削除
       console.log('QuickTransactionForm: setFormData (test)', newFormData);
       return;
     }
@@ -99,7 +101,7 @@ export const QuickTransactionForm = ({
         date: externalEditingTransaction.date,
       };
       setFormData(newFormData);
-      setSelectedScenarioId(externalEditingTransaction.scenario_id || '');
+      // setSelectedScenarioId(externalEditingTransaction.scenario_id || ''); // 削除
       console.log('QuickTransactionForm: setFormData (edit)', newFormData);
     } else if (mode === 'copy' && copyingTransaction) {
       setEditingTransaction(null);
@@ -112,7 +114,7 @@ export const QuickTransactionForm = ({
         date: format(selectedDate, 'yyyy-MM-dd'),
       };
       setFormData(newFormData);
-      setSelectedScenarioId(copyingTransaction.scenario_id || '');
+      // setSelectedScenarioId(copyingTransaction.scenario_id || ''); // 削除
       console.log('QuickTransactionForm: setFormData (copy)', newFormData);
     } else if (mode === 'add' && !externalEditingTransaction && !copyingTransaction) {
       setEditingTransaction(null);
@@ -125,7 +127,7 @@ export const QuickTransactionForm = ({
         date: format(selectedDate, 'yyyy-MM-dd'),
       };
       setFormData(newFormData);
-      setSelectedScenarioId('');
+      // setSelectedScenarioId(''); // 削除
       console.log('QuickTransactionForm: setFormData (add)', newFormData);
     }
   }, [mode, externalEditingTransaction, copyingTransaction, testInitialFormData, testSelectedScenarioId, selectedDate]);
@@ -182,7 +184,7 @@ export const QuickTransactionForm = ({
         isMock: !!editingTransaction.isMock,
         date: editingTransaction.date,
       });
-      setSelectedScenarioId(editingTransaction.scenario_id || '');
+      // setSelectedScenarioId(editingTransaction.scenario_id || ''); // 削除
     }
   }, [editingTransaction]);
 
@@ -198,7 +200,7 @@ export const QuickTransactionForm = ({
         isMock: !!copyingTransaction.isMock,
         date: format(selectedDate, 'yyyy-MM-dd'), // コピー時は選択中日付に
       });
-      setSelectedScenarioId(copyingTransaction.scenario_id || '');
+      // setSelectedScenarioId(copyingTransaction.scenario_id || ''); // 削除
       if (onCopyFinish) onCopyFinish();
     }
   }, [copyingTransaction, selectedDate, onCopyFinish]);
@@ -210,6 +212,9 @@ export const QuickTransactionForm = ({
       showSnackbar('エラー', 'destructive');
       return;
     }
+    // 予定の場合はデフォルトシナリオIDを取得
+    const defaultScenario = formData.isMock ? getDefaultScenario() : null;
+    const scenario_id = formData.isMock && defaultScenario ? defaultScenario.id : undefined;
     const submitData = {
       date: editingTransaction ? formData.date : format(selectedDate, 'yyyy-MM-dd'),
       type: formData.type,
@@ -217,7 +222,7 @@ export const QuickTransactionForm = ({
       category: formData.category,
       memo: formData.memo,
       isMock: formData.isMock,
-      scenario_id: formData.isMock ? selectedScenarioId : undefined,
+      scenario_id,
     };
     if (
       lastSubmitted &&
@@ -247,7 +252,7 @@ export const QuickTransactionForm = ({
           memo: formData.memo,
           isMock: formData.isMock,
           date: formData.date,
-          scenario_id: formData.isMock ? selectedScenarioId : undefined,
+          scenario_id,
         });
         setLastAction('update');
         setSuccessToastOpen(true);
@@ -263,7 +268,7 @@ export const QuickTransactionForm = ({
           category: submitData.category,
           memo: submitData.memo,
           isMock: submitData.isMock,
-          scenario_id: submitData.scenario_id,
+          scenario_id,
         });
         setLastAction('add');
         setSuccessToastOpen(true);
@@ -281,7 +286,7 @@ export const QuickTransactionForm = ({
         date: format(selectedDate, 'yyyy-MM-dd'),
       });
       setEditingTransaction(null);
-      setSelectedScenarioId('');
+      // setSelectedScenarioId(''); // 削除
     } catch (error: unknown) {
       console.error('Transaction operation failed:', error);
       let message = '操作に失敗しました';
@@ -356,24 +361,71 @@ export const QuickTransactionForm = ({
 
         {/* 編集モードの時に日付変更フィールドを表示 */}
         {editingTransaction && (
+          <>
+            <div className="space-y-2">
+              <Label>日付</Label>
+              <Input
+                className="bg-white"
+                type="date"
+                value={formData.date}
+                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>区分</Label>
+              <div className="flex gap-4 items-center">
+                <label className="flex items-center gap-1">
+                  <input
+                    type="radio"
+                    name="isMock"
+                    value="false"
+                    checked={!formData.isMock}
+                    onChange={() => setFormData({ ...formData, isMock: false })}
+                  />
+                  <span>実際</span>
+                </label>
+                <label className="flex items-center gap-1">
+                  <input
+                    type="radio"
+                    name="isMock"
+                    value="true"
+                    checked={formData.isMock}
+                    onChange={() => setFormData({ ...formData, isMock: true })}
+                  />
+                  <span>予定</span>
+                </label>
+              </div>
+            </div>
+          </>
+        )}
+        {/* 追加モードの時も区分を選択可能にする */}
+        {!editingTransaction && (
           <div className="space-y-2">
-            <Label>日付</Label>
-            <Input
-              className="bg-white"
-              type="date"
-              value={formData.date}
-              onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-            />
+            <Label>区分</Label>
+            <div className="flex gap-4 items-center">
+              <label className="flex items-center gap-1">
+                <input
+                  type="radio"
+                  name="isMock"
+                  value="false"
+                  checked={!formData.isMock}
+                  onChange={() => setFormData({ ...formData, isMock: false })}
+                />
+                <span>実際</span>
+              </label>
+              <label className="flex items-center gap-1">
+                <input
+                  type="radio"
+                  name="isMock"
+                  value="true"
+                  checked={formData.isMock}
+                  onChange={() => setFormData({ ...formData, isMock: true })}
+                />
+                <span>予定</span>
+              </label>
+            </div>
           </div>
         )}
-
-        <div className="flex flex-col items-center space-y-1">
-          <div className="text-xs text-gray-500 mt-1">
-            <span className="font-bold text-blue-500">実際の収支</span>は確定した記録、<span className="font-bold text-orange-400">予定の収支</span>は将来の予定や仮の記録です
-          </div>
-          {/* 収支種別切り替えボタン（カレンダー画面からは削除） */}
-          {/* 削除済み */}
-        </div>
         
 
         <div className="space-y-2">
@@ -426,17 +478,7 @@ export const QuickTransactionForm = ({
           )}
         </div>
 
-        {formData.isMock && (
-          <div className="space-y-2">
-            <Label htmlFor="scenario">シナリオ</Label>
-            <ScenarioSelector
-              value={selectedScenarioId}
-              onValueChange={setSelectedScenarioId}
-              placeholder="シナリオを選択してください"
-              className="bg-white"
-            />
-          </div>
-        )}
+        {/* フォーム内のScenarioSelector部分を削除 */}
 
         <div className="space-y-2">
           <Label>メモ</Label>

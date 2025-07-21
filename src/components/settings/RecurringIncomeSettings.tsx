@@ -13,7 +13,7 @@ import { useSnackbar } from '@/hooks/use-toast';
 import { INCOME_CATEGORIES } from '@/types';
 import type { RecurringIncome } from '@/types';
 import { Plus, Edit, Trash2, Receipt, Calendar, CheckSquare, Square } from 'lucide-react';
-import { ScenarioSelector } from '@/components/ui/scenario-selector';
+// import { ScenarioSelector } from '@/components/ui/scenario-selector';
 import {
   DndContext,
   closestCenter,
@@ -61,7 +61,6 @@ export const RecurringIncomeSettings = () => {
   // 一括反映・ダイアログ関連のstateは不要になったので削除
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedIncomeIds, setSelectedIncomeIds] = useState<string[]>([]);
-  const [selectedScenarioId, setSelectedScenarioId] = useState<string>('');
   const [isScenarioDialogOpen, setIsScenarioDialogOpen] = useState(false);
   const [incomeOrder, setIncomeOrder] = useState<string[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -678,25 +677,6 @@ export const RecurringIncomeSettings = () => {
             <DialogTitle>一括反映するシナリオ・期間を選択</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-2">
-            <Label>反映開始日</Label>
-            <input
-              type="date"
-              className="border rounded px-2 py-1 w-full"
-              value={periodStartDate}
-              onChange={e => setPeriodStartDate(e.target.value)}
-              max={periodEndDate}
-            />
-            <Label>反映終了日</Label>
-            <input
-              type="date"
-              className="border rounded px-2 py-1 w-full"
-              value={periodEndDate}
-              onChange={e => setPeriodEndDate(e.target.value)}
-              min={periodStartDate}
-            />
-            <Label>シナリオ</Label>
-            <ScenarioSelector value={selectedScenarioId} onValueChange={setSelectedScenarioId} />
-            <Label className="mt-2">区分</Label>
             <div className="flex gap-4 items-center">
               <label className="flex items-center gap-1">
                 <input type="radio" name="isMock" value="false" checked={!isMock} onChange={() => setIsMock(false)} />
@@ -707,6 +687,29 @@ export const RecurringIncomeSettings = () => {
                 <span>予定</span>
               </label>
             </div>
+            <Label className="mt-2">反映開始日</Label>
+            <input
+              type="date"
+              className="border rounded px-2 py-1 w-full"
+              value={periodStartDate}
+              onChange={e => setPeriodStartDate(e.target.value)}
+              max={periodEndDate}
+              tabIndex={-1}
+              autoFocus={false}
+            />
+            <Label className="mt-2">反映終了日</Label>
+            <input
+              type="date"
+              className="border rounded px-2 py-1 w-full"
+              value={periodEndDate}
+              onChange={e => setPeriodEndDate(e.target.value)}
+              min={periodStartDate}
+              tabIndex={-1}
+              autoFocus={false}
+            />
+            {/* ScenarioSelectorを削除 */}
+
+
             <Button
               className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded shadow mt-4"
               onClick={async () => {
@@ -733,7 +736,6 @@ export const RecurringIncomeSettings = () => {
                             t.amount === income.amount &&
                             t.category === income.category &&
                             t.type === 'income' &&
-                            t.scenario_id === (selectedScenarioId || undefined) &&
                             (t.isMock ?? false) === isMock
                           );
                           if (exists) {
@@ -746,7 +748,6 @@ export const RecurringIncomeSettings = () => {
                               date: paymentDateStr,
                               memo: income.name,
                               isMock,
-                              scenario_id: selectedScenarioId || undefined,
                             });
                             didRegister = true;
                           }
@@ -784,7 +785,7 @@ export const RecurringIncomeSettings = () => {
                 setIsScenarioDialogOpen(false);
                 setLoading(false);
               }}
-              disabled={loading || !selectedScenarioId || periodEndDate < periodStartDate}
+              disabled={loading || !selectedIncomeIds.length || periodEndDate < periodStartDate}
             >
               このシナリオ・期間で一括反映
             </Button>

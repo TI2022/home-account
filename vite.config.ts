@@ -14,8 +14,27 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src')
     }
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // React関連を分離
+          'react-vendor': ['react', 'react-dom'],
+          // ルーティング関連を分離
+          'router-vendor': ['react-router-dom'],
+          // UIライブラリを分離
+          'ui-vendor': ['framer-motion', 'lucide-react'],
+          // チャート関連を分離
+          'chart-vendor': ['recharts'],
+          // 仮想化ライブラリを分離
+          'virtual-vendor': ['@tanstack/react-virtual', 'react-window'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 1000, // 警告閾値を調整
+  },
   optimizeDeps: {
-    exclude: ['lucide-react']
+    include: ['react', 'react-dom', 'react-router-dom'],
   },
   test: {
     projects: [{

@@ -1,48 +1,107 @@
-import { useEffect } from 'react';
+import { useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { GameDashboard } from '@/components/gamification/GameDashboard';
-import { AnimatedButton } from '@/components/ui/animated-button';
+import { SummaryCards } from './SummaryCards';
+import { ExpenseChart } from './ExpenseChart';
 import { useTransactionStore } from '@/store/useTransactionStore';
 import { useAppStore } from '@/store/useAppStore';
 
-export const HomePage = () => {
-  const { fetchTransactions, loading } = useTransactionStore();
-  const { setCurrentTab } = useAppStore();
+// メモ化されたホームページコンポーネント
+const MemoizedHomePage = () => {
+  const { transactions, fetchTransactions } = useTransactionStore();
+  const { selectedMonth } = useAppStore();
 
-  useEffect(() => {
+  // メモ化: 選択された月のトランザクション
+  const monthlyTransactions = useMemo(() => {
+    return transactions.filter(t => t.date.startsWith(selectedMonth));
+  }, [transactions, selectedMonth]);
+
+  // メモ化: 収入と支出の計算
+  const { income, expense, balance } = useMemo(() => {
+    const income = monthlyTransactions
+      .filter(t => t.amount > 0)
+      .reduce((sum, t) => sum + t.amount, 0);
+    
+    const expense = monthlyTransactions
+      .filter(t => t.amount < 0)
+      .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+    
+    return {
+      income,
+      expense,
+      balance: income - expense
+    };
+  }, [monthlyTransactions]);
+
+  // メモ化: カテゴリー別の集計
+  const categoryData = useMemo(() => {
+    const categoryMap = new Map<string, number>();
+    
+    monthlyTransactions
+      .filter(t => t.amount < 0 && t.category)
+      .forEach(t => {
+        const current = categoryMap.get(t.category) || 0;
+        categoryMap.set(t.category, current + Math.abs(t.amount));
+      });
+    
+    return Array.from(categoryMap.entries())
+      .map(([category, amount]) => ({ category, amount }))
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 5); // 上位5カテゴリー
+  }, [monthlyTransactions]);
+
+  // メモ化: 日別の集計
+  const dailyData = useMemo(() => {
+    const dailyMap = new Map<string, number>();
+    
+    monthlyTransactions.forEach(t => {
+      const date = t.date;
+      const current = dailyMap.get(date) || 0;
+      dailyMap.set(date, current + t.amount);
+    });
+    
+    return Array.from(dailyMap.entries())
+      .map(([date, amount]) => ({ date, amount }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, [monthlyTransactions]);
+
+  // コールバック関数のメモ化
+  const handleRefresh = useCallback(() => {
     fetchTransactions();
   }, [fetchTransactions]);
 
   return (
-    <div className="pb-20 space-y-6">
+    <motion.div 
+      className="pb-20"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.6 }}
+    >
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8, ease: "easeOut" }}
-        className="w-full"
+        transition={{ delay: 0.1 }}
       >
-        <GameDashboard />
+        <SummaryCards 
+          income={income}
+          expense={expense}
+          balance={balance}
+          onRefresh={handleRefresh}
+        />
       </motion.div>
-      <motion.div 
-        className="flex justify-center"
-        initial={{ opacity: 0, y: 20 }}
+
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8, delay: 0.4, ease: "easeOut" }}
+        transition={{ delay: 0.2 }}
+        className="mt-6"
       >
-        <AnimatedButton
-          onClick={() => setCurrentTab('add')}
-          className="px-8 py-3 rounded-full shadow-lg bg-gradient-to-r from-pink-400 via-pink-500 to-rose-500 hover:from-pink-500 hover:via-pink-600 hover:to-rose-600 text-white"
-          size="lg"
-          sparkle
-        >
-          支出を記録
-        </AnimatedButton>
+        <ExpenseChart 
+          categoryData={categoryData}
+          dailyData={dailyData}
+        />
       </motion.div>
-      {loading && (
-        <div className="flex justify-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
-        </div>
-      )}
-    </div>
+    </motion.div>
   );
 };
+
+export { MemoizedHomePage as HomePage };

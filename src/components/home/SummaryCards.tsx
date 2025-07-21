@@ -1,117 +1,120 @@
-import { CuteCard } from '@/components/ui/cute-card';
-import { CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { memo } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowUpCircle, ArrowDownCircle, Wallet } from 'lucide-react';
-import { useTransactionStore } from '@/store/useTransactionStore';
-import { useAppStore } from '@/store/useAppStore';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { RefreshCw, TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
 
-export const SummaryCards = () => {
-  const { transactions } = useTransactionStore();
-  const { selectedMonth } = useAppStore();
+interface SummaryCardsProps {
+  income: number;
+  expense: number;
+  balance: number;
+  onRefresh?: () => void;
+}
 
-  const monthTransactions = transactions.filter(t => 
-    t.date.startsWith(selectedMonth)
-  );
-
-  const totalIncome = monthTransactions
-    .filter(t => t.type === 'income')
-    .reduce((sum, t) => sum + t.amount, 0);
-
-  const totalExpense = monthTransactions
-    .filter(t => t.type === 'expense')
-    .reduce((sum, t) => sum + t.amount, 0);
-
-  const balance = totalIncome - totalExpense;
-
-  const formatAmount = (amount: number) => {
-    return amount.toLocaleString('ja-JP');
-  };
-
+// メモ化されたサマリーカードコンポーネント
+export const SummaryCards = memo(({ 
+  income, 
+  expense, 
+  balance, 
+  onRefresh 
+}: SummaryCardsProps) => {
   return (
-    <div className="grid grid-cols-1 gap-4 mb-6">
-      <motion.div
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.6, delay: 0.1, ease: "easeOut" }}
-      >
-        <CuteCard variant="green" hover glow>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="font-medium text-emerald-800">今月の収入</CardTitle>
-          <motion.div
-            animate={{ scale: [1, 1.05, 1] }}
-            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-gray-800">今月の収支</h2>
+        {onRefresh && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onRefresh}
+            className="text-gray-600 hover:text-gray-800"
           >
-            <ArrowUpCircle className="h-4 w-4 text-emerald-600" />
-          </motion.div>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-emerald-900">
-            ¥{formatAmount(totalIncome)}
-          </div>
-        </CardContent>
-        </CuteCard>
-      </motion.div>
+            <RefreshCw className="h-4 w-4 mr-1" />
+            更新
+          </Button>
+        )}
+      </div>
 
-      <motion.div
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
-      >
-        <CuteCard variant="pink" hover glow>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="font-medium text-rose-800">今月の支出</CardTitle>
-          <motion.div
-            animate={{ scale: [1, 1.05, 1] }}
-            transition={{ duration: 4, repeat: Infinity, delay: 1, ease: "easeInOut" }}
-          >
-            <ArrowDownCircle className="h-4 w-4 text-rose-600" />
-          </motion.div>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-rose-900">
-            ¥{formatAmount(totalExpense)}
-          </div>
-        </CardContent>
-        </CuteCard>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.6, delay: 0.3, ease: "easeOut" }}
-      >
-        <CuteCard 
-          variant={balance >= 0 ? 'blue' : 'purple'} 
-          hover 
-          glow
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* 収入カード */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
         >
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className={`font-medium ${
-            balance >= 0 ? 'text-blue-800' : 'text-purple-800'
+          <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-green-600">収入</p>
+                  <p className="text-2xl font-bold text-green-700">
+                    ¥{income.toLocaleString()}
+                  </p>
+                </div>
+                <div className="bg-green-500 p-3 rounded-full">
+                  <TrendingUp className="h-6 w-6 text-white" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* 支出カード */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+        >
+          <Card className="bg-gradient-to-br from-red-50 to-red-100 border-red-200">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-red-600">支出</p>
+                  <p className="text-2xl font-bold text-red-700">
+                    ¥{expense.toLocaleString()}
+                  </p>
+                </div>
+                <div className="bg-red-500 p-3 rounded-full">
+                  <TrendingDown className="h-6 w-6 text-white" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* 残高カード */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <Card className={`bg-gradient-to-br ${
+            balance >= 0 
+              ? 'from-blue-50 to-blue-100 border-blue-200' 
+              : 'from-orange-50 to-orange-100 border-orange-200'
           }`}>
-            残高
-          </CardTitle>
-          <motion.div
-            animate={{ 
-              rotate: [0, 5, -5, 0],
-              scale: [1, 1.05, 1]
-            }}
-            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-          >
-            <Wallet className={`h-4 w-4 ${
-              balance >= 0 ? 'text-blue-600' : 'text-purple-600'
-            }`} />
-          </motion.div>
-        </CardHeader>
-        <CardContent>
-          <div className={`text-2xl font-bold ${
-            balance >= 0 ? 'text-blue-900' : 'text-purple-900'
-          }`}>
-            ¥{formatAmount(balance)}
-          </div>
-        </CardContent>
-        </CuteCard>
-      </motion.div>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">残高</p>
+                  <p className={`text-2xl font-bold ${
+                    balance >= 0 ? 'text-blue-700' : 'text-orange-700'
+                  }`}>
+                    ¥{balance.toLocaleString()}
+                  </p>
+                </div>
+                <div className={`p-3 rounded-full ${
+                  balance >= 0 ? 'bg-blue-500' : 'bg-orange-500'
+                }`}>
+                  <DollarSign className="h-6 w-6 text-white" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
     </div>
   );
-};
+});
+
+SummaryCards.displayName = 'SummaryCards';

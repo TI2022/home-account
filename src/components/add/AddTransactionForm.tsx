@@ -219,9 +219,6 @@ export const AddTransactionForm = () => {
                       <span className="text-lg">🕒</span> 予定の収支
                     </button>
                   </div>
-                  <div className="text-xs text-gray-500 mt-1">
-                    <span className="font-bold text-blue-500">実際の収支</span>は確定した記録、<span className="font-bold text-orange-400">予定の収支</span>は将来の予定や仮の記録です
-                  </div>
                 </div>
 
                 {/* シナリオ選択（予定収支の場合のみ表示） */}
