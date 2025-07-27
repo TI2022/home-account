@@ -23,7 +23,10 @@ const DialogOverlay = React.forwardRef<
       className
     )}
     {...props}
-  />
+  >
+    {/* 下部（navbar高さ分）はクリック透過 */}
+    <div className="absolute left-0 right-0 bottom-0 h-16 pointer-events-none" />
+  </DialogPrimitive.Overlay>
 ));
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 

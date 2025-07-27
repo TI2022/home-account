@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useAppStore } from '@/store/useAppStore';
-import { Menu, LogOut, User, Palette, Home, History, Plus, BarChart3, Settings } from 'lucide-react';
+import { Menu, LogOut, User, Palette, History, Plus, BarChart3, Settings } from 'lucide-react';
 
 export const Header = () => {
   const { signOut, user } = useAuthStore();
@@ -18,11 +18,6 @@ export const Header = () => {
 
   const handleBackgroundSettings = () => {
     setCurrentTab('background');
-    setIsMenuOpen(false);
-  };
-
-  const handleStatus = () => {
-    setCurrentTab('home');
     setIsMenuOpen(false);
   };
 
@@ -114,14 +109,6 @@ export const Header = () => {
 
               {/* Menu Items */}
               <div className="space-y-2">
-                <Button
-                  variant="ghost"
-                  onClick={handleStatus}
-                  className="w-full justify-start text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                >
-                  <Home className="h-4 w-4 mr-3" />
-                  ステータス
-                </Button>
                 
                 <Button
                   variant="ghost"

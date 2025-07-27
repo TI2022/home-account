@@ -22,12 +22,35 @@ export const GraphPage = () => {
   const { transactions } = useTransactionStore();
   const { savingsAmount } = useSavingsStore();
 
-  const [showMock, setShowMock] = useState(false); // 仮データも表示するか
+  // 予定/実際切り替え用の状態
+  const [showMock, setShowMock] = useState<'actual' | 'mock'>('actual');
+
+  // 予定/実際切り替えに応じたトランザクションフィルタ
+  const filteredTransactions = useMemo(() => {
+    if (showMock === 'mock') {
+      return transactions.filter(t => t.isMock);
+    } else {
+      return transactions.filter(t => !t.isMock);
+    }
+  }, [transactions, showMock]);
+
+  // 月ごとのリストを作成
+  const months = useMemo(() => {
+    const set = new Set<string>();
+    filteredTransactions.forEach((t) => {
+      const date = typeof t.date === 'string' ? parseISO(t.date) : t.date;
+      set.add(format(date, 'yyyy-MM'));
+    });
+    return Array.from(set).sort((a, b) => b.localeCompare(a)); // 新しい順
+  }, [filteredTransactions]);
+
+  // 選択中の月
+  const [selectedMonth, setSelectedMonth] = useState<string>(months[0] || '');
 
   // 月別収支データ
   const monthlyData = useMemo(() => {
     const map: Record<string, { month: string; income: number; expense: number; balance: number }> = {};
-    transactions.filter(t => showMock || !t.isMock).forEach((t) => {
+    filteredTransactions.forEach((t) => {
       const date = typeof t.date === 'string' ? parseISO(t.date) : t.date;
       const key = format(date, 'yyyy-MM');
       if (!map[key]) {
@@ -41,20 +64,33 @@ export const GraphPage = () => {
       map[key].balance = map[key].income - map[key].expense;
     });
     return Object.values(map).sort((a, b) => a.month.localeCompare(b.month));
-  }, [transactions, showMock]);
+  }, [filteredTransactions]);
 
-  // カテゴリ別支出データ
-  const categoryData = useMemo(() => {
-    const map: Record<string, number> = {};
-    transactions.filter(t => showMock || !t.isMock).forEach((t) => {
-      if (t.type === 'expense') {
-        map[t.category] = (map[t.category] || 0) + t.amount;
+  // 選択月のカテゴリ別収支データ
+  const selectedMonthCategoryData = useMemo(() => {
+    const map: Record<string, { income: number; expense: number }> = {};
+    filteredTransactions.forEach((t) => {
+      const date = typeof t.date === 'string' ? parseISO(t.date) : t.date;
+      const key = format(date, 'yyyy-MM');
+      if (key !== selectedMonth) return;
+      if (!map[t.category]) {
+        map[t.category] = { income: 0, expense: 0 };
+      }
+      if (t.type === 'income') {
+        map[t.category].income += t.amount;
+      } else if (t.type === 'expense') {
+        map[t.category].expense += t.amount;
       }
     });
+    // 収入・支出両方が0のカテゴリは除外
     return Object.entries(map)
-      .map(([category, amount]) => ({ category, amount }))
-      .sort((a, b) => b.amount - a.amount);
-  }, [transactions, showMock]);
+      .map(([category, { income, expense }]) => ({
+        category,
+        income,
+        expense: Math.abs(expense),
+      }))
+      .filter(item => item.income !== 0 || item.expense !== 0);
+  }, [filteredTransactions, selectedMonth]);
 
   const COLORS = [
     '#22C55E', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6',
@@ -63,9 +99,8 @@ export const GraphPage = () => {
 
   // 貯蓄残高の推移データ（各月末時点の残高を計算）
   const savingsHistory = useMemo(() => {
-    // 月ごとに収入・支出を集計
     const map: Record<string, { month: string; income: number; expense: number }> = {};
-    transactions.filter(t => showMock || !t.isMock).forEach((t) => {
+    filteredTransactions.forEach((t) => {
       const date = typeof t.date === 'string' ? parseISO(t.date) : t.date;
       const key = format(date, 'yyyy-MM');
       if (!map[key]) {
@@ -77,14 +112,12 @@ export const GraphPage = () => {
         map[key].expense += t.amount;
       }
     });
-    // 月順に並べて残高を累積計算
     const sorted = Object.entries(map).sort(([a], [b]) => a.localeCompare(b));
     let balance = 0;
     const result = sorted.map(([, { month, income, expense }]) => {
       balance += income - expense;
       return { month, balance };
     });
-    // 最新の貯蓄額と一致しない場合、現在月を追加
     if (result.length > 0 && savingsAmount !== undefined) {
       const last = result[result.length - 1];
       if (last.balance !== savingsAmount) {
@@ -96,7 +129,7 @@ export const GraphPage = () => {
       }
     }
     return result;
-  }, [transactions, savingsAmount, showMock]);
+  }, [filteredTransactions, savingsAmount]);
 
   // 期間指定集計用の状態
   const [period, setPeriod] = useState<'month' | 'year' | 'week'>('month');
@@ -104,7 +137,7 @@ export const GraphPage = () => {
   // 期間ごとの集計データ
   const periodData = useMemo(() => {
     const map: Record<string, { label: string; income: number; expense: number; balance: number }> = {};
-    transactions.forEach((t) => {
+    filteredTransactions.forEach((t) => {
       const date = typeof t.date === 'string' ? parseISO(t.date) : t.date;
       let key = '';
       let label = '';
@@ -132,7 +165,7 @@ export const GraphPage = () => {
     });
     // ラベル順に並べる
     return Object.values(map).sort((a, b) => a.label.localeCompare(b.label));
-  }, [transactions, period]);
+  }, [filteredTransactions, period]);
 
   // 収支の増減に応じて色分け・アニメーションを付与する関数
   const getBalanceBarColor = (balance: number) => {
@@ -149,18 +182,108 @@ export const GraphPage = () => {
 
   return (
     <div className="pb-20 space-y-8">
-      {/* 仮データ表示切り替えスイッチ */}
-      <div className="flex items-center gap-2 mb-2">
-        <label className="flex items-center gap-1 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={showMock}
-            onChange={e => setShowMock(e.target.checked)}
-          />
-          <span className="text-sm">仮データも表示</span>
-        </label>
+      {/* 予定/実際切り替えボタン（この位置でsticky固定） */}
+      <div className="sticky top-0 z-20 bg-white/90 border-b border-gray-200 flex items-center justify-center py-3 mb-4 shadow-sm">
+        <div className="flex gap-2">
+          <button
+            className={`px-4 py-2 rounded font-bold transition-colors duration-150 ${showMock === 'actual' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-blue-100'}`}
+            onClick={() => setShowMock('actual')}
+          >
+            実際の収支
+          </button>
+          <button
+            className={`px-4 py-2 rounded font-bold transition-colors duration-150 ${showMock === 'mock' ? 'bg-pink-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-pink-100'}`}
+            onClick={() => setShowMock('mock')}
+          >
+            予定の収支
+          </button>
+        </div>
       </div>
 
+      <Card>
+        <CardHeader>
+          <CardTitle>月別カテゴリ別収支割合</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex mb-4">
+            <select
+              id="month-select"
+              value={selectedMonth}
+              onChange={e => setSelectedMonth(e.target.value)}
+              className="border-2 border-blue-300 rounded px-3 py-2 text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white shadow-sm"
+              style={{ minWidth: '140px' }}
+            >
+              {months.map(month => (
+                <option key={month} value={month}>
+                  {format(parseISO(month + '-01'), 'yyyy年M月')}
+                </option>
+              ))}
+            </select>
+          </div>
+          {selectedMonthCategoryData.length === 0 ? (
+            <div className="text-center text-gray-500">データがありません</div>
+          ) : (
+            <div className="flex flex-col md:flex-row gap-8">
+              <div className="flex-1 bg-red-50 rounded-xl p-4">
+                <div className="font-bold mb-2 flex items-center justify-between">
+                  <span>支出割合</span>
+                  <span className="text-red-600 text-base font-semibold ml-2">合計：¥{selectedMonthCategoryData.reduce((sum, d) => sum + d.expense, 0).toLocaleString()}</span>
+                </div>
+                <ResponsiveContainer width="100%" height={250}>
+                  <PieChart>
+                    <Pie
+                      data={selectedMonthCategoryData.filter(d => d.expense > 0)}
+                      dataKey="expense"
+                      nameKey="category"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={60}
+                      label={({ category, percent }) =>
+                        percent > 0.05 ? `${category} ${(percent * 100).toFixed(0)}%` : ''
+                      }
+                      labelLine={false}
+                      className="text-[9px]"
+                    >
+                      {selectedMonthCategoryData.filter(d => d.expense > 0).map((entry, idx) => (
+                        <Cell key={entry.category} fill={COLORS[idx % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value: number) => `¥${value.toLocaleString()}`} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="flex-1 bg-green-50 rounded-xl p-4">
+                <div className="font-bold mb-2 flex items-center justify-between">
+                  <span>収入割合</span>
+                  <span className="text-green-600 text-base font-semibold ml-2">合計：¥{selectedMonthCategoryData.reduce((sum, d) => sum + d.income, 0).toLocaleString()}</span>
+                </div>
+                <ResponsiveContainer width="100%" height={250}>
+                  <PieChart>
+                    <Pie
+                      data={selectedMonthCategoryData.filter(d => d.income > 0)}
+                      dataKey="income"
+                      nameKey="category"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={60}
+                      label={({ category, percent }) =>
+                        percent > 0.05 ? `${category} ${(percent * 100).toFixed(0)}%` : ''
+                      }
+                      labelLine={false}
+                      className="text-[9px]"
+                    >
+                      {selectedMonthCategoryData.filter(d => d.income > 0).map((entry, idx) => (
+                        <Cell key={entry.category} fill={COLORS[idx % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value: number) => `¥${value.toLocaleString()}`} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
       <Card>
         <CardHeader>
           <CardTitle>月別収支推移</CardTitle>
@@ -187,56 +310,6 @@ export const GraphPage = () => {
                 <Line type="monotone" dataKey="expense" stroke="#EF4444" name="支出" />
               </LineChart>
             </ResponsiveContainer>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>カテゴリ別支出割合</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {categoryData.length === 0 ? (
-            <div className="text-center text-gray-500">支出データがありません</div>
-          ) : (
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={categoryData}
-                dataKey="amount"
-                nameKey="category"
-                cx="50%"
-                cy="50%"
-                outerRadius={60}
-                label={({ category, percent }) => 
-                  percent > 0.05 ? `${category} ${(percent * 100).toFixed(0)}%` : ''
-                }
-                labelLine={false}
-                className="text-[9px]"
-              >
-                  {categoryData.map((entry, idx) => (
-                    <Cell key={entry.category} fill={COLORS[idx % COLORS.length]} />
-                  ))}
-              </Pie>
-                <Tooltip
-                  formatter={(value: number) => `¥${value.toLocaleString()}`}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          )}
-          <div className="mt-4 space-y-1">
-            {categoryData.map((item, idx) => (
-              <div key={item.category} className="flex items-center space-x-2">
-                <span
-                  className="inline-block w-3 h-3 rounded-full"
-                  style={{ backgroundColor: COLORS[idx % COLORS.length] }}
-                />
-                <span>{item.category}</span>
-                <span className="text-gray-500">
-                  ¥{item.amount.toLocaleString()}
-                </span>
-              </div>
-            ))}
           </div>
         </CardContent>
       </Card>

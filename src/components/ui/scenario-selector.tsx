@@ -1,6 +1,6 @@
 import { useScenarioStore } from '@/store/useScenarioStore';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 
 interface ScenarioSelectorProps {
   value?: string;
@@ -18,18 +18,18 @@ export const ScenarioSelector = ({
   const { scenarios, fetchScenarios, getDefaultScenario } = useScenarioStore();
   const [isLoading, setIsLoading] = useState(true);
 
-  const loadScenarios = async () => {
+  const loadScenarios = useCallback(async () => {
     try {
       setIsLoading(true);
       await fetchScenarios();
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [fetchScenarios]);
 
   useEffect(() => {
     loadScenarios();
-  }, [fetchScenarios, loadScenarios]);
+  }, [loadScenarios]);
 
   // デフォルトシナリオの自動選択
   useEffect(() => {
