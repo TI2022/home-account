@@ -7,7 +7,6 @@ export interface Transaction {
   date: string;
   memo?: string;
   card_used_date?: string;
-  scenario_id?: string; // シナリオID（予定収支の場合）
   created_at: string;
   updated_at: string;
   isMock?: boolean;
@@ -66,15 +65,6 @@ export interface CategorySummary {
   budget?: number;
 }
 
-export interface Scenario {
-  id: string;
-  user_id: string;
-  name: string;
-  description?: string;
-  is_default: boolean;
-  created_at: string;
-  updated_at: string;
-}
 
 export const EXPENSE_CATEGORIES = [
   '食費',

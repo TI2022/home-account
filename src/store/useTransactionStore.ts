@@ -27,11 +27,11 @@ interface TransactionState {
   deleteRecurringExpense: (id: string) => Promise<void>;
   updateTransaction: (transaction: Transaction) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
-  reflectRecurringExpensesForPeriod: (startDate: string, endDate: string, isMock?: boolean, scenario_id?: string) => Promise<void>;
-  reflectRecurringIncomesForPeriod: (startDate: string, endDate: string, isMock?: boolean, scenario_id?: string) => Promise<void>;
+  reflectRecurringExpensesForPeriod: (startDate: string, endDate: string, isMock?: boolean) => Promise<void>;
+  reflectRecurringIncomesForPeriod: (startDate: string, endDate: string, isMock?: boolean) => Promise<void>;
   deleteTransactions: (ids: string[]) => Promise<void>;
-  reflectSingleRecurringIncomeForPeriod: (incomeId: string, startDate: string, endDate: string, isMock?: boolean, scenario_id?: string) => Promise<void>;
-  reflectSingleRecurringExpenseForPeriod: (expenseId: string, startDate: string, endDate: string, isMock?: boolean, scenario_id?: string) => Promise<void>;
+  reflectSingleRecurringIncomeForPeriod: (incomeId: string, startDate: string, endDate: string, isMock?: boolean) => Promise<void>;
+  reflectSingleRecurringExpenseForPeriod: (expenseId: string, startDate: string, endDate: string, isMock?: boolean) => Promise<void>;
 }
 
 export const useTransactionStore = create<TransactionState>((set, get) => ({
@@ -144,7 +144,6 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
             ...transaction,
             user_id: user.user.id,
             card_used_date: transaction.card_used_date || null,
-            scenario_id: transaction.scenario_id || null,
           }
         ])
         .select()
@@ -413,7 +412,6 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
         memo: transaction.memo,
         card_used_date: transaction.card_used_date || null,
         isMock: transaction.isMock ?? false,
-        scenario_id: transaction.scenario_id || null,
       };
       console.log('Extracted update data:', updateData);
       console.log('Update data type:', typeof updateData.type);
@@ -466,7 +464,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
     }
   },
 
-  reflectRecurringExpensesForPeriod: async (startDate: string, endDate: string, isMock?: boolean, scenario_id?: string) => {
+  reflectRecurringExpensesForPeriod: async (startDate: string, endDate: string, isMock?: boolean) => {
     const { addTransaction, fetchRecurringExpenses, fetchTransactions } = get();
     await fetchRecurringExpenses();
     await fetchTransactions();
@@ -505,7 +503,6 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
                 date: paymentDateStr,
                 memo: exp.name,
                 isMock: !!isMock,
-                scenario_id: scenario_id ?? undefined,
               });
             }
           }
@@ -516,7 +513,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
     }
   },
 
-  reflectRecurringIncomesForPeriod: async (startDate: string, endDate: string, isMock?: boolean, scenario_id?: string) => {
+  reflectRecurringIncomesForPeriod: async (startDate: string, endDate: string, isMock?: boolean) => {
     const { addTransaction, fetchRecurringIncomes, fetchTransactions } = get();
     await fetchRecurringIncomes();
     await fetchTransactions();
@@ -555,7 +552,6 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
                 date: paymentDateStr,
                 memo: inc.name,
                 isMock: !!isMock,
-                scenario_id: scenario_id ?? undefined,
               });
             }
           }
@@ -585,7 +581,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
     }
   },
 
-  reflectSingleRecurringIncomeForPeriod: async (incomeId: string, startDate: string, endDate: string, isMock?: boolean, scenario_id?: string) => {
+  reflectSingleRecurringIncomeForPeriod: async (incomeId: string, startDate: string, endDate: string, isMock?: boolean) => {
     const { addTransaction, fetchRecurringIncomes, fetchTransactions } = get();
     await fetchRecurringIncomes();
     await fetchTransactions();
@@ -623,7 +619,6 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
               date: paymentDateStr,
               memo: inc.name,
               isMock: !!isMock,
-              scenario_id: scenario_id ?? undefined,
             });
           }
         }
@@ -633,7 +628,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
     }
   },
 
-  reflectSingleRecurringExpenseForPeriod: async (expenseId: string, startDate: string, endDate: string, isMock?: boolean, scenario_id?: string) => {
+  reflectSingleRecurringExpenseForPeriod: async (expenseId: string, startDate: string, endDate: string, isMock?: boolean) => {
     const { addTransaction, fetchRecurringExpenses, fetchTransactions } = get();
     await fetchRecurringExpenses();
     await fetchTransactions();
@@ -671,7 +666,6 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
               date: paymentDateStr,
               memo: exp.name,
               isMock: !!isMock,
-              scenario_id: scenario_id ?? undefined,
             });
           }
         }
