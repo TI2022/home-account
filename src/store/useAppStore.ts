@@ -2,9 +2,9 @@ import { create } from 'zustand';
 import { format } from 'date-fns';
 
 interface AppState {
-  currentTab: 'home' | 'calendar' | 'add' | 'history' | 'settings' | 'scenarios' | 'background' | 'savings' | 'graph';
+  currentTab: 'home' | 'calendar' | 'add' | 'settings' | 'background' | 'savings' | 'graph';
   selectedMonth: string; // YYYY-MM format
-  setCurrentTab: (tab: 'home' | 'calendar' | 'add' | 'history' | 'settings' | 'scenarios' | 'background' | 'savings' | 'graph') => void;
+  setCurrentTab: (tab: 'home' | 'calendar' | 'add' | 'settings' | 'background' | 'savings' | 'graph') => void;
   setSelectedMonth: (month: string) => void;
 }
 

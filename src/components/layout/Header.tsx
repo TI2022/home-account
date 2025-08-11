@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useAppStore } from '@/store/useAppStore';
-import { Menu, LogOut, User, Palette, History, Plus, BarChart3, Settings } from 'lucide-react';
+import { Menu, LogOut, User, Palette, Plus, BarChart3, Settings } from 'lucide-react';
 
 export const Header = () => {
   const { signOut, user } = useAuthStore();
@@ -26,18 +26,15 @@ export const Header = () => {
     setIsMenuOpen(false);
   };
 
-  const handleHistory = () => {
-    setCurrentTab('history');
-    setIsMenuOpen(false);
-  };
 
   const handleGraph = () => {
     setCurrentTab('graph');
     setIsMenuOpen(false);
   };
 
-  const handleScenarios = () => {
-    setCurrentTab('scenarios');
+
+  const handleSettings = () => {
+    setCurrentTab('settings');
     setIsMenuOpen(false);
   };
 
@@ -49,12 +46,8 @@ export const Header = () => {
         return 'カレンダー';
       case 'add':
         return '収支の記録';
-      case 'history':
-        return '履歴';
       case 'settings':
         return '収支設定';
-      case 'scenarios':
-        return 'シナリオ管理';
       case 'background':
         return '背景設定';
       case 'savings':
@@ -119,14 +112,6 @@ export const Header = () => {
                   収支を記録
                 </Button>
                 
-                <Button
-                  variant="ghost"
-                  onClick={handleHistory}
-                  className="w-full justify-start text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
-                >
-                  <History className="h-4 w-4 mr-3" />
-                  履歴
-                </Button>
                 
                 <Button
                   variant="ghost"
@@ -148,11 +133,11 @@ export const Header = () => {
                 
                 <Button
                   variant="ghost"
-                  onClick={handleScenarios}
-                  className="w-full justify-start text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                  onClick={handleSettings}
+                  className="w-full justify-start text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                 >
                   <Settings className="h-4 w-4 mr-3" />
-                  シナリオ管理
+                  収支設定
                 </Button>
                 
                 <div className="border-t border-gray-200 pt-4">
