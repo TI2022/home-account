@@ -3,7 +3,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useTransactionStore } from '@/store/useTransactionStore';
-import { useScenarioStore } from '@/store/useScenarioStore';
 import { format, isSameDay, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { motion } from 'framer-motion';
@@ -81,8 +80,8 @@ const StyledDateCalendar = styled(DateCalendar)(({ theme }) => ({
 type CustomDayProps = Omit<PickersDayProps, 'onAnimationStart'>;
 
 // カスタムの日付セルコンポーネント
-const CustomDay = (props: CustomDayProps & { showMock?: boolean; selectedScenarioId?: string }) => {
-  const { day, showMock, selectedScenarioId, ...other } = props;
+const CustomDay = (props: CustomDayProps & { showMock?: boolean }) => {
+  const { day, showMock, ...other } = props;
   const { transactions } = useTransactionStore();
   const isToday = isSameDay(day, new Date());
 
@@ -91,7 +90,6 @@ const CustomDay = (props: CustomDayProps & { showMock?: boolean; selectedScenari
     const dayTransactions = transactions.filter(t => {
       if (showMock) {
         if (!t.isMock) return false;
-        if (selectedScenarioId && t.scenario_id !== selectedScenarioId) return false;
       } else {
         if (t.isMock) return false;
       }
@@ -244,15 +242,13 @@ const SwipeableCalendar = ({
   onDateSelect, 
   onMonthChange, 
   currentMonth,
-  showMock,
-  selectedScenarioId
+  showMock
 }: {
   selectedDate: Date;
   onDateSelect: (date: Date | null) => void;
   onMonthChange: (date: Date) => void;
   currentMonth: Date;
   showMock: boolean;
-  selectedScenarioId?: string;
 }) => {
   const swipeHandlers = useSwipeable({
     onSwipedLeft: () => {
@@ -288,7 +284,7 @@ const SwipeableCalendar = ({
           onChange={onDateSelect}
           onMonthChange={onMonthChange}
           slots={{
-            day: (props) => <CustomDay {...props} showMock={showMock} selectedScenarioId={selectedScenarioId} />, // ←修正
+            day: (props) => <CustomDay {...props} showMock={showMock} />,
             calendarHeader: CustomCalendarHeader,
           }}
         />
@@ -302,14 +298,12 @@ export const CalendarPage = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
   const { transactions, fetchTransactions, deleteTransaction, deleteTransactions } = useTransactionStore();
-  const { scenarios, fetchScenarios, getDefaultScenario } = useScenarioStore();
   const [showGuide, setShowGuide] = useState(false);
   const [dontShowNext, setDontShowNext] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [copyingTransaction, setCopyingTransaction] = useState<Transaction | null>(null);
   const [showAllTransactions, setShowAllTransactions] = useState(false);
   const [showMock, setShowMock] = useState(false);
-  const [selectedScenarioId, setSelectedScenarioId] = useState<string>('');
   const [importResult, setImportResult] = useState<null | { success: number; fail: number; paymentDate: string; type: 'success' | 'fail', failedRows?: (Record<string, string> & { reason: string })[] }>(null);
   const { showSnackbar } = useSnackbar();
   const [isBulkSelectMode, setIsBulkSelectMode] = useState(false);
@@ -320,21 +314,11 @@ export const CalendarPage = () => {
 
   useEffect(() => {
     fetchTransactions();
-    fetchScenarios();
     if (localStorage.getItem('calendarGuideShown') !== '1') {
       setShowGuide(true);
     }
-  }, [fetchTransactions, fetchScenarios]);
+  }, [fetchTransactions]);
 
-  // デフォルトシナリオを自動選択
-  useEffect(() => {
-    if (showMock && scenarios.length > 0 && !selectedScenarioId) {
-      const defaultScenario = getDefaultScenario();
-      if (defaultScenario) {
-        setSelectedScenarioId(defaultScenario.id);
-      }
-    }
-  }, [showMock, scenarios, selectedScenarioId, getDefaultScenario]);
 
   // Get transactions for the current month
   const monthStart = startOfMonth(currentMonth);
@@ -342,9 +326,8 @@ export const CalendarPage = () => {
   const monthTransactions = transactions.filter(t => {
     const transactionDate = new Date(t.date);
     if (showMock) {
-      // 予定タブ: isMock=true かつシナリオ一致のみ
+      // 予定タブ: isMock=trueのみ
       if (!t.isMock) return false;
-      if (selectedScenarioId && t.scenario_id !== selectedScenarioId) return false;
     } else {
       // 実際タブ: isMock=falseのみ
       if (t.isMock) return false;
@@ -352,42 +335,11 @@ export const CalendarPage = () => {
     return transactionDate >= monthStart && transactionDate <= monthEnd;
   });
 
-  // デバッグ用：カレンダー概要計算の確認
-  if (showMock && selectedScenarioId) {
-    console.log('=== カレンダー概要計算デバッグ ===');
-    console.log('現在月:', format(currentMonth, 'yyyy-MM'));
-    console.log('月開始日:', format(monthStart, 'yyyy-MM-dd'));
-    console.log('月終了日:', format(monthEnd, 'yyyy-MM-dd'));
-    console.log('選択されたシナリオID:', selectedScenarioId);
-    console.log('月次取引数:', monthTransactions.length);
-    
-    // 月次取引の詳細を表示
-    const monthlyIncome = monthTransactions.filter(t => t.type === 'income');
-    const monthlyExpense = monthTransactions.filter(t => t.type === 'expense');
-    
-    console.log('月次収入取引数:', monthlyIncome.length);
-    console.log('月次支出取引数:', monthlyExpense.length);
-    
-    const totalIncome = monthlyIncome.reduce((sum, t) => sum + t.amount, 0);
-    const totalExpense = monthlyExpense.reduce((sum, t) => sum + t.amount, 0);
-    const balance = totalIncome - totalExpense;
-    
-    console.log('月次収入合計:', totalIncome.toLocaleString());
-    console.log('月次支出合計:', totalExpense.toLocaleString());
-    console.log('月次残高:', balance.toLocaleString());
-    
-    // 各取引の詳細を表示
-    console.log('=== 月次取引詳細 ===');
-    monthTransactions.forEach(t => {
-      console.log(`${t.date}: ${t.type} ${t.amount.toLocaleString()}円 (${t.category}) - ${t.memo || 'メモなし'}`);
-    });
-  }
 
   // Get transactions for selected date
   const selectedDateTransactions = transactions.filter(t => {
     if (showMock) {
       if (!t.isMock) return false;
-      if (selectedScenarioId && t.scenario_id !== selectedScenarioId) return false;
     } else {
       if (t.isMock) return false;
     }
@@ -560,7 +512,6 @@ export const CalendarPage = () => {
               onMonthChange={handleMonthChange}
               currentMonth={currentMonth}
               showMock={showMock}
-              selectedScenarioId={selectedScenarioId}
             />
             {/* 実際の収支・予定（シナリオ）ボタン群をインポートボタンの位置に移動 */}
             <div style={{ position: 'absolute', bottom: 16, right: 16, zIndex: 10 }}>
@@ -571,25 +522,20 @@ export const CalendarPage = () => {
                   className={`font-bold ${!showMock ? 'bg-blue-500 text-white' : ''}`}
                   onClick={() => {
                     setShowMock(false);
-                    setSelectedScenarioId('');
                   }}
                 >
                   実際の収支
                 </Button>
-                {scenarios.map(scenario => (
-                  <Button
-                    key={scenario.id}
-                    type="button"
-                    variant={showMock && selectedScenarioId === scenario.id ? 'default' : 'outline'}
-                    className={`font-bold ${showMock && selectedScenarioId === scenario.id ? 'bg-orange-400 text-white' : ''}`}
-                    onClick={() => {
-                      setShowMock(true);
-                      setSelectedScenarioId(scenario.id);
-                    }}
-                  >
-                    {scenario.name}
-                  </Button>
-                ))}
+                <Button
+                  type="button"
+                  variant={showMock ? 'default' : 'outline'}
+                  className={`font-bold ${showMock ? 'bg-orange-400 text-white' : ''}`}
+                  onClick={() => {
+                    setShowMock(true);
+                  }}
+                >
+                  予定の収支
+                </Button>
               </div>
             </div>
             {/* 楽天明細インポートボタンとダイアログを削除 */}
@@ -886,7 +832,6 @@ export const CalendarPage = () => {
                               category: transaction.category,
                               memo: transaction.memo,
                               isMock: transaction.isMock,
-                              scenario_id: transaction.scenario_id,
                               card_used_date: transaction.card_used_date,
                             } as Omit<import('@/types').Transaction, 'id' | 'user_id' | 'created_at' | 'updated_at'>;
                             try {

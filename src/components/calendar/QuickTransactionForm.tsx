@@ -10,8 +10,6 @@ import { useSnackbar } from '@/hooks/use-toast';
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '@/types';
 import { format } from 'date-fns';
 import { Transaction } from '@/types';
-import { useScenarioStore } from '@/store/useScenarioStore';
-// import { ScenarioSelector } from '@/components/ui/scenario-selector';
 
 export interface QuickTransactionFormProps {
   mode: 'add' | 'edit' | 'copy';
@@ -29,7 +27,6 @@ export interface QuickTransactionFormProps {
     isMock?: boolean;
     date?: string;
   };
-  testSelectedScenarioId?: string;
   testUseSimpleSelect?: boolean;
 }
 
@@ -41,12 +38,10 @@ export const QuickTransactionForm = ({
   onEditCancel,
   onCopyFinish,
   testInitialFormData,
-  testSelectedScenarioId,
   testUseSimpleSelect
 }: QuickTransactionFormProps) => {
   const { addTransaction, updateTransaction } = useTransactionStore();
   const { showSnackbar } = useSnackbar();
-  const { getDefaultScenario } = useScenarioStore();
   const [formData, setFormData] = useState({
     type: 'expense' as 'income' | 'expense',
     amount: '',
@@ -68,7 +63,6 @@ export const QuickTransactionForm = ({
   const [errorToast, setErrorToast] = useState<string | null>(null);
   const [lastAction, setLastAction] = useState<'add' | 'update' | null>(null);
   const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  // const [selectedScenarioId, setSelectedScenarioId] = useState<string>('');
 
   // 編集トランザクションまたは日付が変わった時にformDataを初期化
   useEffect(() => {
@@ -85,7 +79,6 @@ export const QuickTransactionForm = ({
         date: testInitialFormData.date || format(selectedDate, 'yyyy-MM-dd'),
       };
       setFormData(newFormData);
-      // setSelectedScenarioId(testSelectedScenarioId || ''); // 削除
       console.log('QuickTransactionForm: setFormData (test)', newFormData);
       return;
     }
@@ -101,7 +94,6 @@ export const QuickTransactionForm = ({
         date: externalEditingTransaction.date,
       };
       setFormData(newFormData);
-      // setSelectedScenarioId(externalEditingTransaction.scenario_id || ''); // 削除
       console.log('QuickTransactionForm: setFormData (edit)', newFormData);
     } else if (mode === 'copy' && copyingTransaction) {
       setEditingTransaction(null);
@@ -114,7 +106,6 @@ export const QuickTransactionForm = ({
         date: format(selectedDate, 'yyyy-MM-dd'),
       };
       setFormData(newFormData);
-      // setSelectedScenarioId(copyingTransaction.scenario_id || ''); // 削除
       console.log('QuickTransactionForm: setFormData (copy)', newFormData);
     } else if (mode === 'add' && !externalEditingTransaction && !copyingTransaction) {
       setEditingTransaction(null);
@@ -127,10 +118,9 @@ export const QuickTransactionForm = ({
         date: format(selectedDate, 'yyyy-MM-dd'),
       };
       setFormData(newFormData);
-      // setSelectedScenarioId(''); // 削除
       console.log('QuickTransactionForm: setFormData (add)', newFormData);
     }
-  }, [mode, externalEditingTransaction, copyingTransaction, testInitialFormData, testSelectedScenarioId, selectedDate]);
+  }, [mode, externalEditingTransaction, copyingTransaction, testInitialFormData, selectedDate]);
 
   // テスト用: testInitialFormData.categoryがあれば強制的にformData.categoryを再セット（Radix UI Select対策）
   useEffect(() => {
@@ -138,6 +128,26 @@ export const QuickTransactionForm = ({
       setFormData((prev) => ({ ...prev, category: testInitialFormData.category || '' }));
     }
   }, [testInitialFormData?.category, testInitialFormData]);
+
+  // タイプ変更時のカテゴリー整合性チェック
+  useEffect(() => {
+    if (formData.category && formData.type) {
+      const categories = formData.type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+      const categoryExists = categories.includes(formData.category);
+      
+      if (!categoryExists) {
+        console.log('QuickTransactionForm: カテゴリーが現在のタイプに存在しない:', {
+          type: formData.type,
+          category: formData.category,
+          availableCategories: categories
+        });
+        // 編集モードでない場合のみカテゴリーをリセット
+        if (!editingTransaction) {
+          setFormData(prev => ({ ...prev, category: '' }));
+        }
+      }
+    }
+  }, [formData.type, formData.category, editingTransaction]);
 
   useEffect(() => {
     console.log('QuickTransactionForm mounted');
@@ -184,7 +194,6 @@ export const QuickTransactionForm = ({
         isMock: !!editingTransaction.isMock,
         date: editingTransaction.date,
       });
-      // setSelectedScenarioId(editingTransaction.scenario_id || ''); // 削除
     }
   }, [editingTransaction]);
 
@@ -200,7 +209,6 @@ export const QuickTransactionForm = ({
         isMock: !!copyingTransaction.isMock,
         date: format(selectedDate, 'yyyy-MM-dd'), // コピー時は選択中日付に
       });
-      // setSelectedScenarioId(copyingTransaction.scenario_id || ''); // 削除
       if (onCopyFinish) onCopyFinish();
     }
   }, [copyingTransaction, selectedDate, onCopyFinish]);
@@ -212,9 +220,6 @@ export const QuickTransactionForm = ({
       showSnackbar('エラー', 'destructive');
       return;
     }
-    // 予定の場合はデフォルトシナリオIDを取得
-    const defaultScenario = formData.isMock ? getDefaultScenario() : null;
-    const scenario_id = formData.isMock && defaultScenario ? defaultScenario.id : undefined;
     const submitData = {
       date: editingTransaction ? formData.date : format(selectedDate, 'yyyy-MM-dd'),
       type: formData.type,
@@ -222,7 +227,6 @@ export const QuickTransactionForm = ({
       category: formData.category,
       memo: formData.memo,
       isMock: formData.isMock,
-      scenario_id,
     };
     if (
       lastSubmitted &&
@@ -252,7 +256,6 @@ export const QuickTransactionForm = ({
           memo: formData.memo,
           isMock: formData.isMock,
           date: formData.date,
-          scenario_id,
         });
         setLastAction('update');
         setSuccessToastOpen(true);
@@ -268,7 +271,6 @@ export const QuickTransactionForm = ({
           category: submitData.category,
           memo: submitData.memo,
           isMock: submitData.isMock,
-          scenario_id,
         });
         setLastAction('add');
         setSuccessToastOpen(true);
@@ -286,7 +288,6 @@ export const QuickTransactionForm = ({
         date: format(selectedDate, 'yyyy-MM-dd'),
       });
       setEditingTransaction(null);
-      // setSelectedScenarioId(''); // 削除
     } catch (error: unknown) {
       console.error('Transaction operation failed:', error);
       let message = '操作に失敗しました';
@@ -339,7 +340,16 @@ export const QuickTransactionForm = ({
           <div className="flex items-center justify-between">
             <RadioGroup
               value={formData.type}
-              onValueChange={(value) => setFormData({ ...formData, type: value as 'income' | 'expense' })}
+              onValueChange={(value) => {
+                const newType = value as 'income' | 'expense';
+                // タイプ変更時にカテゴリーをリセット（編集モード以外）
+                const shouldResetCategory = !editingTransaction;
+                setFormData({ 
+                  ...formData, 
+                  type: newType,
+                  category: shouldResetCategory ? '' : formData.category
+                });
+              }}
               className="flex space-x-4"
             >
               <div className="flex items-center space-x-2">
@@ -456,6 +466,7 @@ export const QuickTransactionForm = ({
             </select>
           ) : (
             <Select
+              key={`${formData.type}-select`}
               value={formData.category}
               onValueChange={(value) => setFormData({ ...formData, category: value })}
             >
@@ -465,7 +476,14 @@ export const QuickTransactionForm = ({
               <SelectContent>
                 {(() => {
                   const categories = formData.type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
-                  console.log('QuickTransactionForm: [copy debug] type:', formData.type, 'category:', formData.category, 'categories:', categories, 'exists:', categories.map(String).includes(String(formData.category)));
+                  const categoryExists = categories.includes(formData.category);
+                  console.log('QuickTransactionForm: [Select debug]', {
+                    type: formData.type,
+                    category: formData.category,
+                    categoryExists,
+                    editMode: !!editingTransaction,
+                    availableCategories: categories
+                  });
                   return null;
                 })()}
                 {(formData.type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map((cat) => (
