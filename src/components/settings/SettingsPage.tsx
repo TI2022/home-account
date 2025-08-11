@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { lazy, Suspense } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TransactionBulkCopy } from './TransactionBulkCopy';
 
 // 遅延読み込みでパフォーマンスを改善
 const RecurringIncomeSettings = lazy(() => import('./RecurringIncomeSettings').then(module => ({ default: module.RecurringIncomeSettings })));
@@ -26,24 +27,29 @@ export const SettingsPage = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
       >
-        <Tabs defaultValue="expense" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="expense">定期支出</TabsTrigger>
-            <TabsTrigger value="income">定期収入</TabsTrigger>
-          </TabsList>
+        <div className="space-y-6">
+          {/* トランザクション一括コピー機能 */}
+          <TransactionBulkCopy />
           
-          <TabsContent value="income" className="space-y-4">
-            <Suspense fallback={<SettingsLoading />}>
-              <RecurringIncomeSettings />
-            </Suspense>
-          </TabsContent>
-          
-          <TabsContent value="expense" className="space-y-4">
-            <Suspense fallback={<SettingsLoading />}>
-              <RecurringExpenseSettings />
-            </Suspense>
-          </TabsContent>
-        </Tabs>
+          <Tabs defaultValue="expense" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="expense">定期支出</TabsTrigger>
+              <TabsTrigger value="income">定期収入</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="income" className="space-y-4">
+              <Suspense fallback={<SettingsLoading />}>
+                <RecurringIncomeSettings />
+              </Suspense>
+            </TabsContent>
+            
+            <TabsContent value="expense" className="space-y-4">
+              <Suspense fallback={<SettingsLoading />}>
+                <RecurringExpenseSettings />
+              </Suspense>
+            </TabsContent>
+          </Tabs>
+        </div>
       </motion.div>
     </motion.div>
   );

@@ -7,13 +7,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useTransactionStore } from '@/store/useTransactionStore';
 import { useSnackbar } from '@/hooks/use-toast';
 import { EXPENSE_CATEGORIES } from '@/types';
 import type { RecurringExpense } from '@/types';
 import { Plus, Edit, Trash2, Receipt, Calendar, CheckSquare, Square } from 'lucide-react';
-// import { ScenarioSelector } from '@/components/ui/scenario-selector';
 import {
   DndContext,
   closestCenter,
@@ -60,27 +59,22 @@ export const RecurringExpenseSettings = () => {
   const [allMonthsDay, setAllMonthsDay] = useState(27);
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedExpenseIds, setSelectedExpenseIds] = useState<string[]>([]);
-  const [isScenarioDialogOpen, setIsScenarioDialogOpen] = useState(false);
   const [expenseOrder, setExpenseOrder] = useState<string[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [isSortMode, setIsSortMode] = useState(false);
-  const [periodStartDate, setPeriodStartDate] = useState(() => {
-    const d = new Date();
-    d.setDate(1);
-    return d.toISOString().slice(0, 10);
-  });
-  const [periodEndDate, setPeriodEndDate] = useState(() => {
-    const d = new Date();
-    d.setMonth(d.getMonth() + 1);
-    d.setDate(0);
-    return d.toISOString().slice(0, 10);
-  });
   const [failedReflects, setFailedReflects] = useState<{id: string; name: string; error: string}[]>([]);
   const [skippedReflects, setSkippedReflects] = useState<{id: string; name: string; reason: string}[]>([]);
   const [isFailedDialogOpen, setIsFailedDialogOpen] = useState(false);
-  const [isMock, setIsMock] = useState(false); // false: 実際, true: 予定
   const [rakutenImportDialogOpen, setRakutenImportDialogOpen] = useState(false);
-  const [rakutenImportMonth, setRakutenImportMonth] = useState('');
+  const [rakutenImportFile, setRakutenImportFile] = useState<File | null>(null);
+  const [importProgress, setImportProgress] = useState<string>('');
+  const [rakutenPaymentDate, setRakutenPaymentDate] = useState(() => {
+    // デフォルトは翌月27日
+    const nextMonth = new Date();
+    nextMonth.setMonth(nextMonth.getMonth() + 1);
+    nextMonth.setDate(27);
+    return nextMonth.toISOString().slice(0, 10);
+  });
 
   useEffect(() => {
     fetchRecurringExpenses();
@@ -231,121 +225,146 @@ export const RecurringExpenseSettings = () => {
   const handleRakutenFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setRakutenImportFile(file);
       setRakutenImportDialogOpen(true);
-      setRakutenImportMonth(file.name.slice(0, 7)); // ファイル名から月を抽出
     }
   };
 
   const handleRakutenImport = async () => {
-    if (!rakutenImportMonth) {
-      showSnackbar('反映月を選択してください', 'destructive');
+    if (!rakutenPaymentDate) {
+      showSnackbar('支払日を選択してください', 'destructive');
       return;
     }
 
+    console.log('楽天インポート開始:', { rakutenPaymentDate, rakutenImportFile });
     setLoading(true);
+    setImportProgress('ファイルを読み込み中...');
     try {
-      const response = await fetch(file); // ファイルオブジェクトを直接使用
-      const text = await response.text();
+      if (!rakutenImportFile) {
+        showSnackbar('ファイルが選択されていません', 'destructive');
+        return;
+      }
+      const text = await rakutenImportFile.text(); // ファイルオブジェクトを直接使用
+      console.log('ファイル内容:', text.slice(0, 200)); // 最初の200文字のみ表示
+      setImportProgress('データを解析中...');
       const lines = text.split('\n');
       const header = lines[0].split(',');
-      const dateIndex = header.indexOf('日付');
-      const amountIndex = header.indexOf('金額');
-      const categoryIndex = header.indexOf('カテゴリ');
-      const memoIndex = header.indexOf('メモ');
+      console.log('CSVヘッダー:', header);
+      const dateIndex = header.indexOf('利用日');
+      const amountIndex = header.indexOf('利用金額');
+      const storeIndex = header.indexOf('利用店名・商品名');
+      const memoIndex = storeIndex; // 店名をメモとして使用
 
-      const transactions: { date: string; amount: number; category: string; memo: string }[] = [];
+      const transactions: { date: string; card_used_date: string; amount: number; category: string; memo: string }[] = [];
+      console.log('インデックス確認:', { dateIndex, amountIndex, storeIndex, memoIndex });
+      
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (line) {
           const columns = line.split(',');
-          if (columns.length > 4) {
-            const date = columns[dateIndex].trim();
-            const amount = parseFloat(columns[amountIndex].trim());
-            const category = columns[categoryIndex].trim();
-            const memo = columns[memoIndex].trim();
-
-            if (!isNaN(amount) && category) {
-              transactions.push({ date, amount, category, memo });
+          if (columns.length > Math.max(dateIndex, amountIndex, storeIndex)) {
+            let cardUsedDateStr = columns[dateIndex]?.trim() || '';
+            const amountStr = columns[amountIndex]?.trim() || '';
+            const memo = columns[storeIndex]?.trim() || '';
+            
+            // 楽天の日付形式 (2025/08/03) をISO形式 (2025-08-03) に変換
+            if (cardUsedDateStr.includes('/')) {
+              cardUsedDateStr = cardUsedDateStr.replace(/\//g, '-');
             }
-          }
-        }
-      }
-
-      const failed: { id: string; name: string; error: string }[] = [];
-      const skipped: { id: string; name: string; reason: string }[] = [];
-
-      for (const expense of recurringExpenses) {
-        const matchingTransactions = transactions.filter(t => {
-          const paymentDate = new Date(t.date);
-          const start = new Date(rakutenImportMonth + '-01');
-          const end = new Date(rakutenImportMonth + '-31');
-          return paymentDate >= start && paymentDate <= end;
-        });
-
-        if (!expense.is_active) {
-          skipped.push({ id: expense.id, name: expense.name, reason: '無効化されています' });
-          continue;
-        }
-
-        let hasValidSchedule = false;
-        // 期間内に1つでも支払日があるか
-        const start = new Date(rakutenImportMonth + '-01');
-        const end = new Date(rakutenImportMonth + '-31');
-        const d = new Date(start);
-        while (d <= end) {
-          const month = d.getMonth() + 1;
-          const schedule = expense.payment_schedule?.find(s => s.month === month);
-          if (schedule) {
-            hasValidSchedule = true;
-            break;
-          }
-          d.setMonth(d.getMonth() + 1);
-          d.setDate(1);
-        }
-        if (!hasValidSchedule) {
-          // 支払日が未設定の場合は何もせずスキップ（UIにも表示しない）
-          continue;
-        }
-
-        for (const t of matchingTransactions) {
-          const paymentDate = new Date(t.date);
-          const month = paymentDate.getMonth() + 1;
-          const schedule = expense.payment_schedule?.find(s => s.month === month);
-          if (schedule) {
-            const paymentDateStr = paymentDate.toISOString().slice(0, 10);
-            const existing = (useTransactionStore.getState().transactions || []).find(trans =>
-              trans.date === paymentDateStr &&
-              trans.amount === expense.amount &&
-              trans.category === expense.category &&
-              trans.type === 'expense'
-            );
-            if (existing) {
-              skipped.push({ id: expense.id, name: expense.name, reason: `${paymentDateStr}：既に同じ内容のトランザクションが存在します` });
-            } else {
-              await useTransactionStore.getState().addTransaction({
-                type: 'expense',
-                amount: expense.amount,
-                category: expense.category,
-                date: paymentDateStr,
-                memo: expense.name,
-                isMock: false, // 楽天明細は予定ではないため
-                scenario_id: undefined, // シナリオは関係ない
+            
+            const amount = parseFloat(amountStr);
+            
+            console.log('データ処理:', { cardUsedDateStr, amount, memo, paymentDate: rakutenPaymentDate, line: line.slice(0, 100) });
+            
+            if (!isNaN(amount) && amount > 0 && cardUsedDateStr && memo) {
+              transactions.push({ 
+                date: rakutenPaymentDate, // 支払日
+                card_used_date: cardUsedDateStr, // 利用日
+                amount, 
+                category: 'その他', // デフォルトカテゴリ
+                memo 
               });
             }
           }
         }
       }
+      
+      console.log('解析されたトランザクション:', transactions);
+
+      const failed: { id: string; name: string; error: string }[] = [];
+      const skipped: { id: string; name: string; reason: string }[] = [];
+      let successCount = 0;
+
+      setImportProgress(`${transactions.length}件のトランザクションを登録中...`);
+      
+      // 楽天CSVの各トランザクションを直接追加
+      for (let i = 0; i < transactions.length; i++) {
+        const transaction = transactions[i];
+        setImportProgress(`トランザクションを登録中... (${i + 1}/${transactions.length})`);
+        try {
+          // 既存トランザクションとの重複チェック
+          const existing = (useTransactionStore.getState().transactions || []).find(trans =>
+            trans.date === transaction.date &&
+            trans.card_used_date === transaction.card_used_date &&
+            trans.amount === transaction.amount &&
+            trans.memo === transaction.memo &&
+            trans.type === 'expense'
+          );
+          
+          if (existing) {
+            skipped.push({ 
+              id: `transaction-${transaction.card_used_date}-${transaction.amount}`, 
+              name: transaction.memo, 
+              reason: `利用日${transaction.card_used_date}：既に同じ内容のトランザクションが存在します` 
+            });
+            continue;
+          }
+
+          console.log('トランザクション追加:', {
+            type: 'expense',
+            amount: transaction.amount,
+            category: transaction.category,
+            date: transaction.date,
+            card_used_date: transaction.card_used_date,
+            memo: transaction.memo,
+            isMock: false
+          });
+          
+          await useTransactionStore.getState().addTransaction({
+            type: 'expense',
+            amount: transaction.amount,
+            category: transaction.category,
+            date: transaction.date,
+            card_used_date: transaction.card_used_date,
+            memo: transaction.memo,
+            isMock: false, // 楽天明細は予定ではないため
+          });
+          
+          successCount++;
+        } catch (error) {
+          console.error('トランザクション追加エラー:', error);
+          failed.push({ 
+            id: `transaction-${transaction.date}-${transaction.amount}`, 
+            name: transaction.memo, 
+            error: error instanceof Error ? error.message : String(error)
+          });
+        }
+      }
 
       if (failed.length === 0 && skipped.length === 0) {
-        showSnackbar('楽天明細をインポートしました');
+        showSnackbar(`楽天明細をインポートしました（${successCount}件）`);
       } else {
         setFailedReflects(failed);
         setSkippedReflects(skipped);
         setIsFailedDialogOpen(true);
-        showSnackbar(`一部の定期支出でインポートできませんでした`, 'destructive');
+        const message = successCount > 0 
+          ? `${successCount}件インポート済み、${failed.length + skipped.length}件をスキップまたはエラー`
+          : `楽天明細のインポートに失敗しました`;
+        showSnackbar(message, successCount > 0 ? 'default' : 'destructive');
       }
       setRakutenImportDialogOpen(false);
-      setRakutenImportMonth('');
+      setRakutenImportFile(null);
+      setImportProgress('');
     } catch (e: unknown) {
       let errorMsg = '';
       if (e instanceof Error) {
@@ -358,6 +377,7 @@ export const RecurringExpenseSettings = () => {
       showSnackbar(`楽天明細のインポートに失敗しました: ${errorMsg}`, 'destructive');
     } finally {
       setLoading(false);
+      setImportProgress('');
     }
   };
 
@@ -412,26 +432,39 @@ export const RecurringExpenseSettings = () => {
       <Dialog open={rakutenImportDialogOpen} onOpenChange={setRakutenImportDialogOpen}>
         <DialogContent className="max-w-xs">
           <DialogHeader>
-            <DialogTitle>反映月を選択</DialogTitle>
+            <DialogTitle>楽天明細インポート設定</DialogTitle>
+            <DialogDescription>
+              支払日を設定してください。利用日はCSVから自動取得し、card_used_dateに登録されます。
+            </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-4">
-            <Input
-              type="month"
-              value={rakutenImportMonth}
-              onChange={e => setRakutenImportMonth(e.target.value)}
-              className="border rounded px-2 py-1 text-sm"
-              min={(() => {
-                const d = new Date();
-                return d.toISOString().slice(0, 7);
-              })()}
-              max={(() => {
-                const d = new Date();
-                d.setMonth(d.getMonth() + 11);
-                return d.toISOString().slice(0, 7);
-              })()}
-            />
-            <Button onClick={handleRakutenImport}>
-              この月でインポート
+            <div>
+              <Label className="text-sm font-medium">支払日</Label>
+              <Input
+                type="date"
+                value={rakutenPaymentDate}
+                onChange={e => setRakutenPaymentDate(e.target.value)}
+                className="border rounded px-2 py-1 text-sm mt-1"
+              />
+              <p className="text-xs text-gray-600 mt-1">
+                クレジットカードの実際の支払日を入力してください
+              </p>
+            </div>
+            <Button 
+              onClick={handleRakutenImport}
+              disabled={loading}
+              className="w-full"
+            >
+              {loading ? (
+                <div className="flex items-center gap-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                  <span className="text-sm">
+                    {importProgress || 'インポート中...'}
+                  </span>
+                </div>
+              ) : (
+                'インポート実行'
+              )}
             </Button>
           </div>
         </DialogContent>
@@ -462,7 +495,10 @@ export const RecurringExpenseSettings = () => {
           <div className="flex gap-2 flex-1">
             <Button
               className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-full shadow-lg px-4 py-2 w-full"
-              onClick={() => setIsScenarioDialogOpen(true)}
+              onClick={() => {
+                // シナリオ機能廃止により一括反映機能は無効化
+                showSnackbar('一括反映機能は現在無効化されています', 'destructive');
+              }}
               disabled={selectedExpenseIds.length === 0}
             >
               一括反映
@@ -492,178 +528,14 @@ export const RecurringExpenseSettings = () => {
           </div>
         </div>
       )}
-      {/* シナリオ選択モーダル */}
-      <Dialog open={isScenarioDialogOpen} onOpenChange={setIsScenarioDialogOpen}>
-        <DialogContent className="sm:max-w-xs">
-          <DialogHeader>
-            <DialogTitle>一括反映するシナリオ・期間を選択</DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col gap-2">
-              <div className="flex gap-4 items-center">
-                <label className="flex items-center gap-1">
-                  <input type="radio" name="isMock" value="false" checked={!isMock} onChange={() => setIsMock(false)} />
-                  <span>実際</span>
-                </label>
-                <label className="flex items-center gap-1">
-                  <input type="radio" name="isMock" value="true" checked={isMock} onChange={() => setIsMock(true)} />
-                  <span>予定</span>
-                </label>
-              </div>
-              <Label className="mt-2">反映開始日</Label>
-              <input
-                type="date"
-                className="border rounded px-2 py-1 w-full"
-                value={periodStartDate}
-                onChange={e => setPeriodStartDate(e.target.value)}
-                max={periodEndDate}
-                tabIndex={-1}
-                autoFocus={false}
-              />
-              <Label className="mt-2">反映終了日</Label>
-              <input
-                type="date"
-                className="border rounded px-2 py-1 w-full"
-                value={periodEndDate}
-                onChange={e => setPeriodEndDate(e.target.value)}
-                min={periodStartDate}
-                tabIndex={-1}
-                autoFocus={false}
-              />
-            
-            <Button
-              className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded shadow mt-4"
-              onClick={async () => {
-                setLoading(true);
-                const failed: {id: string; name: string; error: string}[] = [];
-                const skipped: {id: string; name: string; reason: string}[] = [];
-                for (const id of selectedExpenseIds) {
-                  const expense = recurringExpenses.find(e => e.id === id);
-                  if (!expense) {
-                    skipped.push({ id, name: id, reason: '該当データが見つかりません' });
-                    continue;
-                  }
-                  if (!expense.is_active) {
-                    skipped.push({ id, name: expense.name, reason: '無効化されています' });
-                    continue;
-                  }
-                  let hasValidSchedule = false;
-                  // 期間内に1つでも支払日があるか
-                  const start = new Date(periodStartDate);
-                  const end = new Date(periodEndDate);
-                  const d = new Date(start);
-                  while (d <= end) {
-                    const month = d.getMonth() + 1;
-                    const schedule = expense.payment_schedule?.find(s => s.month === month);
-                    if (schedule) {
-                      hasValidSchedule = true;
-                      break;
-                    }
-                    d.setMonth(d.getMonth() + 1);
-                    d.setDate(1);
-                  }
-                  if (!hasValidSchedule) {
-                    // 支払日が未設定の場合は何もせずスキップ（UIにも表示しない）
-                    continue;
-                  }
-                  // 実際の登録処理
-                  try {
-                    const start = new Date(periodStartDate);
-                    const end = new Date(periodEndDate);
-                    let didRegister = false;
-                    const d = new Date(start);
-                    while (d <= end) {
-                      const month = d.getMonth() + 1;
-                      const year = d.getFullYear();
-                      const schedule = expense.payment_schedule?.find(s => s.month === month);
-                      if (schedule) {
-                        // タイムゾーン問題を修正: ローカル日付として正しく処理
-                        const paymentDate = new Date(year, month - 1, schedule.day);
-                        const paymentDateStr = paymentDate.getFullYear() + '-' + 
-                          String(paymentDate.getMonth() + 1).padStart(2, '0') + '-' + 
-                          String(paymentDate.getDate()).padStart(2, '0');
-                        if (paymentDate >= start && paymentDate <= end) {
-                          const existing = (useTransactionStore.getState().transactions || []).find(t =>
-                            t.date === paymentDateStr &&
-                            t.amount === expense.amount &&
-                            t.category === expense.category &&
-                            t.type === 'expense'
-                          );
-                          let isScenarioMatch = false;
-                          let isMockMatch = false;
-                          if (existing) {
-                            isScenarioMatch = String(existing.scenario_id || '') === String(selectedScenarioId || '');
-                            isMockMatch = (existing.isMock ?? false) === isMock;
-                          }
-                          const exists = !!existing && isScenarioMatch && isMockMatch;
-                          if (exists) {
-                            const details = [];
-                            if (isScenarioMatch) details.push('scenario_id');
-                            if (isMockMatch) details.push('isMock');
-                            skipped.push({ id, name: expense.name, reason: `${paymentDateStr}：既に同じ内容のトランザクションが存在します（${details.join(', ')} が一致）` });
-                          } else if (!exists && existing) {
-                            // 既存トランザクションはあるがscenario_idやisMockが一致しない場合、何もしない（登録する）
-                          }
-                          if (exists) {
-                            skipped.push({ id, name: expense.name, reason: `${paymentDateStr}：既に同じ内容のトランザクションが存在します` });
-                          } else {
-                            await useTransactionStore.getState().addTransaction({
-                              type: 'expense',
-                              amount: expense.amount,
-                              category: expense.category,
-                              date: paymentDateStr,
-                              memo: expense.name,
-                              isMock,
-                              scenario_id: selectedScenarioId || undefined,
-                            });
-                            didRegister = true;
-                          }
-                        }
-                      }
-                      d.setMonth(d.getMonth() + 1);
-                      d.setDate(1);
-                    }
-                    if (!didRegister) {
-                      // すべてスキップされた場合
-                      // 既に同じ内容が存在 or 期間外
-                    }
-                  } catch (e: unknown) {
-                    let errorMsg = '';
-                    if (e instanceof Error) {
-                      errorMsg = e.message;
-                    } else if (typeof e === 'string') {
-                      errorMsg = e;
-                    } else {
-                      errorMsg = JSON.stringify(e);
-                    }
-                    failed.push({ id, name: expense.name, error: errorMsg });
-                    console.error('一括反映失敗:', id, e);
-                  }
-                }
-                if (failed.length === 0 && skipped.length === 0) {
-                  showSnackbar('選択した定期支出を反映しました');
-                } else {
-                  setFailedReflects(failed);
-                  setSkippedReflects(skipped);
-                  setIsFailedDialogOpen(true);
-                  showSnackbar(`一部の定期支出で反映できませんでした`, 'destructive');
-                }
-                setSelectedExpenseIds([]);
-                setIsSelectMode(false);
-                setIsScenarioDialogOpen(false);
-                setLoading(false);
-              }}
-              disabled={loading || periodEndDate < periodStartDate}
-            >
-              このシナリオ・期間で一括反映
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
       {/* 失敗詳細ダイアログ */}
       <Dialog open={isFailedDialogOpen} onOpenChange={setIsFailedDialogOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>一部の定期支出で反映できませんでした</DialogTitle>
+            <DialogDescription>
+              下記のエラーやスキップ理由を確認してください。
+            </DialogDescription>
           </DialogHeader>
           <div className="max-h-60 overflow-y-auto">
             {failedReflects.length > 0 && <div className="mb-2 font-bold text-red-600">エラー</div>}
@@ -703,6 +575,9 @@ export const RecurringExpenseSettings = () => {
               <DialogTitle>
                 {editingExpense ? '定期支出を編集' : '定期支出を追加'}
               </DialogTitle>
+              <DialogDescription>
+                {editingExpense ? '定期支出の情報を編集します。' : '新しい定期支出を追加します。'}
+              </DialogDescription>
             </DialogHeader>
             
             <form onSubmit={handleSubmit} className="space-y-4">

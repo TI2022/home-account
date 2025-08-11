@@ -19,7 +19,7 @@ export const Snackbar = ({ open, message, variant = 'default', onClose, duration
 
   if (!open) return null;
   return (
-    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[200]">
+    <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[200]">
       <div
         className={`px-6 py-3 rounded shadow-lg font-bold text-white text-center min-w-[200px] max-w-[90vw] transition-all ${
           variant === 'destructive' ? 'bg-red-500' : 'bg-gray-900'
