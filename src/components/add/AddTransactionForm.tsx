@@ -13,7 +13,6 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useTransactionStore } from '@/store/useTransactionStore';
 import { useGameStore } from '@/store/useGameStore';
 import { useSnackbar } from '@/hooks/use-toast';
-import { ScenarioSelector } from '@/components/ui/scenario-selector';
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '@/types';
 import { format } from 'date-fns';
 
@@ -28,7 +27,6 @@ export const AddTransactionForm = () => {
   const [showCharacterReaction, setShowCharacterReaction] = useState(false);
   const [reactionMessage, setReactionMessage] = useState('');
   const [isMock, setIsMock] = useState(false);
-  const [selectedScenarioId, setSelectedScenarioId] = useState<string>('');
   
   const { addTransaction } = useTransactionStore();
   const { recordTransaction } = useGameStore();
@@ -44,11 +42,6 @@ export const AddTransactionForm = () => {
       return;
     }
 
-    // 予定収支の場合、シナリオが選択されているかチェック
-    if (isMock && !selectedScenarioId) {
-      showSnackbar('シナリオを選択してください', 'destructive');
-      return;
-    }
 
     setLoading(true);
     try {
@@ -59,7 +52,6 @@ export const AddTransactionForm = () => {
         date,
         memo: memo || undefined,
         isMock,
-        scenario_id: isMock ? selectedScenarioId : undefined, // 予定収支の場合のみシナリオIDを設定
       });
 
       showSnackbar(`${type === 'expense' ? '支出' : '収入'}を記録しました`);
@@ -90,7 +82,6 @@ export const AddTransactionForm = () => {
       setCategory('');
       setMemo('');
       setDate(format(new Date(), 'yyyy-MM-dd'));
-      setSelectedScenarioId('');
     } catch {
       showSnackbar('記録に失敗しました', 'destructive');
     } finally {
@@ -203,7 +194,6 @@ export const AddTransactionForm = () => {
                         ${!isMock ? 'bg-blue-500 text-white shadow' : 'bg-white text-gray-500'}`}
                       onClick={() => {
                         setIsMock(false);
-                        setSelectedScenarioId(''); // 実際収支に切り替え時はシナリオをリセット
                       }}
                       aria-pressed={!isMock}
                     >
@@ -221,18 +211,6 @@ export const AddTransactionForm = () => {
                   </div>
                 </div>
 
-                {/* シナリオ選択（予定収支の場合のみ表示） */}
-                {isMock && (
-                  <div className="space-y-2">
-                    <Label htmlFor="scenario">シナリオ</Label>
-                    <ScenarioSelector
-                      value={selectedScenarioId}
-                      onValueChange={setSelectedScenarioId}
-                      placeholder="シナリオを選択してください"
-                      className="bg-white"
-                    />
-                  </div>
-                )}
 
                 <AnimatedButton
                   type="submit"

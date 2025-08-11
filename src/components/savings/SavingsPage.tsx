@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSavingsStore } from '@/store/useSavingsStore';
 import { useTransactionStore } from '@/store/useTransactionStore';
-import { useScenarioStore } from '@/store/useScenarioStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Wishlist } from './Wishlist';
@@ -11,97 +10,30 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 export const SavingsPage = () => {
   const { savingsAmount, setSavingsAmount, fetchSavingsAmount } = useSavingsStore();
   const { transactions } = useTransactionStore();
-  const { scenarios, fetchScenarios, getDefaultScenario } = useScenarioStore();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [inputValue, setInputValue] = useState(savingsAmount.toString());
   const [showMock, setShowMock] = useState(false);
-  const [selectedScenarioId, setSelectedScenarioId] = useState<string>('');
 
   useEffect(() => {
     fetchSavingsAmount();
-    fetchScenarios();
-  }, [fetchSavingsAmount, fetchScenarios]);
+  }, [fetchSavingsAmount]);
 
   useEffect(() => {
     setInputValue(savingsAmount.toString());
   }, [savingsAmount]);
 
-  // デフォルトシナリオを自動選択
-  useEffect(() => {
-    if (showMock && scenarios.length > 0 && !selectedScenarioId) {
-      const defaultScenario = getDefaultScenario();
-      if (defaultScenario) {
-        setSelectedScenarioId(defaultScenario.id);
-      }
-    }
-  }, [showMock, scenarios, selectedScenarioId, getDefaultScenario]);
 
-  // 月ごとの貯金額（収入-支出）を集計（isMockで切り替え）
+  // 月ごとの貯金額（収入-支出）を集計
   const filteredTransactions = transactions.filter(t => {
     if (showMock) {
-      // 予定のみ、かつシナリオ一致
-      return t.isMock && (!selectedScenarioId || t.scenario_id === selectedScenarioId);
+      // 予定のみ
+      return t.isMock;
     } else {
       // 実際のみ
       return !t.isMock;
     }
   });
 
-  // デバッグ用：悲観シナリオの計算過程を確認
-  if (showMock && selectedScenarioId) {
-    console.log('=== 悲観シナリオ計算デバッグ ===');
-    console.log('選択されたシナリオID:', selectedScenarioId);
-    console.log('全取引数:', transactions.length);
-    console.log('フィルタ後取引数:', filteredTransactions.length);
-    
-    // 悲観シナリオの取引を月別に集計して表示
-    const debugMonthlyData = filteredTransactions.reduce((acc, t) => {
-      const ym = t.date.slice(0, 7);
-      if (!acc[ym]) acc[ym] = { income: 0, expense: 0, transactions: [] };
-      if (t.type === 'income') acc[ym].income += t.amount;
-      if (t.type === 'expense') acc[ym].expense += t.amount;
-      acc[ym].transactions.push({
-        date: t.date,
-        type: t.type,
-        amount: t.amount,
-        category: t.category,
-        memo: t.memo || '',
-        scenario_id: t.scenario_id || '',
-        isMock: t.isMock || false
-      });
-      return acc;
-    }, {} as Record<string, { income: number; expense: number; transactions: Array<{
-      date: string;
-      type: 'income' | 'expense';
-      amount: number;
-      category: string;
-      memo: string;
-      scenario_id: string;
-      isMock: boolean;
-    }> }>);
-
-    console.log('月別集計データ:', debugMonthlyData);
-    
-    // データの期間範囲を確認
-    const months = Object.keys(debugMonthlyData).sort();
-    console.log('データ期間範囲:', months[0], '〜', months[months.length - 1]);
-    console.log('データ月数:', months.length);
-    
-    // 2025年6月のデータを特に詳しく確認
-    const june2025 = debugMonthlyData['2025-06'];
-    if (june2025) {
-      console.log('2025年6月の詳細:', june2025);
-      console.log('2025年6月の収入:', june2025.income);
-      console.log('2025年6月の支出:', june2025.expense);
-      console.log('2025年6月の貯金額:', june2025.income - june2025.expense);
-      
-      // 2025年6月の各取引を詳細表示
-      console.log('=== 2025年6月の取引詳細 ===');
-      june2025.transactions.forEach(t => {
-        console.log(`${t.date}: ${t.type} ${t.amount.toLocaleString()}円 (${t.category}) - ${t.memo || 'メモなし'}`);
-      });
-    }
-  }
   
   // 全期間の月次データを集計
   const monthlySavings = filteredTransactions.reduce((acc, t) => {
@@ -127,23 +59,6 @@ export const SavingsPage = () => {
     return acc;
   }, []);
 
-  // デバッグ用：累積計算の過程を確認
-  if (showMock && selectedScenarioId) {
-    console.log('月次貯金額リスト:', monthlySavingsList);
-    console.log('累積貯金額リスト:', cumulativeSavingsList);
-    
-    // 各月の詳細を表示
-    console.log('=== 各月の詳細 ===');
-    monthlySavingsList.forEach((item, index) => {
-      console.log(`${item.ym}: 月次貯金額 ${item.savings.toLocaleString()}円, 累積貯金額 ${cumulativeSavingsList[index].cumulative.toLocaleString()}円`);
-    });
-    
-    // 2025年6月の累積値を確認
-    const june2025Cumulative = cumulativeSavingsList.find(item => item.ym === '2025-06');
-    if (june2025Cumulative) {
-      console.log('2025年6月の累積貯金額:', june2025Cumulative.cumulative);
-    }
-  }
 
   // 表示用：最新12ヶ月分を抽出
   const last12Months = monthlySavingsList.slice(-12);
@@ -168,36 +83,25 @@ export const SavingsPage = () => {
           <CardTitle>貯金額の推移</CardTitle>
         </CardHeader>
         <CardContent>
-          {/* 実際/予定切り替えセグメントコントロールを廃止し、ボタン群に置換 */}
+          {/* 実際/予定切り替えボタン */}
           <div className="flex flex-wrap gap-2 mb-4 justify-center">
             <Button
               type="button"
               variant={!showMock ? 'default' : 'outline'}
               className={`font-bold ${!showMock ? 'bg-blue-500 text-white' : ''}`}
-              onClick={() => {
-                setShowMock(false);
-                setSelectedScenarioId('');
-              }}
+              onClick={() => setShowMock(false)}
             >
               💰 実際の貯金額
             </Button>
-            {scenarios.map(scenario => (
-              <Button
-                key={scenario.id}
-                type="button"
-                variant={showMock && selectedScenarioId === scenario.id ? 'default' : 'outline'}
-                className={`font-bold ${showMock && selectedScenarioId === scenario.id ? 'bg-orange-400 text-white' : ''}`}
-                onClick={() => {
-                  setShowMock(true);
-                  setSelectedScenarioId(scenario.id);
-                }}
-              >
-                🕒 {scenario.name}
-              </Button>
-            ))}
+            <Button
+              type="button"
+              variant={showMock ? 'default' : 'outline'}
+              className={`font-bold ${showMock ? 'bg-orange-400 text-white' : ''}`}
+              onClick={() => setShowMock(true)}
+            >
+              🕒 予定の貯金額
+            </Button>
           </div>
-
-          {/* シナリオセレクターは不要なので削除 */}
 
           <Tabs defaultValue="monthly" className="w-full">
             <TabsList className="mb-4">
