@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import { useAppStore } from '@/store/useAppStore';
-import { Calendar, PiggyBank, BarChart3 } from 'lucide-react';
+import { Calendar, PiggyBank, BarChart3, Settings } from 'lucide-react';
 
 export const TabNavigation = () => {
   const { currentTab, setCurrentTab } = useAppStore();
@@ -10,6 +10,7 @@ export const TabNavigation = () => {
     { id: 'calendar' as const, label: 'カレンダー', icon: Calendar },
     { id: 'graph' as const, label: 'グラフ', icon: BarChart3 },
     { id: 'savings' as const, label: '貯金', icon: PiggyBank },
+    { id: 'settings' as const, label: '収支設定', icon: Settings },
   ];
 
   return (
