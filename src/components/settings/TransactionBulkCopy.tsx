@@ -27,6 +27,14 @@ export const TransactionBulkCopy = () => {
       return;
     }
 
+    console.log('=== 一括コピー開始 ===');
+    console.log('コピー設定:', {
+      copyFromType,
+      copyToType,
+      copyStartDate,
+      copyEndDate
+    });
+
     setIsCopying(true);
     try {
       await fetchTransactions();
@@ -35,19 +43,26 @@ export const TransactionBulkCopy = () => {
       const fromIsMock = copyFromType === 'planned';
       const toIsMock = copyToType === 'planned';
       
+      console.log('フィルタ条件:', { fromIsMock, toIsMock });
+      console.log('全トランザクション数:', transactions.length);
+      
       const filteredTransactions = transactions.filter(t =>
         (t.isMock ?? false) === fromIsMock &&
         t.date >= copyStartDate && 
         t.date <= copyEndDate
       );
 
+      console.log('フィルタ済みトランザクション:', filteredTransactions.length, '件');
+      console.log('フィルタ済みトランザクション詳細:', filteredTransactions);
+
       let success = 0;
       let fail = 0;
 
       // 各トランザクションをコピー（scenario_id関連を削除）
       for (const transaction of filteredTransactions) {
+        console.log('コピー中のトランザクション:', transaction);
         try {
-          await addTransaction({
+          const newTransaction = {
             type: transaction.type,
             amount: transaction.amount,
             category: transaction.category,
@@ -55,19 +70,28 @@ export const TransactionBulkCopy = () => {
             memo: transaction.memo,
             isMock: toIsMock,
             card_used_date: transaction.card_used_date || undefined,
-          });
+          };
+          console.log('作成する新しいトランザクション:', newTransaction);
+          
+          await addTransaction(newTransaction);
+          console.log('トランザクション作成成功:', newTransaction);
           success++;
-        } catch {
+        } catch (error) {
+          console.error('トランザクション作成失敗:', error);
           fail++;
         }
       }
+
+      console.log('=== 一括コピー結果 ===');
+      console.log(`成功: ${success}件, 失敗: ${fail}件`);
 
       showSnackbar(
         `コピー完了: ${success}件成功${fail > 0 ? `, ${fail}件失敗` : ''}`, 
         fail === 0 ? 'default' : 'destructive'
       );
       setIsCopyModalOpen(false);
-    } catch {
+    } catch (error) {
+      console.error('一括コピー処理でエラー:', error);
       showSnackbar('コピー処理に失敗しました', 'destructive');
     } finally {
       setIsCopying(false);
@@ -98,8 +122,8 @@ export const TransactionBulkCopy = () => {
 
       {/* 一括コピー用モーダル */}
       {isCopyModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-2">
-          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md mx-auto">
+        <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/30 px-2">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md mx-auto max-h-[calc(100vh-5rem)] overflow-y-auto">
             <h2 className="text-lg font-bold mb-4">トランザクション一括コピー</h2>
             
             <div className="space-y-4">
