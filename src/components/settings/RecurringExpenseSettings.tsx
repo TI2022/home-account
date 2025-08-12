@@ -789,14 +789,10 @@ export const RecurringExpenseSettings = () => {
                           }}
                         />
                         <span className="w-8">{month}</span>
-                        <Input
-                          type="number"
-                          min={1}
-                          max={31}
-                          placeholder="日"
-                          value={schedule ? schedule.day : ''}
-                          onChange={e => {
-                            const day = parseInt(e.target.value);
+                        <Select
+                          value={schedule ? schedule.day.toString() : ''}
+                          onValueChange={(value) => {
+                            const day = parseInt(value);
                             setFormData(prev => {
                               const newSchedule = prev.payment_schedule ? [...prev.payment_schedule] : [];
                               const i = newSchedule.findIndex(s => s.month === idx + 1);
@@ -806,9 +802,19 @@ export const RecurringExpenseSettings = () => {
                               return { ...prev, payment_schedule: newSchedule };
                             });
                           }}
-                          className="w-16"
                           disabled={!schedule}
-                        />
+                        >
+                          <SelectTrigger className="w-16">
+                            <SelectValue placeholder="日" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                              <SelectItem key={day} value={day.toString()}>
+                                {day}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <span className="text-gray-400">日</span>
                       </div>
                     );
