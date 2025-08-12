@@ -105,8 +105,8 @@ export const Wishlist = () => {
 
       {/* 追加・編集モーダル */}
       {isDialogOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-          <div className="bg-white rounded-lg shadow-lg p-6 w-80">
+        <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/30">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-80 max-h-[calc(100vh-5rem)] overflow-y-auto">
             <h2 className="text-lg font-bold mb-4">{editId ? '編集' : '追加'}</h2>
             <form onSubmit={handleSubmit} className="space-y-3">
               <div>
@@ -156,8 +156,8 @@ export const Wishlist = () => {
 
       {/* 削除確認モーダル */}
       {deleteTargetId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-          <div className="bg-white rounded-lg shadow-lg p-6 w-80">
+        <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/30">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-80 max-h-[calc(100vh-5rem)] overflow-y-auto">
             <h2 className="text-lg font-bold mb-4">削除確認</h2>
             <p className="mb-4">このアイテムを削除しますか？</p>
             <div className="flex space-x-2">

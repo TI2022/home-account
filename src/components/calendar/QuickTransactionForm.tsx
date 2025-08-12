@@ -319,7 +319,7 @@ export const QuickTransactionForm = ({
   return (
     <div className={`space-y-4 p-4 rounded shadow transition-all duration-200 ${editingTransaction ? 'bg-yellow-50 border-2 border-yellow-400' : 'bg-white border border-gray-200'}`}>
       {successToastOpen && lastAction && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[200]">
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[1400]">
           <div className="bg-green-500 text-white px-6 py-2 rounded shadow font-bold animate-fade-in-out">
             {lastAction === 'update' ? '更新完了' : lastAction === 'add' ? '追加完了' : ''}
           </div>
@@ -327,7 +327,7 @@ export const QuickTransactionForm = ({
       )}
       {/* エラートースト */}
       {errorToast && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[201]">
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[1400]">
           <div className="bg-red-500 text-white px-6 py-2 rounded shadow font-bold animate-fade-in-out">
             {errorToast}
           </div>

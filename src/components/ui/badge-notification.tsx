@@ -20,7 +20,7 @@ export const BadgeNotification = ({ badge, show, onClose }: BadgeNotificationPro
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.8, y: 50 }}
           transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+          className="fixed inset-0 z-[1200] flex items-center justify-center p-4 bg-black/50"
           onClick={onClose}
         >
           <motion.div

@@ -158,8 +158,8 @@ export const SavingsPage = () => {
 
       {/* モーダル */}
       {isDialogOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-          <div className="bg-white rounded-lg shadow-lg p-6 w-80">
+        <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/30">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-80 max-h-[calc(100vh-5rem)] overflow-y-auto">
             <h2 className="text-lg font-bold mb-4">貯金額を入力</h2>
             <input
               type="number"

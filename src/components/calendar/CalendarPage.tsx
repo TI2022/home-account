@@ -313,11 +313,21 @@ export const CalendarPage = () => {
   const [dialogMode, setDialogMode] = useState<'add' | 'edit' | 'copy'>('add');
 
   useEffect(() => {
+    console.log('CalendarPage: fetchTransactions実行');
     fetchTransactions();
     if (localStorage.getItem('calendarGuideShown') !== '1') {
       setShowGuide(true);
     }
   }, [fetchTransactions]);
+
+  // トランザクション変更をログ
+  useEffect(() => {
+    console.log('CalendarPage: トランザクション更新', {
+      total: transactions.length,
+      showMock,
+      currentMonth: format(currentMonth, 'yyyy-MM')
+    });
+  }, [transactions, showMock, currentMonth]);
 
 
   // Get transactions for the current month
@@ -332,7 +342,29 @@ export const CalendarPage = () => {
       // 実際タブ: isMock=falseのみ
       if (t.isMock) return false;
     }
-    return transactionDate >= monthStart && transactionDate <= monthEnd;
+    const inPeriod = transactionDate >= monthStart && transactionDate <= monthEnd;
+    
+    // デバッグログ（最初の数件のみ）
+    if (transactions.indexOf(t) < 3) {
+      console.log('カレンダー月次フィルタ:', {
+        transaction: { date: t.date, type: t.type, amount: t.amount, category: t.category, isMock: t.isMock },
+        showMock,
+        monthStart: monthStart.toISOString(),
+        monthEnd: monthEnd.toISOString(),
+        transactionDate: transactionDate.toISOString(),
+        inPeriod,
+        passesFilter: inPeriod
+      });
+    }
+    
+    return inPeriod;
+  });
+  
+  console.log('CalendarPage: 月次トランザクション', {
+    month: format(currentMonth, 'yyyy-MM'),
+    total: transactions.length,
+    filtered: monthTransactions.length,
+    showMock
   });
 
 
@@ -447,7 +479,7 @@ export const CalendarPage = () => {
         {/* インポート結果トースト */}
         {importResult && (
           <div
-            className={`fixed bottom-20 left-1/2 -translate-x-1/2 z-[200] px-6 py-3 rounded-lg shadow-lg border-2 flex flex-col items-start min-w-[260px] animate-fade-in-out
+            className={`fixed bottom-24 left-1/2 -translate-x-1/2 z-[1400] px-6 py-3 rounded-lg shadow-lg border-2 flex flex-col items-start min-w-[260px] animate-fade-in-out
               ${importResult.type === 'success' ? 'bg-green-50 border-green-500' : 'bg-red-50 border-red-500'}`}
           >
             <div className="font-bold text-base mb-1">
