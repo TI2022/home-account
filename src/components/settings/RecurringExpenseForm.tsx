@@ -106,7 +106,10 @@ export const RecurringExpenseForm = ({
         onClose();
       }
     }}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent 
+        className="sm:max-w-lg max-h-[90vh] overflow-y-auto"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>
             {editingExpense ? '定期支出を編集' : '定期支出を追加'}
@@ -122,6 +125,7 @@ export const RecurringExpenseForm = ({
               value={formData.name}
               onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
               required
+              autoFocus={false}
             />
           </div>
 
@@ -183,13 +187,10 @@ export const RecurringExpenseForm = ({
               />
               <Label htmlFor="all-months-check" className="text-sm">全月</Label>
               {allMonthsChecked && (
-                <Input
-                  type="number"
-                  min={1}
-                  max={31}
-                  value={allMonthsDay}
-                  onChange={e => {
-                    const day = parseInt(e.target.value);
+                <Select
+                  value={allMonthsDay.toString()}
+                  onValueChange={(value) => {
+                    const day = parseInt(value);
                     if (!isNaN(day)) {
                       setAllMonthsDay(day);
                       setFormData(prev => ({
@@ -198,8 +199,18 @@ export const RecurringExpenseForm = ({
                       }));
                     }
                   }}
-                  className="w-16"
-                />
+                >
+                  <SelectTrigger className="w-16">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                      <SelectItem key={day} value={day.toString()}>
+                        {day}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               )}
             </div>
             
@@ -225,14 +236,10 @@ export const RecurringExpenseForm = ({
                       }}
                     />
                     <Label className="text-sm">{month}</Label>
-                    <Input
-                      type="number"
-                      min={1}
-                      max={31}
-                      placeholder="日"
-                      value={schedule ? schedule.day : ''}
-                      onChange={e => {
-                        const day = parseInt(e.target.value);
+                    <Select
+                      value={schedule ? schedule.day.toString() : ''}
+                      onValueChange={(value) => {
+                        const day = parseInt(value);
                         setFormData(prev => {
                           const newSchedule = prev.payment_schedule ? [...prev.payment_schedule] : [];
                           const i = newSchedule.findIndex(s => s.month === idx + 1);
@@ -242,9 +249,19 @@ export const RecurringExpenseForm = ({
                           return { ...prev, payment_schedule: newSchedule };
                         });
                       }}
-                      className="w-16"
                       disabled={!schedule}
-                    />
+                    >
+                      <SelectTrigger className="w-16">
+                        <SelectValue placeholder="日" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                          <SelectItem key={day} value={day.toString()}>
+                            {day}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <span className="text-gray-400">日</span>
                   </div>
                 );
