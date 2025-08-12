@@ -41,6 +41,7 @@ export const RecurringExpenseSettings = () => {
     addRecurringExpense, 
     updateRecurringExpense, 
     deleteRecurringExpense,
+    reflectSingleRecurringExpenseForPeriod,
   } = useTransactionStore();
   const { showSnackbar } = useSnackbar();
   
@@ -75,10 +76,103 @@ export const RecurringExpenseSettings = () => {
     nextMonth.setDate(27);
     return nextMonth.toISOString().slice(0, 10);
   });
+  
+  // 一括反映用の状態
+  const [isReflectDialogOpen, setIsReflectDialogOpen] = useState(false);
+  const [reflectStartDate, setReflectStartDate] = useState('');
+  const [reflectEndDate, setReflectEndDate] = useState('');
+  const [reflectIsMock, setReflectIsMock] = useState(false);
+  const [isReflecting, setIsReflecting] = useState(false);
 
   useEffect(() => {
     fetchRecurringExpenses();
   }, [fetchRecurringExpenses]);
+
+  // 一括反映処理
+  const handleBulkReflect = async () => {
+    console.log('=== 一括反映処理開始 ===');
+    
+    if (!reflectStartDate || !reflectEndDate) {
+      showSnackbar('開始日と終了日を入力してください', 'destructive');
+      return;
+    }
+
+    if (selectedExpenseIds.length === 0) {
+      showSnackbar('定期支出を選択してください', 'destructive');
+      return;
+    }
+
+    console.log('反映設定:', {
+      reflectStartDate,
+      reflectEndDate,
+      reflectIsMock,
+      selectedExpenseIds: selectedExpenseIds.length
+    });
+
+    setIsReflecting(true);
+    setFailedReflects([]);
+    setSkippedReflects([]);
+
+    try {
+      let success = 0;
+      let failed = 0;
+
+      for (const expenseId of selectedExpenseIds) {
+        const expense = recurringExpenses.find(e => e.id === expenseId);
+        if (!expense) {
+          console.warn('定期支出が見つかりません:', expenseId);
+          continue;
+        }
+
+        console.log(`定期支出反映開始: ${expense.name}`, {
+          id: expenseId,
+          amount: expense.amount,
+          category: expense.category,
+          payment_schedule: expense.payment_schedule,
+          is_active: expense.is_active
+        });
+
+        try {
+          await reflectSingleRecurringExpenseForPeriod(
+            expenseId, 
+            reflectStartDate, 
+            reflectEndDate, 
+            reflectIsMock
+          );
+          console.log(`定期支出反映成功: ${expense.name}`);
+          success++;
+        } catch (error) {
+          console.error(`定期支出反映失敗: ${expense.name}`, error);
+          setFailedReflects(prev => [...prev, {
+            id: expenseId,
+            name: expense.name,
+            error: error instanceof Error ? error.message : '不明なエラー'
+          }]);
+          failed++;
+        }
+      }
+
+      console.log('=== 一括反映処理完了 ===', { success, failed });
+
+      showSnackbar(
+        `反映完了: ${success}件成功${failed > 0 ? `, ${failed}件失敗` : ''}`,
+        failed === 0 ? 'default' : 'destructive'
+      );
+
+      if (failed === 0) {
+        setIsReflectDialogOpen(false);
+        setSelectedExpenseIds([]);
+        setIsSelectMode(false);
+      } else {
+        setIsFailedDialogOpen(true);
+      }
+    } catch (error) {
+      console.error('Bulk reflect error:', error);
+      showSnackbar('一括反映処理に失敗しました', 'destructive');
+    } finally {
+      setIsReflecting(false);
+    }
+  };
 
   useEffect(() => {
     setExpenseOrder(recurringExpenses.map(e => e.id));
@@ -397,6 +491,7 @@ export const RecurringExpenseSettings = () => {
           variant={isSelectMode ? 'default' : 'outline'}
           className={isSelectMode ? 'bg-blue-500 text-white' : ''}
           onClick={() => {
+            console.log('選択モードボタンクリック', { currentMode: isSelectMode });
             setIsSelectMode(v => !v);
             setSelectedExpenseIds([]);
           }}
@@ -496,12 +591,12 @@ export const RecurringExpenseSettings = () => {
             <Button
               className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-full shadow-lg px-4 py-2 w-full"
               onClick={() => {
-                // シナリオ機能廃止により一括反映機能は無効化
-                showSnackbar('一括反映機能は現在無効化されています', 'destructive');
+                console.log('一括反映ボタンクリック', { selectedExpenseIds });
+                setIsReflectDialogOpen(true);
               }}
               disabled={selectedExpenseIds.length === 0}
             >
-              一括反映
+              一括反映 ({selectedExpenseIds.length})
             </Button>
             <Button
               className="bg-red-600 hover:bg-red-700 text-white font-bold rounded-full shadow-lg px-4 py-2 w-full"
@@ -926,6 +1021,95 @@ export const RecurringExpenseSettings = () => {
           </Card>
         </div>
       )}
+
+      {/* 一括反映ダイアログ */}
+      <Dialog open={isReflectDialogOpen} onOpenChange={setIsReflectDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>定期支出の一括反映</DialogTitle>
+            <DialogDescription>
+              選択した定期支出を指定期間に一括反映します。
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>開始日</Label>
+                <Input
+                  type="date"
+                  value={reflectStartDate}
+                  onChange={(e) => setReflectStartDate(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label>終了日</Label>
+                <Input
+                  type="date"
+                  value={reflectEndDate}
+                  onChange={(e) => setReflectEndDate(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label>反映タイプ</Label>
+              <div className="flex items-center space-x-4 mt-2">
+                <label className="flex items-center space-x-2">
+                  <input
+                    type="radio"
+                    name="reflectType"
+                    checked={!reflectIsMock}
+                    onChange={() => setReflectIsMock(false)}
+                  />
+                  <span>実際の収支</span>
+                </label>
+                <label className="flex items-center space-x-2">
+                  <input
+                    type="radio"
+                    name="reflectType"
+                    checked={reflectIsMock}
+                    onChange={() => setReflectIsMock(true)}
+                  />
+                  <span>予定の収支</span>
+                </label>
+              </div>
+            </div>
+
+            <div className="bg-gray-50 p-3 rounded">
+              <p className="text-sm text-gray-700">
+                反映対象: {selectedExpenseIds.length}件の定期支出
+              </p>
+              <div className="mt-2 max-h-20 overflow-y-auto">
+                {selectedExpenseIds.map(id => {
+                  const expense = recurringExpenses.find(e => e.id === id);
+                  return expense ? (
+                    <div key={id} className="text-xs text-gray-600">
+                      • {expense.name} (¥{formatAmount(expense.amount)})
+                    </div>
+                  ) : null;
+                })}
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsReflectDialogOpen(false)}
+                disabled={isReflecting}
+              >
+                キャンセル
+              </Button>
+              <Button
+                onClick={handleBulkReflect}
+                disabled={isReflecting}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {isReflecting ? '反映中...' : '反映実行'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
