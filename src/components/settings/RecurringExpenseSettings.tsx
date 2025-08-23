@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -84,9 +84,85 @@ export const RecurringExpenseSettings = () => {
   const [reflectIsMock, setReflectIsMock] = useState(false);
   const [isReflecting, setIsReflecting] = useState(false);
 
+  // スクロール固定用の状態
+  const [isButtonsFixed, setIsButtonsFixed] = useState(false);
+  const buttonsContainerRef = useRef<HTMLDivElement>(null);
+  const [buttonsOriginalTop, setButtonsOriginalTop] = useState(0);
+  const [buttonsOriginalRect, setButtonsOriginalRect] = useState<{
+    left: number;
+    width: number;
+  } | null>(null);
+
   useEffect(() => {
     fetchRecurringExpenses();
   }, [fetchRecurringExpenses]);
+
+  // スクロールハンドラーをuseCallbackでメモ化
+  const handleScroll = useCallback(() => {
+    if (!buttonsContainerRef.current || buttonsOriginalTop === 0) return;
+    
+    const scrollY = window.scrollY;
+    const shouldFix = scrollY > buttonsOriginalTop;
+    
+    // 状態が実際に変わる場合のみ更新
+    if (shouldFix && !isButtonsFixed) {
+      setIsButtonsFixed(true);
+    } else if (!shouldFix && isButtonsFixed) {
+      setIsButtonsFixed(false);
+    }
+  }, [buttonsOriginalTop, isButtonsFixed]);
+
+  // 選択モード開始時の初期設定
+  useEffect(() => {
+    if (!isSelectMode) return;
+
+    // 初期位置を設定
+    const setInitialPosition = () => {
+      if (buttonsContainerRef.current) {
+        const rect = buttonsContainerRef.current.getBoundingClientRect();
+        setButtonsOriginalTop(window.scrollY + rect.top);
+        setButtonsOriginalRect({
+          left: rect.left,
+          width: rect.width,
+        });
+      }
+    };
+
+    // 少し遅延させてDOM が安定してから初期位置を設定
+    const timeoutId = setTimeout(setInitialPosition, 100);
+    
+    return () => clearTimeout(timeoutId);
+  }, [isSelectMode]);
+
+  // スクロールイベントリスナーの登録
+  useEffect(() => {
+    if (!isSelectMode || buttonsOriginalTop === 0) return;
+
+    // スロットリング用の変数
+    let ticking = false;
+    
+    const throttledHandleScroll = () => {
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          handleScroll();
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    window.addEventListener('scroll', throttledHandleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', throttledHandleScroll);
+  }, [isSelectMode, buttonsOriginalTop, handleScroll]);
+
+  // 選択モード終了時に固定状態をリセット
+  useEffect(() => {
+    if (!isSelectMode) {
+      setIsButtonsFixed(false);
+      setButtonsOriginalTop(0);
+      setButtonsOriginalRect(null);
+    }
+  }, [isSelectMode]);
 
   // 一括反映処理
   const handleBulkReflect = async () => {
@@ -565,63 +641,92 @@ export const RecurringExpenseSettings = () => {
         </DialogContent>
       </Dialog>
       {isSelectMode && (
-        <div className="flex w-full gap-2 items-start flex-wrap sm:flex-nowrap">
-          {/* 左側: 全選択/全解除（縦並び） */}
-          <div className="flex flex-col gap-2 min-w-[100px]">
-            {selectedExpenseIds.length === recurringExpenses.filter(e => e.is_active).length ? (
+        <>
+          {/* 固定用のスペーサー（固定時のみ表示） */}
+          <div 
+            className="transition-all duration-300 ease-in-out"
+            style={{ 
+              height: isButtonsFixed ? '80px' : '0px',
+              opacity: isButtonsFixed ? 1 : 0 
+            }} 
+          />
+          
+          <div
+            ref={buttonsContainerRef}
+            className={`flex gap-2 items-start flex-wrap sm:flex-nowrap transition-all duration-300 ease-out ${
+              isButtonsFixed 
+                ? 'fixed top-2 z-50 bg-white shadow-lg border rounded-lg p-3' 
+                : 'w-full'
+            }`}
+            style={isButtonsFixed && buttonsOriginalRect ? { 
+              left: buttonsOriginalRect.left,
+              width: buttonsOriginalRect.width,
+            } : undefined}
+          >
+            {/* 左側: 全選択/全解除（縦並び） */}
+            <div className="flex flex-col gap-2 min-w-[100px]">
+              {selectedExpenseIds.length === recurringExpenses.filter(e => e.is_active).length ? (
+                <Button
+                  className="bg-gray-500 hover:bg-gray-600 text-white font-bold rounded-full shadow-lg px-4 py-2"
+                  onClick={() => setSelectedExpenseIds([])}
+                >
+                  全解除
+                </Button>
+              ) : (
+                <Button
+                  className="bg-gray-500 hover:bg-gray-600 text-white font-bold rounded-full shadow-lg px-4 py-2"
+                  onClick={() => {
+                    setSelectedExpenseIds(recurringExpenses.filter(e => e.is_active).map(e => e.id));
+                  }}
+                >
+                  全選択
+                </Button>
+              )}
+            </div>
+            {/* 右側: 一括反映・一括削除（横並び） */}
+            <div className="flex gap-2 flex-1">
               <Button
-                className="bg-gray-500 hover:bg-gray-600 text-white font-bold rounded-full shadow-lg px-4 py-2"
-                onClick={() => setSelectedExpenseIds([])}
-              >
-                全解除
-              </Button>
-            ) : (
-              <Button
-                className="bg-gray-500 hover:bg-gray-600 text-white font-bold rounded-full shadow-lg px-4 py-2"
+                className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-full shadow-lg px-4 py-2 w-full"
                 onClick={() => {
-                  setSelectedExpenseIds(recurringExpenses.filter(e => e.is_active).map(e => e.id));
+                  console.log('一括反映ボタンクリック', { selectedExpenseIds });
+                  setIsReflectDialogOpen(true);
                 }}
+                disabled={selectedExpenseIds.length === 0 || isReflecting}
               >
-                全選択
+                {isReflecting ? (
+                  <div className="flex items-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
+                    反映中...
+                  </div>
+                ) : (
+                  `一括反映 (${selectedExpenseIds.length})`
+                )}
               </Button>
-            )}
-          </div>
-          {/* 右側: 一括反映・一括削除（横並び） */}
-          <div className="flex gap-2 flex-1">
-            <Button
-              className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-full shadow-lg px-4 py-2 w-full"
-              onClick={() => {
-                console.log('一括反映ボタンクリック', { selectedExpenseIds });
-                setIsReflectDialogOpen(true);
-              }}
-              disabled={selectedExpenseIds.length === 0}
-            >
-              一括反映 ({selectedExpenseIds.length})
-            </Button>
-            <Button
-              className="bg-red-600 hover:bg-red-700 text-white font-bold rounded-full shadow-lg px-4 py-2 w-full"
-              onClick={async () => {
-                if (!window.confirm('選択した定期支出を削除しますか？')) return;
-                setLoading(true);
-                try {
-                  for (const id of selectedExpenseIds) {
-                    await deleteRecurringExpense(id);
+              <Button
+                className="bg-red-600 hover:bg-red-700 text-white font-bold rounded-full shadow-lg px-4 py-2 w-full"
+                onClick={async () => {
+                  if (!window.confirm('選択した定期支出を削除しますか？')) return;
+                  setLoading(true);
+                  try {
+                    for (const id of selectedExpenseIds) {
+                      await deleteRecurringExpense(id);
+                    }
+                    showSnackbar('選択した定期支出を削除しました');
+                    setSelectedExpenseIds([]);
+                    setIsSelectMode(false);
+                  } catch {
+                    showSnackbar('削除に失敗しました', 'destructive');
+                  } finally {
+                    setLoading(false);
                   }
-                  showSnackbar('選択した定期支出を削除しました');
-                  setSelectedExpenseIds([]);
-                  setIsSelectMode(false);
-                } catch {
-                  showSnackbar('削除に失敗しました', 'destructive');
-                } finally {
-                  setLoading(false);
-                }
-              }}
-              disabled={selectedExpenseIds.length === 0}
-            >
-              一括削除
-            </Button>
+                }}
+                disabled={selectedExpenseIds.length === 0}
+              >
+                一括削除
+              </Button>
+            </div>
           </div>
-        </div>
+        </>
       )}
       {/* 失敗詳細ダイアログ */}
       <Dialog open={isFailedDialogOpen} onOpenChange={setIsFailedDialogOpen}>
@@ -1110,7 +1215,14 @@ export const RecurringExpenseSettings = () => {
                 disabled={isReflecting}
                 className="bg-blue-600 hover:bg-blue-700"
               >
-                {isReflecting ? '反映中...' : '反映実行'}
+                {isReflecting ? (
+                  <div className="flex items-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
+                    反映中...
+                  </div>
+                ) : (
+                  '反映実行'
+                )}
               </Button>
             </div>
           </div>
@@ -1119,3 +1231,5 @@ export const RecurringExpenseSettings = () => {
     </div>
   );
 };
+
+export default RecurringExpenseSettings;
