@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useTransactionStore } from '@/store/useTransactionStore';
 import { useSavingsStore } from '@/store/useSavingsStore';
@@ -45,7 +45,17 @@ export const GraphPage = () => {
   }, [filteredTransactions]);
 
   // 選択中の月
-  const [selectedMonth, setSelectedMonth] = useState<string>(months[0] || '');
+  const [selectedMonth, setSelectedMonth] = useState<string>('');
+
+  // データが読み込まれた後、現在の月をデフォルトに設定
+  useEffect(() => {
+    if (months.length > 0 && selectedMonth === '') {
+      const currentMonth = format(new Date(), 'yyyy-MM');
+      // 現在の月がデータに存在すればそれを、なければ最新のデータ月を使用
+      const defaultMonth = months.includes(currentMonth) ? currentMonth : months[0];
+      setSelectedMonth(defaultMonth);
+    }
+  }, [months, selectedMonth]);
 
   // 月別収支データ
   const monthlyData = useMemo(() => {
