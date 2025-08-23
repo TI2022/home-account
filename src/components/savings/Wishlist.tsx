@@ -79,7 +79,16 @@ export const Wishlist = () => {
     <div className="mt-8">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-bold">欲しいものリスト</h2>
-        <Button onClick={() => { setIsDialogOpen(true); setEditId(null); }}>追加</Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => fetchWishlist(true)}
+            disabled={loading}
+          >
+            🔄 更新
+          </Button>
+          <Button onClick={() => { setIsDialogOpen(true); setEditId(null); }}>追加</Button>
+        </div>
       </div>
       {loading ? (
         <div>読み込み中...</div>

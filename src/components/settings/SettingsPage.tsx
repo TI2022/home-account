@@ -4,8 +4,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TransactionBulkCopy } from './TransactionBulkCopy';
 
 // 遅延読み込みでパフォーマンスを改善
-const RecurringIncomeSettings = lazy(() => import('./RecurringIncomeSettings').then(module => ({ default: module.RecurringIncomeSettings })));
-const RecurringExpenseSettings = lazy(() => import('./RecurringExpenseSettings').then(module => ({ default: module.RecurringExpenseSettings })));
+const RecurringIncomeSettings = lazy(() => import('./RecurringIncomeSettings'));
+const RecurringExpenseSettings = lazy(() => import('./RecurringExpenseSettings'));
 
 // ローディングコンポーネント
 const SettingsLoading = () => (
