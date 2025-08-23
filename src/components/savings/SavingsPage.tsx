@@ -28,13 +28,22 @@ export const SavingsPage = () => {
   // 月ごとの貯金額（収入-支出）を集計
   const filteredTransactions = transactions.filter(t => {
     if (showMock) {
-      // 予定のみ
+      // 予定データの場合は未来のデータも含める
       return t.isMock;
     } else {
-      // 実際のみ
+      // 実際のデータの場合は未来の日付のデータは除外
+      const today = new Date();
+      const transactionDate = new Date(t.date);
+      const isFuture = transactionDate > today;
+      
+      if (isFuture) {
+        return false; // 未来のデータは除外
+      }
+      
       return !t.isMock;
     }
   });
+
 
   
   // 全期間の月次データを集計
@@ -43,15 +52,22 @@ export const SavingsPage = () => {
     if (!acc[ym]) acc[ym] = { income: 0, expense: 0 };
     if (t.type === 'income') acc[ym].income += t.amount;
     if (t.type === 'expense') acc[ym].expense += t.amount;
+    
+    
     return acc;
   }, {} as Record<string, { income: number; expense: number }>);
   
   // 全期間の月次貯金額リストを作成（時系列順）
   const monthlySavingsList = Object.entries(monthlySavings)
-    .map(([ym, { income, expense }]) => ({
-      ym,
-      savings: income - expense,
-    }))
+    .map(([ym, { income, expense }]) => {
+      const savings = income - expense;
+      
+      
+      return {
+        ym,
+        savings,
+      };
+    })
     .sort((a, b) => a.ym.localeCompare(b.ym));
 
   // 全期間の累積貯金額リストを作成（最初から累積計算）
@@ -141,10 +157,10 @@ export const SavingsPage = () => {
             </Button>
           </div>
 
-          <Tabs defaultValue="monthly" className="w-full">
+          <Tabs defaultValue="cumulative" className="w-full">
             <TabsList className="mb-4">
-              <TabsTrigger value="monthly">月ごとの貯金額</TabsTrigger>
               <TabsTrigger value="cumulative">累積貯金額</TabsTrigger>
+              <TabsTrigger value="monthly">月ごとの貯金額</TabsTrigger>
             </TabsList>
             <TabsContent value="monthly">
               <div className={`space-y-2 ${filteredMonths.length > 12 ? 'max-h-96 overflow-y-auto' : ''}`}>
