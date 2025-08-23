@@ -10,15 +10,30 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 export const SavingsPage = () => {
   const { savingsAmount, setSavingsAmount, fetchSavingsAmount } = useSavingsStore();
-  const { transactions } = useTransactionStore();
+  const { transactions, fetchTransactions } = useTransactionStore();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [inputValue, setInputValue] = useState(savingsAmount.toString());
   const [showMock, setShowMock] = useState(false);
   const [displayPeriod, setDisplayPeriod] = useState('currentYear');
 
   useEffect(() => {
-    fetchSavingsAmount();
-  }, [fetchSavingsAmount]);
+    // 貯金画面を開く度に最新データを強制取得
+    const loadData = async () => {
+      await fetchSavingsAmount();
+      await fetchTransactions();
+    };
+    loadData();
+  }, [fetchSavingsAmount, fetchTransactions]);
+
+  // ページが表示される度に最新データを取得
+  useEffect(() => {
+    const handleFocus = () => {
+      fetchTransactions();
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [fetchTransactions]);
 
   useEffect(() => {
     setInputValue(savingsAmount.toString());
@@ -26,23 +41,16 @@ export const SavingsPage = () => {
 
 
   // 月ごとの貯金額（収入-支出）を集計
-  const filteredTransactions = transactions.filter(t => {
+  const filteredTransactions = transactions.filter((t) => {
     if (showMock) {
       // 予定データの場合は未来のデータも含める
       return t.isMock;
     } else {
-      // 実際のデータの場合は未来の日付のデータは除外
-      const today = new Date();
-      const transactionDate = new Date(t.date);
-      const isFuture = transactionDate > today;
-      
-      if (isFuture) {
-        return false; // 未来のデータは除外
-      }
-      
+      // 実際のデータの場合：isMock=falseのデータはすべて含める（未来の日付でも）
       return !t.isMock;
     }
   });
+
 
 
   
