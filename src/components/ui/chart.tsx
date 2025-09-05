@@ -76,25 +76,43 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     return null;
   }
 
+  // セキュリティ強化: CSS値のサニタイズ
+  const sanitizeCSSValue = (value: string): string => {
+    // CSSカラー値として有効な形式のみ許可
+    const colorRegex = /^(#[0-9a-f]{3,8}|rgb\([\d\s,]+\)|rgba\([\d\s,]+,[\d\s.]+\)|hsl\([\d\s,%]+\)|hsla\([\d\s,%]+,[\d\s.]+\)|[a-z]+)$/i;
+    return colorRegex.test(value.trim()) ? value.trim() : '#000000';
+  };
+
+  // セキュリティ強化: CSS識別子のサニタイズ
+  const sanitizeCSSIdentifier = (value: string): string => {
+    return value.replace(/[^a-zA-Z0-9-_]/g, '');
+  };
+
+  const cssText = Object.entries(THEMES)
+    .map(([theme, prefix]) => {
+      const sanitizedId = sanitizeCSSIdentifier(id);
+      const styles = colorConfig
+        .map(([key, itemConfig]) => {
+          const color =
+            itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
+            itemConfig.color;
+          if (!color) return null;
+          
+          const sanitizedKey = sanitizeCSSIdentifier(key);
+          const sanitizedColor = sanitizeCSSValue(color);
+          return `  --color-${sanitizedKey}: ${sanitizedColor};`;
+        })
+        .filter(Boolean)
+        .join('\n');
+      
+      return `${prefix} [data-chart="${sanitizedId}"] {\n${styles}\n}`;
+    })
+    .join('\n');
+
   return (
     <style
       dangerouslySetInnerHTML={{
-        __html: Object.entries(THEMES)
-          .map(
-            ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
-${colorConfig
-  .map(([key, itemConfig]) => {
-    const color =
-      itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
-      itemConfig.color;
-    return color ? `  --color-${key}: ${color};` : null;
-  })
-  .join('\n')}
-}
-`
-          )
-          .join('\n'),
+        __html: cssText,
       }}
     />
   );
