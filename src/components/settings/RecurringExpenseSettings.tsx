@@ -418,7 +418,9 @@ export const RecurringExpenseSettings = () => {
       console.log('ファイル内容:', text.slice(0, 200)); // 最初の200文字のみ表示
       setImportProgress('データを解析中...');
       const lines = text.split('\n');
-      const header = lines[0].split(',');
+      const rawHeader = lines[0].split(',');
+      // ダブルクォートを除去してヘッダーをクリーンアップ
+      const header = rawHeader.map(col => col.replace(/^"|"$/g, '').trim());
       console.log('CSVヘッダー:', header);
       const dateIndex = header.indexOf('利用日');
       const amountIndex = header.indexOf('利用金額');
@@ -431,7 +433,9 @@ export const RecurringExpenseSettings = () => {
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (line) {
-          const columns = line.split(',');
+          const rawColumns = line.split(',');
+          // ダブルクォートを除去してデータをクリーンアップ
+          const columns = rawColumns.map(col => col.replace(/^"|"$/g, '').trim());
           if (columns.length > Math.max(dateIndex, amountIndex, storeIndex)) {
             let cardUsedDateStr = columns[dateIndex]?.trim() || '';
             const amountStr = columns[amountIndex]?.trim() || '';
