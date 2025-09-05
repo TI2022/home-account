@@ -11,7 +11,23 @@ node_modules
 dist
 dist-ssr
 *.local
+# 環境変数・設定ファイル
 .env
+.env.local
+.env.production
+.env.staging
+.env.*.local
+
+# セキュリティ関連ファイル
+*.pem
+*.key
+*.crt
+*.p12
+secrets/
+private/
+
+# Supabaseローカル開発
+supabase/.env
 
 # Editor directories and files
 .vscode/*
