@@ -1,7 +1,9 @@
 /// <reference types="cypress" />
 
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Cypress {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     interface Chainable<Subject = any> {
       /**
        * 認証APIのモック設定

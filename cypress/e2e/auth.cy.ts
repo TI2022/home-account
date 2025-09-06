@@ -66,9 +66,9 @@ describe('認証フロー', () => {
     
     // HTML5バリデーションの状態を確認（実装後に有効化）
     cy.get('[data-testid="password-input"]').then(($input) => {
-      const input = $input[0] as HTMLInputElement
-      expect(input.validity.valid).to.be.false
-      expect(input.validity.tooShort).to.be.true
+      const input = $input[0] as HTMLInputElement;
+      expect(input.validity.valid).to.be.false;
+      expect(input.validity.tooShort).to.be.true;
     })
   })
 
