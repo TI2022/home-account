@@ -14,7 +14,7 @@ export const TabNavigation = () => {
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white/90 z-[1100] backdrop-blur-sm border-t border-pink-100 safe-area-pb overflow-x-auto shadow-lg">
+    <div className="fixed bottom-0 left-0 right-0 bg-white/90 z-[1100] backdrop-blur-sm border-t border-pink-100 safe-area-pb overflow-x-auto shadow-lg" data-testid="tab-navigation">
       <div className="flex justify-center">
         <div className="flex max-w-md w-full">
         {tabs.map((tab) => (
@@ -31,6 +31,7 @@ export const TabNavigation = () => {
                   : 'text-gray-600 hover:text-pink-600 hover:bg-pink-50'
               }`}
               onClick={() => setCurrentTab(tab.id)}
+              data-testid={`tab-${tab.id}`}
             >
               <div className="flex flex-col items-center space-y-1">
                 <tab.icon className="h-5 w-5" />

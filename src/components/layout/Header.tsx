@@ -60,7 +60,7 @@ export const Header = () => {
   };
 
   return (
-    <header className="py-3 safe-area-pt bg-transparent">
+    <header className="py-3 safe-area-pt bg-transparent" data-testid="header">
       <div className="flex items-center justify-center relative">
         <motion.h1 
           key={currentTab}
@@ -145,6 +145,7 @@ export const Header = () => {
                     variant="ghost"
                     onClick={handleSignOut}
                     className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+                    data-testid="logout-button"
                   >
                     <LogOut className="h-4 w-4 mr-3" />
                     ログアウト

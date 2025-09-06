@@ -16,6 +16,8 @@ import { GraphPage } from '@/components/graph/GraphPage';
 import TermsPage from '@/pages/TermsPage';
 import { useAppStore } from '@/store/useAppStore';
 import { useSnackbar } from '@/hooks/use-toast';
+import { setSecurityHeaders, validateEnvironmentSecurity } from '@/utils/security';
+import { logger } from '@/utils/logger';
 import './App.css';
 
 function App() {
@@ -23,6 +25,16 @@ function App() {
   const { currentTheme, getThemeById } = useThemeStore();
 
   useEffect(() => {
+    // セキュリティ初期化
+    try {
+      setSecurityHeaders();
+      validateEnvironmentSecurity();
+      logger.log('Security initialization completed');
+    } catch (error) {
+      logger.error('Security initialization failed', error);
+    }
+
+    // 認証初期化
     initialize();
   }, [initialize]);
 

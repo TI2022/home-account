@@ -6,6 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useAuthStore } from '@/store/useAuthStore';
 import { useSnackbar } from '@/hooks/use-toast';
 import { Calculator } from 'lucide-react';
+import { sanitizeInput, isValidEmail, checkPasswordStrength } from '@/utils/security';
+import { logger } from '@/utils/logger';
 
 export const AuthForm = () => {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -19,20 +21,50 @@ export const AuthForm = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setErrorMessage('');
 
     try {
+      // 入力値の検証とサニタイゼーション
+      const sanitizedEmail = sanitizeInput(email).toLowerCase();
+      const sanitizedPassword = password; // パスワードはサニタイズしない
+
+      // バリデーション
+      if (!isValidEmail(sanitizedEmail)) {
+        setErrorMessage('正しいメールアドレスを入力してください');
+        return;
+      }
+
+      if (sanitizedPassword.length < 6) {
+        setErrorMessage('パスワードは6文字以上で入力してください');
+        return;
+      }
+
+      // サインアップ時の追加バリデーション
+      if (isSignUp) {
+        const passwordCheck = checkPasswordStrength(sanitizedPassword);
+        if (!passwordCheck.isValid) {
+          setErrorMessage('パスワードが弱すぎます: ' + passwordCheck.feedback.join(', '));
+          return;
+        }
+      }
+
+      logger.debug('Authentication attempt', { email: sanitizedEmail, isSignUp });
+
       const result = isSignUp 
-        ? await signUp(email, password)
-        : await signIn(email, password);
+        ? await signUp(sanitizedEmail, sanitizedPassword)
+        : await signIn(sanitizedEmail, sanitizedPassword);
 
       if (result.error) {
+        logger.warn('Authentication failed', { error: result.error });
         setErrorMessage(result.error);
         showSnackbar(result.error, 'destructive');
       } else {
         setErrorMessage('');
+        logger.log('Authentication successful');
         showSnackbar(isSignUp ? 'アカウント作成完了' : 'ログイン完了');
       }
-    } catch {
+    } catch (error) {
+      logger.error('Authentication error', error);
       setErrorMessage('予期しないエラーが発生しました');
       showSnackbar('予期しないエラーが発生しました', 'destructive');
     } finally {
@@ -77,6 +109,7 @@ export const AuthForm = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   className="w-full"
+                  data-testid="email-input"
                 />
               </div>
               <div className="space-y-2">
@@ -90,17 +123,19 @@ export const AuthForm = () => {
                   required
                   minLength={6}
                   className="w-full"
+                  data-testid="password-input"
                 />
               </div>
               <Button 
                 type="submit" 
                 className="w-full bg-green-500 hover:bg-green-600"
                 disabled={loading}
+                data-testid="login-button"
               >
                 {loading ? '処理中...' : (isSignUp ? 'アカウント作成' : 'ログイン')}
               </Button>
               {errorMessage && (
-                <div className="mt-2 text-red-600 text-center">{errorMessage}</div>
+                <div className="mt-2 text-red-600 text-center" data-testid="error-message">{errorMessage}</div>
               )}
             </form>
             
