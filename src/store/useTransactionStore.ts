@@ -48,6 +48,15 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
   },
 
   fetchTransactions: async () => {
+    const now = Date.now();
+    const lastFetch = get()._lastFetchTime.transactions;
+    const CACHE_DURATION = 5000; // 5秒間キャッシュ
+
+    // キャッシュが有効な場合はスキップ
+    if (now - lastFetch < CACHE_DURATION && get().transactions.length > 0) {
+      return;
+    }
+
     set({ loading: true });
     try {
       const { data, error } = await supabase
@@ -56,7 +65,10 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
         .order('date', { ascending: false });
 
       if (error) throw error;
-      set({ transactions: data || [] });
+      set({ 
+        transactions: data || [],
+        _lastFetchTime: { ...get()._lastFetchTime, transactions: now }
+      });
     } catch (error) {
       console.error('Error fetching transactions:', error);
     } finally {
@@ -134,8 +146,6 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
 
   addTransaction: async (transaction) => {
     try {
-      console.log('=== addTransaction 開始 ===');
-      console.log('受信したトランザクション:', transaction);
       
       const { data: user } = await supabase.auth.getUser();
       if (!user.user) throw new Error('User not authenticated');
@@ -146,7 +156,6 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
         card_used_date: transaction.card_used_date || null,
       };
       
-      console.log('Supabaseに挿入するデータ:', insertData);
 
       const { data, error } = await supabase
         .from('transactions')
@@ -156,18 +165,13 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
 
       if (error) {
         console.error('Supabase挿入エラー:', error);
-        console.error('エラーコード:', error.code);
-        console.error('エラーメッセージ:', error.message);
-        console.error('エラー詳細:', error.details);
         throw error;
       }
 
-      console.log('Supabase挿入成功:', data);
 
       const currentTransactions = get().transactions;
       set({ transactions: [data, ...currentTransactions] });
       
-      console.log('=== addTransaction 完了 ===');
     } catch (error) {
       console.error('Error adding transaction:', error);
       throw error;
@@ -250,7 +254,6 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
 
   updateRecurringIncome: async (id: string, income) => {
     try {
-      console.log('Updating recurring income:', { id, income });
       // payment_scheduleはupdateObjには型通り配列で持たせる
       const updateObj: Partial<Omit<RecurringIncome, 'id' | 'user_id' | 'created_at' | 'updated_at'>> = {
         ...income,
@@ -291,7 +294,6 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
       set({ recurringIncomes: updatedIncomes });
     } catch (error) {
       console.error('Error updating recurring income:', error);
-      console.error('Error details:', error);
       throw error;
     }
   },
@@ -351,7 +353,6 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
 
   updateRecurringExpense: async (id: string, expense) => {
     try {
-      console.log('Updating recurring expense:', { id, expense });
       // payment_scheduleはupdateObjには型通り配列で持たせる
       const updateObj: Partial<Omit<RecurringExpense, 'id' | 'user_id' | 'created_at' | 'updated_at'>> = {
         ...expense,
@@ -390,7 +391,6 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
       ) });
     } catch (error) {
       console.error('Error updating recurring expense:', error);
-      console.error('Error details:', error);
       throw error;
     }
   },
@@ -415,9 +415,6 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
 
   updateTransaction: async (transaction) => {
     try {
-      console.log('Updating transaction:', { id: transaction.id, updateData: transaction });
-      console.log('Transaction type:', transaction.type);
-      console.log('Transaction category:', transaction.category);
       // 更新可能なフィールドのみを抽出
       const updateData = {
         type: transaction.type,
@@ -428,9 +425,6 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
         card_used_date: transaction.card_used_date || null,
         isMock: transaction.isMock ?? false,
       };
-      console.log('Extracted update data:', updateData);
-      console.log('Update data type:', typeof updateData.type);
-      console.log('Update data category:', typeof updateData.category);
 
       const { data, error } = await supabase
         .from('transactions')
@@ -441,13 +435,9 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
 
       if (error) {
         console.error('Supabase update error:', error);
-        console.error('Error code:', error.code);
-        console.error('Error message:', error.message);
-        console.error('Error details:', error.details);
         throw error;
       }
 
-      console.log('Update successful:', data);
 
       const currentTransactions = get().transactions;
       const updatedTransactions = currentTransactions.map(t => 
@@ -456,7 +446,6 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
       set({ transactions: updatedTransactions });
     } catch (error) {
       console.error('Error updating transaction:', error);
-      console.error('Error details:', error);
       throw error;
     }
   },
@@ -644,27 +633,18 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
   },
 
   reflectSingleRecurringExpenseForPeriod: async (expenseId: string, startDate: string, endDate: string, isMock?: boolean) => {
-    console.log('=== reflectSingleRecurringExpenseForPeriod 開始 ===');
-    console.log('引数:', { expenseId, startDate, endDate, isMock });
-    
     const { addTransaction, fetchRecurringExpenses, fetchTransactions } = get();
     await fetchRecurringExpenses();
     await fetchTransactions();
     
     const start = new Date(startDate);
     const end = new Date(endDate);
-    console.log('期間:', { start: start.toISOString(), end: end.toISOString() });
     
     const exp = (get().recurringExpenses || []).find(e => e.id === expenseId);
-    console.log('対象定期支出:', exp);
     
     if (!exp || !exp.is_active) {
-      console.log('定期支出が見つからないまたは無効:', { found: !!exp, is_active: exp?.is_active });
       return;
     }
-    
-    const existingTransactions = get().transactions || [];
-    console.log('既存トランザクション数:', existingTransactions.length);
     
     let createdCount = 0;
     let skippedCount = 0;
@@ -673,128 +653,51 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
     while (d <= end) {
       const month = d.getMonth() + 1;
       const year = d.getFullYear();
-      console.log(`処理中の月: ${year}-${month}`);
       
       let paymentDay: number | undefined = undefined;
       if (exp.payment_schedule) {
         const schedule = exp.payment_schedule.find(s => s.month === month);
         if (schedule) paymentDay = schedule.day;
-        console.log(`支払スケジュール: 月${month} 日${paymentDay}`);
       }
       
       if (paymentDay !== undefined) {
         const paymentDate = new Date(year, month - 1, paymentDay);
-        console.log('支払日:', paymentDate.toISOString());
         
         if (paymentDate >= start && paymentDate <= end) {
-          // タイムゾーン問題を修正: ローカル日付として正しく処理
           const paymentDateStr = paymentDate.getFullYear() + '-' + 
             String(paymentDate.getMonth() + 1).padStart(2, '0') + '-' + 
             String(paymentDate.getDate()).padStart(2, '0');
-          console.log('支払日文字列:', paymentDateStr);
           
           const existingTransactions = (get().transactions || []);
-          
-          // デバッグ: 条件詳細
           const targetIsMock = !!isMock;
-          console.log('既存チェック条件:', {
-            paymentDateStr,
-            targetAmount: exp.amount,
-            targetCategory: exp.category,
-            targetType: 'expense',
-            targetMemo: exp.name,
-            targetIsMock
-          });
           
-          const matchingTransactions = existingTransactions.filter(t => {
-            const dateMatch = t.date === paymentDateStr;
-            const amountMatch = t.amount === exp.amount;
-            const categoryMatch = t.category === exp.category;
-            const typeMatch = t.type === 'expense';
-            const isMockMatch = (t.isMock ?? false) === targetIsMock;
-            const memoMatch = t.memo === exp.name; // 定期支出名と一致するかチェック
-            
-            const allMatch = dateMatch && amountMatch && categoryMatch && typeMatch && isMockMatch && memoMatch;
-            
-            // デバッグ: 最初の数件について詳細ログ
-            if (dateMatch && amountMatch && categoryMatch && typeMatch) {
-              console.log('条件ほぼ一致するトランザクション:', {
-                id: t.id,
-                date: t.date,
-                amount: t.amount,
-                category: t.category,
-                type: t.type,
-                memo: t.memo,
-                isMock: t.isMock,
-                isMockNormalized: (t.isMock ?? false),
-                定期支出名: exp.name,
-                matches: { dateMatch, amountMatch, categoryMatch, typeMatch, isMockMatch, memoMatch, allMatch }
-              });
-            }
-            
-            return allMatch;
-          });
-          const exists = matchingTransactions.length > 0;
-          
-          console.log('既存チェック詳細:', {
-            paymentDateStr,
-            amount: exp.amount,
-            category: exp.category,
-            type: 'expense',
-            isMock: !!isMock,
-            matchingCount: matchingTransactions.length,
-            exists
-          });
-          
-          // matchingTransactionsを別途ログ出力
-          if (matchingTransactions.length > 0) {
-            console.log('=== 重複するトランザクションの詳細 ===');
-            matchingTransactions.forEach((t, index) => {
-              console.log(`重複 ${index + 1}:`, {
-                id: t.id,
-                date: t.date,
-                amount: t.amount,
-                category: t.category,
-                type: t.type,
-                memo: t.memo,
-                isMock: t.isMock,
-                isMockNormalized: (t.isMock ?? false)
-              });
-            });
-          } else {
-            console.log('重複するトランザクションなし - 新規作成予定');
-          }
+          const exists = existingTransactions.some(t =>
+            t.date === paymentDateStr &&
+            t.amount === exp.amount &&
+            t.category === exp.category &&
+            t.type === 'expense' &&
+            (t.isMock ?? false) === targetIsMock &&
+            t.memo === exp.name
+          );
           
           if (!exists) {
-            const newTransaction = {
+            await addTransaction({
               type: 'expense' as const,
               amount: exp.amount,
               category: exp.category,
               date: paymentDateStr,
               memo: exp.name,
               isMock: !!isMock,
-            };
-            console.log('作成予定トランザクション:', newTransaction);
-            
-            await addTransaction(newTransaction);
+            });
             createdCount++;
-            console.log('トランザクション作成成功');
           } else {
             skippedCount++;
-            console.log('既存のためスキップ');
           }
-        } else {
-          console.log('期間外のためスキップ:', { paymentDate: paymentDate.toISOString(), start: start.toISOString(), end: end.toISOString() });
         }
-      } else {
-        console.log(`月${month}の支払スケジュールなし`);
       }
       
       d.setMonth(d.getMonth() + 1);
       d.setDate(1);
     }
-    
-    console.log('=== reflectSingleRecurringExpenseForPeriod 完了 ===');
-    console.log('結果:', { createdCount, skippedCount });
   },
 }));
