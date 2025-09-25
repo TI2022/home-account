@@ -66,7 +66,6 @@ export const QuickTransactionForm = ({
 
   // 編集トランザクションまたは日付が変わった時にformDataを初期化
   useEffect(() => {
-    console.log('QuickTransactionForm useEffect - mode:', mode, 'copyingTransaction:', copyingTransaction, 'externalEditingTransaction:', externalEditingTransaction);
     
     // Use test props if available (for testing only)
     if (testInitialFormData) {
@@ -79,7 +78,6 @@ export const QuickTransactionForm = ({
         date: testInitialFormData.date || format(selectedDate, 'yyyy-MM-dd'),
       };
       setFormData(newFormData);
-      console.log('QuickTransactionForm: setFormData (test)', newFormData);
       return;
     }
     
@@ -94,7 +92,6 @@ export const QuickTransactionForm = ({
         date: externalEditingTransaction.date,
       };
       setFormData(newFormData);
-      console.log('QuickTransactionForm: setFormData (edit)', newFormData);
     } else if (mode === 'copy' && copyingTransaction) {
       setEditingTransaction(null);
       const newFormData = {
@@ -106,7 +103,6 @@ export const QuickTransactionForm = ({
         date: format(selectedDate, 'yyyy-MM-dd'),
       };
       setFormData(newFormData);
-      console.log('QuickTransactionForm: setFormData (copy)', newFormData);
     } else if (mode === 'add' && !externalEditingTransaction && !copyingTransaction) {
       setEditingTransaction(null);
       const newFormData = {
@@ -118,7 +114,6 @@ export const QuickTransactionForm = ({
         date: format(selectedDate, 'yyyy-MM-dd'),
       };
       setFormData(newFormData);
-      console.log('QuickTransactionForm: setFormData (add)', newFormData);
     }
   }, [mode, externalEditingTransaction, copyingTransaction, testInitialFormData, selectedDate]);
 
@@ -136,11 +131,6 @@ export const QuickTransactionForm = ({
       const categoryExists = categories.includes(formData.category);
       
       if (!categoryExists) {
-        console.log('QuickTransactionForm: カテゴリーが現在のタイプに存在しない:', {
-          type: formData.type,
-          category: formData.category,
-          availableCategories: categories
-        });
         // 編集モードでない場合のみカテゴリーをリセット
         if (!editingTransaction) {
           setFormData(prev => ({ ...prev, category: '' }));
@@ -149,12 +139,6 @@ export const QuickTransactionForm = ({
     }
   }, [formData.type, formData.category, editingTransaction]);
 
-  useEffect(() => {
-    console.log('QuickTransactionForm mounted');
-    return () => {
-      console.log('QuickTransactionForm unmounted');
-    };
-  }, []);
 
   // 外部からeditingTransactionが渡されたら内部stateに反映
   useEffect(() => {
@@ -167,7 +151,6 @@ export const QuickTransactionForm = ({
 
   // externalEditingTransactionがnullになったらフォームをリセット
   useEffect(() => {
-    console.log('QuickTransactionForm: externalEditingTransaction is null, resetting form');
     if (externalEditingTransaction === null) {
       setEditingTransaction(null);
       setFormData({
@@ -183,9 +166,7 @@ export const QuickTransactionForm = ({
 
   // 編集モードの場合、フォームに既存のデータをセット
   useEffect(() => {
-    console.log('QuickTransactionForm: editingTransaction changed:', editingTransaction);
     if (editingTransaction) {
-      console.log('QuickTransactionForm: Setting form data for editing:', editingTransaction);
       setFormData({
         type: editingTransaction.type,
         amount: editingTransaction.amount.toString(),
@@ -243,11 +224,6 @@ export const QuickTransactionForm = ({
     setLastSubmitted(submitData);
     try {
       if (editingTransaction) {
-        console.log('Editing transaction:', {
-          original: editingTransaction,
-          formData,
-          type: editingTransaction.type
-        });
         await updateTransaction({
           ...editingTransaction,
           type: formData.type,
@@ -477,13 +453,6 @@ export const QuickTransactionForm = ({
                 {(() => {
                   const categories = formData.type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
                   const categoryExists = categories.includes(formData.category);
-                  console.log('QuickTransactionForm: [Select debug]', {
-                    type: formData.type,
-                    category: formData.category,
-                    categoryExists,
-                    editMode: !!editingTransaction,
-                    availableCategories: categories
-                  });
                   return null;
                 })()}
                 {(formData.type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map((cat) => (
