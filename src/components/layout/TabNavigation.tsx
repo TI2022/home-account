@@ -1,16 +1,19 @@
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import { useAppStore } from '@/store/useAppStore';
-import { Calendar, PiggyBank, BarChart3, Settings } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Calendar, PiggyBank, BarChart3, Wallet } from 'lucide-react';
 
 export const TabNavigation = () => {
   const { currentTab, setCurrentTab } = useAppStore();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const tabs = [
     { id: 'calendar' as const, label: 'カレンダー', icon: Calendar },
     { id: 'graph' as const, label: 'グラフ', icon: BarChart3 },
     { id: 'savings' as const, label: '貯金', icon: PiggyBank },
-    { id: 'settings' as const, label: '収支設定', icon: Settings },
+    { id: 'savings-management' as const, label: '積立', icon: Wallet },
   ];
 
   return (
@@ -26,11 +29,23 @@ export const TabNavigation = () => {
             <Button
               variant="ghost"
               className={`w-full h-16 rounded-none ${
-                currentTab === tab.id
-                  ? 'bg-pink-50 text-pink-600 border-t-2 border-pink-500'
-                  : 'text-gray-600 hover:text-pink-600 hover:bg-pink-50'
+                location.pathname.startsWith('/savings-management')
+                  ? (tab.id === 'savings-management' ? 'bg-pink-50 text-pink-600 border-t-2 border-pink-500' : 'text-gray-600 hover:text-pink-600 hover:bg-pink-50')
+                  : (currentTab === tab.id ? 'bg-pink-50 text-pink-600 border-t-2 border-pink-500' : 'text-gray-600 hover:text-pink-600 hover:bg-pink-50')
               }`}
-              onClick={() => setCurrentTab(tab.id)}
+              onClick={() => {
+                if (tab.id === 'savings-management') {
+                  navigate('/savings-management');
+                } else {
+                  // 積立画面以外のタブをクリックした場合は、メイン画面に戻る
+                  if (location.pathname.startsWith('/savings-management')) {
+                    setCurrentTab(tab.id); // 先にタブを設定
+                    navigate('/');
+                  } else {
+                    setCurrentTab(tab.id);
+                  }
+                }
+              }}
               data-testid={`tab-${tab.id}`}
             >
               <div className="flex flex-col items-center space-y-1">

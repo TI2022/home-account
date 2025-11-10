@@ -4,12 +4,15 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useAppStore } from '@/store/useAppStore';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Menu, LogOut, User, Palette, Plus, BarChart3, Settings } from 'lucide-react';
 
 export const Header = () => {
   const { signOut, user } = useAuthStore();
   const { currentTab, setCurrentTab } = useAppStore();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const handleSignOut = async () => {
     await signOut();
@@ -17,28 +20,50 @@ export const Header = () => {
   };
 
   const handleBackgroundSettings = () => {
+    if (location.pathname.startsWith('/savings-management')) {
+      navigate('/');
+    }
     setCurrentTab('background');
     setIsMenuOpen(false);
   };
 
   const handleAddRecord = () => {
+    if (location.pathname.startsWith('/savings-management')) {
+      navigate('/');
+    }
     setCurrentTab('add');
     setIsMenuOpen(false);
   };
 
-
   const handleGraph = () => {
+    if (location.pathname.startsWith('/savings-management')) {
+      navigate('/');
+    }
     setCurrentTab('graph');
     setIsMenuOpen(false);
   };
 
-
   const handleSettings = () => {
+    if (location.pathname.startsWith('/savings-management')) {
+      navigate('/');
+    }
     setCurrentTab('settings');
     setIsMenuOpen(false);
   };
 
   const getPageTitle = () => {
+    // 積立管理画面の場合
+    if (location.pathname.startsWith('/savings-management')) {
+      if (location.pathname === '/savings-management') {
+        return '積立管理';
+      } else if (location.pathname.includes('/account/')) {
+        return '積立口座詳細';
+      } else {
+        return '個人詳細';
+      }
+    }
+
+    // メインアプリの場合
     switch (currentTab) {
       case 'home':
         return 'ステータス';
@@ -55,15 +80,15 @@ export const Header = () => {
       case 'graph':
         return 'グラフ';
       default:
-        return 'ステータス';
+        return 'カレンダー';
     }
   };
 
   return (
     <header className="py-3 safe-area-pt bg-transparent" data-testid="header">
       <div className="flex items-center justify-center relative">
-        <motion.h1 
-          key={currentTab}
+        <motion.h1
+          key={`${currentTab}-${location.pathname}`}
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
