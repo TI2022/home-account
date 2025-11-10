@@ -134,20 +134,20 @@ export const QuickTransactionForm = ({
     if (formData.category && formData.type) {
       const categories = formData.type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
       const categoryExists = categories.includes(formData.category);
-      
+
       if (!categoryExists) {
         console.log('QuickTransactionForm: カテゴリーが現在のタイプに存在しない:', {
           type: formData.type,
           category: formData.category,
           availableCategories: categories
         });
-        // 編集モードでない場合のみカテゴリーをリセット
-        if (!editingTransaction) {
+        // 編集モードでない場合かつexternalEditingTransactionがnullの場合のみカテゴリーをリセット
+        if (!editingTransaction && !externalEditingTransaction) {
           setFormData(prev => ({ ...prev, category: '' }));
         }
       }
     }
-  }, [formData.type, formData.category, editingTransaction]);
+  }, [formData.type, formData.category, editingTransaction, externalEditingTransaction]);
 
   useEffect(() => {
     console.log('QuickTransactionForm mounted');
@@ -165,10 +165,10 @@ export const QuickTransactionForm = ({
     }
   }, [externalEditingTransaction]);
 
-  // externalEditingTransactionがnullになったらフォームをリセット
+  // externalEditingTransactionがnullになったらフォームをリセット（ただしmode=editの場合は除く）
   useEffect(() => {
     console.log('QuickTransactionForm: externalEditingTransaction is null, resetting form');
-    if (externalEditingTransaction === null) {
+    if (externalEditingTransaction === null && mode !== 'edit') {
       setEditingTransaction(null);
       setFormData({
         type: 'expense',
@@ -179,7 +179,7 @@ export const QuickTransactionForm = ({
         date: format(selectedDate, 'yyyy-MM-dd'),
       });
     }
-  }, [externalEditingTransaction, selectedDate]);
+  }, [externalEditingTransaction, selectedDate, mode]);
 
   // 編集モードの場合、フォームに既存のデータをセット
   useEffect(() => {
@@ -343,9 +343,9 @@ export const QuickTransactionForm = ({
               onValueChange={(value) => {
                 const newType = value as 'income' | 'expense';
                 // タイプ変更時にカテゴリーをリセット（編集モード以外）
-                const shouldResetCategory = !editingTransaction;
-                setFormData({ 
-                  ...formData, 
+                const shouldResetCategory = !editingTransaction && !externalEditingTransaction;
+                setFormData({
+                  ...formData,
                   type: newType,
                   category: shouldResetCategory ? '' : formData.category
                 });

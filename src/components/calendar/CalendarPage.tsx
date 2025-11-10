@@ -369,14 +369,20 @@ export const CalendarPage = () => {
 
 
   // Get transactions for selected date
-  const selectedDateTransactions = transactions.filter(t => {
-    if (showMock) {
-      if (!t.isMock) return false;
-    } else {
-      if (t.isMock) return false;
-    }
-    return isSameDay(new Date(t.date), selectedDate);
-  });
+  const selectedDateTransactions = transactions
+    .filter(t => {
+      if (showMock) {
+        if (!t.isMock) return false;
+      } else {
+        if (t.isMock) return false;
+      }
+      return isSameDay(new Date(t.date), selectedDate);
+    })
+    .sort((a, b) => {
+      const textA = (a.memo || a.category).toLowerCase();
+      const textB = (b.memo || b.category).toLowerCase();
+      return textA.localeCompare(textB);
+    });
 
   const formatAmount = (amount: number) => {
     return amount.toLocaleString('ja-JP');

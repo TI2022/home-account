@@ -14,7 +14,7 @@ export const SavingsPage = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [inputValue, setInputValue] = useState(savingsAmount.toString());
   const [showMock, setShowMock] = useState(false);
-  const [displayPeriod, setDisplayPeriod] = useState('currentYear');
+  const [displayPeriod, setDisplayPeriod] = useState('all');
 
   useEffect(() => {
     // 貯金画面を開く度に最新データを強制取得
@@ -96,11 +96,6 @@ export const SavingsPage = () => {
         const currentYearCumulative = cumulativeSavingsList.filter(({ ym }) => ym.startsWith(currentYear));
         return { months: currentYearMonths, cumulative: currentYearCumulative };
       }
-      case 'last12Months': {
-        const last12Months = monthlySavingsList.slice(-12);
-        const last12Cumulative = cumulativeSavingsList.slice(-12);
-        return { months: last12Months, cumulative: last12Cumulative };
-      }
       case 'all': {
         return { months: monthlySavingsList, cumulative: cumulativeSavingsList };
       }
@@ -138,7 +133,6 @@ export const SavingsPage = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="currentYear">今年</SelectItem>
-                <SelectItem value="last12Months">過去12ヶ月</SelectItem>
                 <SelectItem value="all">全期間</SelectItem>
               </SelectContent>
             </Select>
@@ -190,8 +184,7 @@ export const SavingsPage = () => {
                 <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-medium text-blue-700">
-                      {displayPeriod === 'currentYear' ? '今年の貯金合計' :
-                       displayPeriod === 'last12Months' ? '過去12ヶ月の貯金合計' : '全期間の貯金合計'}
+                      {displayPeriod === 'currentYear' ? '今年の貯金合計' : '全期間の貯金合計'}
                     </span>
                     <span className="text-lg font-bold text-blue-600">
                       ¥{totalSavings.toLocaleString('ja-JP')}
