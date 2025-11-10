@@ -117,3 +117,36 @@ export const INCOME_CATEGORIES = [
 
 export type ExpenseCategory = typeof EXPENSE_CATEGORIES[number];
 export type IncomeCategory = typeof INCOME_CATEGORIES[number];
+
+// 積立管理用の型定義
+export interface Person {
+  id: string;
+  user_id: string;
+  name: string;
+  avatar?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SavingsAccount {
+  id: string;
+  person_id: string;
+  user_id: string;
+  name: string;
+  target_amount?: number;
+  current_balance: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SavingsTransaction {
+  id: string;
+  account_id: string;
+  user_id: string;
+  type: 'deposit' | 'withdrawal';
+  amount: number;
+  memo: string;
+  date: string;
+  created_at: string;
+  updated_at: string;
+}
