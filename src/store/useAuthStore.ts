@@ -67,8 +67,8 @@ export const useAuthStore = create<AuthState>((set) => ({
                            import.meta.env.VITE_ENVIRONMENT === 'development';
 
       // Cypress環境でのモックユーザー設定をチェック（テスト環境のみ）
-      if (isTestEnvironment && typeof window !== 'undefined' && (window as any).__MOCK_USER__) {
-        const mockUser = (window as any).__MOCK_USER__;
+      if (isTestEnvironment && typeof window !== 'undefined' && (window as { __MOCK_USER__?: unknown }).__MOCK_USER__) {
+        const mockUser = (window as { __MOCK_USER__?: unknown }).__MOCK_USER__;
         console.warn('🧪 TEST MODE: Using mock user authentication');
         set({ user: mockUser, loading: false });
         return;
@@ -83,7 +83,7 @@ export const useAuthStore = create<AuthState>((set) => ({
           role: 'authenticated'
         };
         console.warn('🧪 TEST MODE: Using Cypress test user');
-        set({ user: testUser as any, loading: false });
+        set({ user: testUser as typeof testUser, loading: false });
         return;
       }
 
@@ -98,7 +98,7 @@ export const useAuthStore = create<AuthState>((set) => ({
           role: 'authenticated'
         };
         console.warn('🔧 DEMO MODE: Using demo user (development only)');
-        set({ user: demoUser as any, loading: false });
+        set({ user: demoUser as typeof demoUser, loading: false });
         return;
       }
 

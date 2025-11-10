@@ -15,7 +15,6 @@ export const parseCSV = (text: string, options: CSVParseOptions = {}): string[][
   const {
     delimiter = ',',
     quote = '"',
-    escape = '"',
     skipEmptyLines = true
   } = options;
 

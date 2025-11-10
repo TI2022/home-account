@@ -67,9 +67,10 @@ export const getSecret = async (key: string): Promise<string> => {
   const provider = process.env.SECRET_PROVIDER || 'env';
   
   switch (provider) {
-    case 'aws':
+    case 'aws': {
       const awsSecrets = await getAWSSecret(process.env.AWS_SECRET_NAME || 'app-secrets');
       return awsSecrets[key];
+    }
       
     case 'gcp':
       return await getGCPSecret(key);

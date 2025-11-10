@@ -1,10 +1,10 @@
 // セキュリティ強化: 本番環境でのログ制御
 
 interface Logger {
-  log: (message: string, ...args: any[]) => void;
-  warn: (message: string, ...args: any[]) => void;
-  error: (message: string, ...args: any[]) => void;
-  debug: (message: string, ...args: any[]) => void;
+  log: (message: string, ...args: unknown[]) => void;
+  warn: (message: string, ...args: unknown[]) => void;
+  error: (message: string, ...args: unknown[]) => void;
+  debug: (message: string, ...args: unknown[]) => void;
 }
 
 const isProduction = import.meta.env.PROD;
@@ -26,32 +26,32 @@ class SecureLogger implements Logger {
     return true;
   }
 
-  log(message: string, ...args: any[]): void {
+  log(message: string, ...args: unknown[]): void {
     if (this.shouldLog('log')) {
       console.log(`[LOG] ${message}`, ...args);
     }
   }
 
-  warn(message: string, ...args: any[]): void {
+  warn(message: string, ...args: unknown[]): void {
     if (this.shouldLog('warn')) {
       console.warn(`[WARN] ${message}`, ...args);
     }
   }
 
-  error(message: string, ...args: any[]): void {
+  error(message: string, ...args: unknown[]): void {
     if (this.shouldLog('error')) {
       console.error(`[ERROR] ${message}`, ...args);
     }
   }
 
-  debug(message: string, ...args: any[]): void {
+  debug(message: string, ...args: unknown[]): void {
     if (this.shouldLog('debug')) {
       console.debug(`[DEBUG] ${message}`, ...args);
     }
   }
 
   // セキュリティ: 機密情報を含む可能性のあるオブジェクトのログ
-  secureLog(message: string, data: any): void {
+  secureLog(message: string, data: unknown): void {
     if (!this.shouldLog('debug')) return;
 
     // 機密情報をマスクしてログ出力
@@ -59,7 +59,7 @@ class SecureLogger implements Logger {
     console.debug(`[SECURE] ${message}`, sanitizedData);
   }
 
-  private sanitizeData(data: any): any {
+  private sanitizeData(data: unknown): unknown {
     if (typeof data !== 'object' || data === null) {
       return data;
     }

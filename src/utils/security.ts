@@ -65,7 +65,7 @@ export const checkPasswordStrength = (password: string): {
   if (/\d/.test(password)) score += 1;
   else feedback.push('数字を含めてください');
 
-  if (/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\?]/.test(password)) score += 1;
+  if (/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>?]/.test(password)) score += 1;
   else feedback.push('記号を含めてください');
 
   return {
