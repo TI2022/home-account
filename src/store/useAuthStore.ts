@@ -103,11 +103,23 @@ export const useAuthStore = create<AuthState>((set) => ({
       }
 
       // 本番環境では常に正規の認証フローを使用
-      const { data: { session } } = await supabase.auth.getSession();
-      set({ user: session?.user ?? null, loading: false });
+      const { data: { session }, error } = await supabase.auth.getSession();
 
-      supabase.auth.onAuthStateChange((_, session) => {
+      if (error) {
+        console.error('Session retrieval failed:', error);
+        set({ user: null, loading: false });
+      } else {
         set({ user: session?.user ?? null, loading: false });
+      }
+
+      supabase.auth.onAuthStateChange((event, session) => {
+        console.log('Auth state change:', event, session?.user?.id);
+        set({ user: session?.user ?? null, loading: false });
+
+        // セッションが無効になった場合のログ
+        if (event === 'SIGNED_OUT' || (event === 'TOKEN_REFRESHED' && !session)) {
+          console.log('User session expired or signed out');
+        }
       });
     } catch (error) {
       console.error('Authentication initialization failed:', error);

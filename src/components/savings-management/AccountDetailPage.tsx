@@ -61,7 +61,7 @@ export const AccountDetailPage = () => {
     loadData();
   }, [fetchPersons, fetchAccounts, fetchTransactions, accountId, showSnackbar]);
 
-  const handleOpenDialog = (transaction?: SavingsTransaction) => {
+  const handleOpenDialog = (transaction?: SavingsTransaction, defaultType?: 'deposit' | 'withdrawal') => {
     if (transaction) {
       setEditingTransaction(transaction);
       setFormData({
@@ -73,7 +73,7 @@ export const AccountDetailPage = () => {
     } else {
       setEditingTransaction(null);
       setFormData({
-        type: 'deposit',
+        type: defaultType || 'deposit',
         amount: '',
         memo: '',
         date: new Date().toISOString().split('T')[0]
@@ -215,8 +215,7 @@ export const AccountDetailPage = () => {
           </Button>
           <Button
             onClick={() => {
-              setFormData(prev => ({ ...prev, type: 'withdrawal' }));
-              handleOpenDialog();
+              handleOpenDialog(undefined, 'withdrawal');
             }}
             variant="outline"
             className="flex items-center gap-2"

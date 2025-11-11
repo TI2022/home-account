@@ -21,6 +21,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { useSnackbar } from '@/hooks/use-toast';
 import { setSecurityHeaders, validateEnvironmentSecurity } from '@/utils/security';
 import { logger } from '@/utils/logger';
+import type { User } from '@supabase/supabase-js';
 import './App.css';
 
 function App() {
@@ -50,6 +51,26 @@ function App() {
     }
   }, [currentTheme, getThemeById]);
 
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/terms" element={<TermsPage />} />
+        <Route path="/savings-management" element={<ProtectedRoute component={SavingsManagementApp} loading={loading} user={user} />} />
+        <Route path="/savings-management/:personId" element={<ProtectedRoute component={PersonDetailApp} loading={loading} user={user} />} />
+        <Route path="/savings-management/:personId/account/:accountId" element={<ProtectedRoute component={AccountDetailApp} loading={loading} user={user} />} />
+        <Route path="*" element={<ProtectedRoute component={MainApp} loading={loading} user={user} />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+interface ProtectedRouteProps {
+  component: React.ComponentType;
+  loading: boolean;
+  user: User | null;
+}
+
+function ProtectedRoute({ component: Component, loading, user }: ProtectedRouteProps) {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -58,17 +79,11 @@ function App() {
     );
   }
 
-  return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/terms" element={<TermsPage />} />
-        <Route path="/savings-management" element={user ? <SavingsManagementApp /> : <AuthForm />} />
-        <Route path="/savings-management/:personId" element={user ? <PersonDetailApp /> : <AuthForm />} />
-        <Route path="/savings-management/:personId/account/:accountId" element={user ? <AccountDetailApp /> : <AuthForm />} />
-        <Route path="*" element={user ? <MainApp /> : <AuthForm />} />
-      </Routes>
-    </BrowserRouter>
-  );
+  if (!user) {
+    return <AuthForm />;
+  }
+
+  return <Component />;
 }
 
 function MainApp() {
