@@ -8,6 +8,11 @@ const isMainTab = (tabId: string): tabId is 'calendar' | 'graph' | 'savings' => 
   return ['calendar', 'graph', 'savings'].includes(tabId);
 };
 
+// 積立関連画面の判定
+const isSavingsRelatedScreen = (screen: string): boolean => {
+  return ['savings-management', 'person-detail', 'account-detail'].includes(screen);
+};
+
 export const TabNavigation = () => {
   const {
     currentTab,
@@ -37,7 +42,7 @@ export const TabNavigation = () => {
             <Button
               variant="ghost"
               className={`w-full h-16 rounded-none ${
-                currentScreen === 'savings-management'
+                isSavingsRelatedScreen(currentScreen)
                   ? (tab.id === 'savings-management' ? 'bg-pink-50 text-pink-600 border-t-2 border-pink-500' : 'text-gray-600 hover:text-pink-600 hover:bg-pink-50')
                   : (currentTab === tab.id ? 'bg-pink-50 text-pink-600 border-t-2 border-pink-500' : 'text-gray-600 hover:text-pink-600 hover:bg-pink-50')
               }`}
@@ -50,8 +55,8 @@ export const TabNavigation = () => {
                 } else {
                   // メインアプリのタブをクリックした場合
                   if (isMainTab(tab.id)) {
-                    if (currentScreen === 'savings-management') {
-                      // 積立画面からメイン画面に戻る
+                    if (isSavingsRelatedScreen(currentScreen)) {
+                      // 積立関連画面からメイン画面に戻る
                       navigateToMain(tab.id);
                     } else {
                       // メイン画面内でのタブ切り替え
