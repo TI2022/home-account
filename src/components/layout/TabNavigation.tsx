@@ -1,13 +1,21 @@
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import { useAppStore } from '@/store/useAppStore';
-import { useNavigate, useLocation } from 'react-router-dom';
 import { Calendar, PiggyBank, BarChart3, Wallet } from 'lucide-react';
 
+// MainTabの型ガード
+const isMainTab = (tabId: string): tabId is 'calendar' | 'graph' | 'savings' => {
+  return ['calendar', 'graph', 'savings'].includes(tabId);
+};
+
 export const TabNavigation = () => {
-  const { currentTab, setCurrentTab } = useAppStore();
-  const navigate = useNavigate();
-  const location = useLocation();
+  const {
+    currentTab,
+    setCurrentTab,
+    currentScreen,
+    navigateToSavingsManagement,
+    navigateToMain
+  } = useAppStore();
 
   const tabs = [
     { id: 'calendar' as const, label: 'カレンダー', icon: Calendar },
@@ -29,25 +37,26 @@ export const TabNavigation = () => {
             <Button
               variant="ghost"
               className={`w-full h-16 rounded-none ${
-                location.pathname.startsWith('/savings-management')
+                currentScreen === 'savings-management'
                   ? (tab.id === 'savings-management' ? 'bg-pink-50 text-pink-600 border-t-2 border-pink-500' : 'text-gray-600 hover:text-pink-600 hover:bg-pink-50')
                   : (currentTab === tab.id ? 'bg-pink-50 text-pink-600 border-t-2 border-pink-500' : 'text-gray-600 hover:text-pink-600 hover:bg-pink-50')
               }`}
               onClick={() => {
                 if (tab.id === 'savings-management') {
-                  // 既に積立管理のメインページにいる場合は何もしない
-                  if (location.pathname !== '/savings-management') {
-                    navigate('/savings-management', { replace: true });
+                  // 積立管理画面に遷移（既にいる場合は何もしない）
+                  if (currentScreen !== 'savings-management') {
+                    navigateToSavingsManagement();
                   }
                 } else {
-                  // 積立画面以外のタブをクリックした場合
-                  if (location.pathname.startsWith('/savings-management')) {
-                    // 積立画面からメイン画面に戻る
-                    setCurrentTab(tab.id);
-                    navigate('/', { replace: true });
-                  } else {
-                    // メイン画面内でのタブ切り替え
-                    setCurrentTab(tab.id);
+                  // メインアプリのタブをクリックした場合
+                  if (isMainTab(tab.id)) {
+                    if (currentScreen === 'savings-management') {
+                      // 積立画面からメイン画面に戻る
+                      navigateToMain(tab.id);
+                    } else {
+                      // メイン画面内でのタブ切り替え
+                      setCurrentTab(tab.id);
+                    }
                   }
                 }
               }}

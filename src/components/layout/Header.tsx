@@ -1,86 +1,80 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useAppStore } from '@/store/useAppStore';
-import { useLocation, useNavigate } from 'react-router-dom';
 import { Menu, LogOut, User, Palette, Plus, BarChart3, Settings } from 'lucide-react';
+
+// MainTab型を取得（useAppStoreから推論）
+type MainTab = Parameters<ReturnType<typeof useAppStore>['setCurrentTab']>[0];
 
 export const Header = () => {
   const { signOut, user } = useAuthStore();
-  const { currentTab, setCurrentTab } = useAppStore();
+  const {
+    currentTab,
+    setCurrentTab,
+    currentScreen,
+    navigateToMain
+  } = useAppStore();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const location = useLocation();
-  const navigate = useNavigate();
 
   const handleSignOut = async () => {
     await signOut();
     setIsMenuOpen(false);
   };
 
-  const handleBackgroundSettings = () => {
-    if (location.pathname.startsWith('/savings-management')) {
-      navigate('/', { replace: true });
-    }
-    setCurrentTab('background');
-    setIsMenuOpen(false);
-  };
+  // メイン画面への遷移ハンドラー
+  const handleMainTabTransition = useCallback((targetTab: MainTab) => {
+    return () => {
+      setIsMenuOpen(false);
 
-  const handleAddRecord = () => {
-    if (location.pathname.startsWith('/savings-management')) {
-      navigate('/', { replace: true });
-    }
-    setCurrentTab('add');
-    setIsMenuOpen(false);
-  };
+      if (currentScreen === 'savings-management') {
+        // 積立画面からメイン画面に戻る
+        navigateToMain(targetTab);
+      } else {
+        // メイン画面内での遷移
+        setCurrentTab(targetTab);
+      }
+    };
+  }, [currentScreen, navigateToMain, setCurrentTab]);
 
-  const handleGraph = () => {
-    if (location.pathname.startsWith('/savings-management')) {
-      navigate('/', { replace: true });
-    }
-    setCurrentTab('graph');
-    setIsMenuOpen(false);
-  };
-
-  const handleSettings = () => {
-    if (location.pathname.startsWith('/savings-management')) {
-      navigate('/', { replace: true });
-    }
-    setCurrentTab('settings');
-    setIsMenuOpen(false);
-  };
+  // 汎用ハンドラーを使用した個別ハンドラー
+  const handleBackgroundSettings = handleMainTabTransition('background');
+  const handleAddRecord = handleMainTabTransition('add');
+  const handleGraph = handleMainTabTransition('graph');
+  const handleSettings = handleMainTabTransition('settings');
 
   const getPageTitle = () => {
     // 積立管理画面の場合
-    if (location.pathname.startsWith('/savings-management')) {
-      if (location.pathname === '/savings-management') {
+    switch (currentScreen) {
+      case 'savings-management':
         return '積立管理';
-      } else if (location.pathname.includes('/account/')) {
-        return '積立口座詳細';
-      } else {
+      case 'person-detail':
         return '個人詳細';
-      }
-    }
-
-    // メインアプリの場合
-    switch (currentTab) {
-      case 'home':
-        return 'ステータス';
-      case 'calendar':
-        return 'カレンダー';
-      case 'add':
-        return '収支の記録';
-      case 'settings':
-        return '収支設定';
-      case 'background':
-        return '背景設定';
-      case 'savings':
-        return '貯金';
-      case 'graph':
-        return 'グラフ';
+      case 'account-detail':
+        return '積立口座詳細';
+      case 'main':
       default:
-        return 'カレンダー';
+        // メインアプリの場合
+        switch (currentTab) {
+          case 'home':
+            return 'ステータス';
+          case 'calendar':
+            return 'カレンダー';
+          case 'add':
+            return '収支の記録';
+          case 'settings':
+            return '収支設定';
+          case 'background':
+            return '背景設定';
+          case 'savings':
+            return '貯金';
+          case 'graph':
+            return 'グラフ';
+          default:
+            return 'カレンダー';
+        }
     }
   };
 
@@ -88,7 +82,7 @@ export const Header = () => {
     <header className="py-3 safe-area-pt bg-transparent" data-testid="header">
       <div className="flex items-center justify-center relative">
         <motion.h1
-          key={`${currentTab}-${location.pathname}`}
+          key={`${currentTab}-${currentScreen}`}
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
