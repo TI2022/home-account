@@ -1,19 +1,22 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useSavingsManagementStore } from '@/store/useSavingsManagementStore';
+import { useAppStore } from '@/store/useAppStore';
 import { useSnackbar } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Plus, Edit, Trash2, Target, PiggyBank, User } from 'lucide-react';
 import type { SavingsAccount } from '@/types';
 
 export const PersonDetailPage = () => {
-  const { personId } = useParams<{ personId: string }>();
-  const navigate = useNavigate();
+  const {
+    selectedPersonId,
+    navigateToSavingsManagement,
+    navigateToAccountDetail
+  } = useAppStore();
   const { showSnackbar } = useSnackbar();
 
   const {
@@ -35,16 +38,16 @@ export const PersonDetailPage = () => {
     target_amount: ''
   });
 
-  const person = persons.find(p => p.id === personId);
-  const personAccounts = personId ? getPersonAccounts(personId) : [];
-  const totalBalance = personId ? getPersonTotalBalance(personId) : 0;
+  const person = persons.find(p => p.id === selectedPersonId);
+  const personAccounts = selectedPersonId ? getPersonAccounts(selectedPersonId) : [];
+  const totalBalance = selectedPersonId ? getPersonTotalBalance(selectedPersonId) : 0;
 
   useEffect(() => {
     const loadData = async () => {
       try {
         await fetchPersons();
-        if (personId) {
-          await fetchAccounts(personId);
+        if (selectedPersonId) {
+          await fetchAccounts(selectedPersonId);
         }
       } catch (error) {
         console.error('データ取得エラー:', error);
@@ -52,7 +55,7 @@ export const PersonDetailPage = () => {
       }
     };
     loadData();
-  }, [fetchPersons, fetchAccounts, personId, showSnackbar]);
+  }, [fetchPersons, fetchAccounts, selectedPersonId, showSnackbar]);
 
   const handleOpenDialog = (account?: SavingsAccount) => {
     if (account) {
@@ -78,7 +81,7 @@ export const PersonDetailPage = () => {
       return;
     }
 
-    if (!personId) {
+    if (!selectedPersonId) {
       showSnackbar('個人情報が見つかりません', 'destructive');
       return;
     }
@@ -100,7 +103,7 @@ export const PersonDetailPage = () => {
         showSnackbar('積立口座を更新しました', 'default');
       } else {
         await addAccount({
-          person_id: personId,
+          person_id: selectedPersonId,
           name: formData.name.trim(),
           target_amount: targetAmount,
           current_balance: 0
@@ -146,7 +149,7 @@ export const PersonDetailPage = () => {
     return (
       <div className="text-center py-12">
         <p className="text-gray-500 text-lg mb-4">個人が見つかりません</p>
-        <Button onClick={() => navigate('/savings-management')}>
+        <Button onClick={() => navigateToSavingsManagement()}>
           積立管理に戻る
         </Button>
       </div>
@@ -168,7 +171,7 @@ export const PersonDetailPage = () => {
         className="flex items-center justify-between"
       >
         <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={() => navigate('/savings-management')}>
+          <Button variant="ghost" onClick={() => navigateToSavingsManagement()}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="flex items-center gap-3">
@@ -247,7 +250,7 @@ export const PersonDetailPage = () => {
               >
                 <Card
                   className="hover:shadow-lg transition-shadow cursor-pointer"
-                  onClick={() => navigate(`/savings-management/${personId}/account/${account.id}`)}
+                  onClick={() => navigateToAccountDetail(selectedPersonId!, account.id)}
                 >
                   <CardHeader className="pb-3">
                     <CardTitle className="flex items-center justify-between text-lg">

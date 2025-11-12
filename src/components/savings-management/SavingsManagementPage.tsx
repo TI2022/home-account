@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useSavingsManagementStore } from '@/store/useSavingsManagementStore';
+import { useAppStore } from '@/store/useAppStore';
 import { useSnackbar } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
 import { User, Plus, Edit, Trash2, Wallet } from 'lucide-react';
@@ -13,7 +13,7 @@ import { supabase } from '@/lib/supabase';
 import type { Person } from '@/types';
 
 export const SavingsManagementPage = () => {
-  const navigate = useNavigate();
+  const { navigateToPersonDetail } = useAppStore();
   const { showSnackbar } = useSnackbar();
   const {
     persons,
@@ -213,7 +213,7 @@ export const SavingsManagementPage = () => {
               >
                 <Card
                   className="hover:shadow-lg transition-shadow cursor-pointer"
-                  onClick={() => navigate(`/savings-management/${person.id}`)}
+                  onClick={() => navigateToPersonDetail(person.id)}
                 >
                   <CardHeader className="pb-2">
                     <CardTitle className="flex items-center justify-between text-lg">

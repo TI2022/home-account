@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useSavingsManagementStore } from '@/store/useSavingsManagementStore';
+import { useAppStore } from '@/store/useAppStore';
 import { useSnackbar } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Edit, Trash2, TrendingUp, TrendingDown, Target, Calendar } from 'lucide-react';
@@ -15,8 +15,11 @@ import { ja } from 'date-fns/locale';
 import type { SavingsTransaction } from '@/types';
 
 export const AccountDetailPage = () => {
-  const { personId, accountId } = useParams<{ personId: string; accountId: string }>();
-  const navigate = useNavigate();
+  const {
+    selectedPersonId,
+    selectedAccountId,
+    navigateToPersonDetail
+  } = useAppStore();
   const { showSnackbar } = useSnackbar();
 
   const {
@@ -41,17 +44,17 @@ export const AccountDetailPage = () => {
     date: new Date().toISOString().split('T')[0]
   });
 
-  const person = persons.find(p => p.id === personId);
-  const account = accounts.find(a => a.id === accountId);
-  const accountTransactions = accountId ? getAccountTransactions(accountId) : [];
+  const person = persons.find(p => p.id === selectedPersonId);
+  const account = accounts.find(a => a.id === selectedAccountId);
+  const accountTransactions = selectedAccountId ? getAccountTransactions(selectedAccountId) : [];
 
   useEffect(() => {
     const loadData = async () => {
       try {
         await fetchPersons();
         await fetchAccounts();
-        if (accountId) {
-          await fetchTransactions(accountId);
+        if (selectedAccountId) {
+          await fetchTransactions(selectedAccountId);
         }
       } catch (error) {
         console.error('データ取得エラー:', error);
@@ -59,7 +62,7 @@ export const AccountDetailPage = () => {
       }
     };
     loadData();
-  }, [fetchPersons, fetchAccounts, fetchTransactions, accountId, showSnackbar]);
+  }, [fetchPersons, fetchAccounts, fetchTransactions, selectedAccountId, showSnackbar]);
 
   const handleOpenDialog = (transaction?: SavingsTransaction, defaultType?: 'deposit' | 'withdrawal') => {
     if (transaction) {
@@ -95,7 +98,7 @@ export const AccountDetailPage = () => {
       return;
     }
 
-    if (!accountId) {
+    if (!selectedAccountId) {
       showSnackbar('口座情報が見つかりません', 'destructive');
       return;
     }
@@ -111,7 +114,7 @@ export const AccountDetailPage = () => {
         showSnackbar('取引を更新しました', 'default');
       } else {
         await addTransaction({
-          account_id: accountId,
+          account_id: selectedAccountId,
           type: formData.type,
           amount,
           memo: formData.memo.trim(),
@@ -196,7 +199,7 @@ export const AccountDetailPage = () => {
         className="flex items-center justify-between"
       >
         <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={() => navigate(`/savings-management/${personId}`)}>
+          <Button variant="ghost" onClick={() => navigateToPersonDetail(selectedPersonId!)}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
