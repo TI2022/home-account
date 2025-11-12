@@ -203,28 +203,25 @@ export const AccountDetailPage = () => {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">{account.name}</h1>
             <p className="text-gray-500">{person.name}の積立口座</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           <Button
             onClick={() => handleOpenDialog()}
-            variant="outline"
-            className="flex items-center gap-2"
+            className="flex items-center justify-center gap-2 bg-green-100 text-green-700 hover:bg-green-200 border-green-300 px-4 py-2 font-medium"
           >
-            <TrendingUp className="h-4 w-4" />
-            積立
+            <TrendingUp className="h-3 w-3" />
+            積立を記録
           </Button>
           <Button
             onClick={() => {
               handleOpenDialog(undefined, 'withdrawal');
             }}
-            variant="outline"
-            className="flex items-center gap-2"
+            className="flex items-center justify-center gap-2 bg-red-100 text-red-700 hover:bg-red-200 border-red-300 px-4 py-2 font-medium"
           >
-            <TrendingDown className="h-4 w-4" />
-            使用
+            <TrendingDown className="h-3 w-3" />
+            使用を記録
           </Button>
         </div>
       </motion.div>
@@ -340,7 +337,11 @@ export const AccountDetailPage = () => {
             {accountTransactions.length === 0 ? (
               <div className="text-center py-8">
                 <p className="text-gray-500 mb-4">まだ取引がありません</p>
-                <Button onClick={() => handleOpenDialog()}>
+                <Button
+                  onClick={() => handleOpenDialog()}
+                  className="bg-green-100 text-green-700 hover:bg-green-200 border-green-300 px-4 py-2 font-medium"
+                >
+                  <TrendingUp className="h-4 w-4 mr-2" />
                   最初の積立を記録
                 </Button>
               </div>
