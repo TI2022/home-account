@@ -35,13 +35,18 @@ export const TabNavigation = () => {
               }`}
               onClick={() => {
                 if (tab.id === 'savings-management') {
-                  navigate('/savings-management');
+                  // 既に積立管理のメインページにいる場合は何もしない
+                  if (location.pathname !== '/savings-management') {
+                    navigate('/savings-management', { replace: true });
+                  }
                 } else {
-                  // 積立画面以外のタブをクリックした場合は、メイン画面に戻る
+                  // 積立画面以外のタブをクリックした場合
                   if (location.pathname.startsWith('/savings-management')) {
-                    setCurrentTab(tab.id); // 先にタブを設定
-                    navigate('/');
+                    // 積立画面からメイン画面に戻る
+                    setCurrentTab(tab.id);
+                    navigate('/', { replace: true });
                   } else {
+                    // メイン画面内でのタブ切り替え
                     setCurrentTab(tab.id);
                   }
                 }

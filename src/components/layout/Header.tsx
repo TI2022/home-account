@@ -21,7 +21,7 @@ export const Header = () => {
 
   const handleBackgroundSettings = () => {
     if (location.pathname.startsWith('/savings-management')) {
-      navigate('/');
+      navigate('/', { replace: true });
     }
     setCurrentTab('background');
     setIsMenuOpen(false);
@@ -29,7 +29,7 @@ export const Header = () => {
 
   const handleAddRecord = () => {
     if (location.pathname.startsWith('/savings-management')) {
-      navigate('/');
+      navigate('/', { replace: true });
     }
     setCurrentTab('add');
     setIsMenuOpen(false);
@@ -37,7 +37,7 @@ export const Header = () => {
 
   const handleGraph = () => {
     if (location.pathname.startsWith('/savings-management')) {
-      navigate('/');
+      navigate('/', { replace: true });
     }
     setCurrentTab('graph');
     setIsMenuOpen(false);
@@ -45,7 +45,7 @@ export const Header = () => {
 
   const handleSettings = () => {
     if (location.pathname.startsWith('/savings-management')) {
-      navigate('/');
+      navigate('/', { replace: true });
     }
     setCurrentTab('settings');
     setIsMenuOpen(false);
