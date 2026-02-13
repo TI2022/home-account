@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { AnimatedButton } from '@/components/ui/animated-button';
 import { CuteCard } from '@/components/ui/cute-card';
 import { CoinAnimation } from '@/components/ui/coin-animation';
@@ -15,6 +15,7 @@ import { useGameStore } from '@/store/useGameStore';
 import { useSnackbar } from '@/hooks/use-toast';
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '@/types';
 import { format } from 'date-fns';
+import { useCategoryStore } from '@/store/useCategoryStore';
 
 export const AddTransactionForm = () => {
   const [type, setType] = useState<'expense' | 'income'>('expense');
@@ -28,11 +29,30 @@ export const AddTransactionForm = () => {
   const [reactionMessage, setReactionMessage] = useState('');
   const [isMock, setIsMock] = useState(false);
   
-  const { addTransaction } = useTransactionStore();
+  const { addTransaction, transactions } = useTransactionStore();
   const { recordTransaction } = useGameStore();
   const { showSnackbar } = useSnackbar();
 
-  const categories = type === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
+  const { categories: userCategories, fetchCategories: fetchUserCategories } = useCategoryStore();
+
+  // budget summary removed: budgets are managed separately from transactions
+
+  const availableCategories = useMemo(() => {
+    const fromUser = (userCategories || []).filter(c => c.type === type).map(c => c.name);
+    const fromBuilt = type === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
+    const fromTx = Array.from(new Set((transactions || []).filter(t => t.type === type && t.category).map(t => t.category)));
+    return Array.from(new Set([...(fromUser || []), ...fromBuilt, ...fromTx]));
+  }, [userCategories, transactions, type]);
+
+  const categories = availableCategories;
+
+  useEffect(() => {
+    // load user categories once
+    fetchUserCategories().catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // budget summary effect removed
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,6 +65,7 @@ export const AddTransactionForm = () => {
 
     setLoading(true);
     try {
+      // budget check removed — budgets are independent of transactions
       await addTransaction({
         type,
         amount: parseInt(amount),
@@ -160,6 +181,7 @@ export const AddTransactionForm = () => {
                       ))}
                     </SelectContent>
                   </Select>
+                  {/* Budget summary removed */}
                 </div>
 
                 <div className="space-y-2">

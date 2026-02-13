@@ -2,9 +2,23 @@ import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
 import { Transaction, Budget, RecurringIncome, RecurringExpense } from '@/types';
 
+// Local type for monthly budgets fetched from DB
+export interface MonthlyBudgetLocal {
+  id: string;
+  user_id: string;
+  item_key: string;
+  year: number;
+  month: number;
+  max_amount: number;
+  used_amount: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
 interface TransactionState {
   transactions: Transaction[];
   budgets: Budget[];
+  monthlyBudgets: MonthlyBudgetLocal[];
   recurringIncomes: RecurringIncome[];
   recurringExpenses: RecurringExpense[];
   loading: boolean;
@@ -17,6 +31,10 @@ interface TransactionState {
   fetchBudgets: () => Promise<void>;
   fetchRecurringIncomes: () => Promise<void>;
   fetchRecurringExpenses: () => Promise<void>;
+  // monthly budgets for per-item per-month limits
+  fetchMonthlyBudgets: (year?: number, month?: number) => Promise<void>;
+  getBudgetSummary: (itemKey: string, year?: number, month?: number) => { budget: MonthlyBudgetLocal | null; usedAmount: number; remaining: number | null; exceeded: boolean };
+  // ...
   addTransaction: (transaction: Omit<Transaction, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => Promise<void>;
   updateBudget: (category: string, amount: number, month: string) => Promise<void>;
   addRecurringIncome: (income: Omit<RecurringIncome, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => Promise<void>;
@@ -76,6 +94,41 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
     } catch (error) {
       console.error('Error fetching budgets:', error);
     }
+  },
+
+  // 追加: monthly budgets の取得
+  monthlyBudgets: [],
+  fetchMonthlyBudgets: async (year?: number, month?: number) => {
+    try {
+      const now = new Date();
+      const y = year ?? now.getFullYear();
+      const m = month ?? now.getMonth() + 1;
+      const { data } = await supabase
+        .from('monthly_budgets')
+        .select('*')
+        .eq('year', y)
+        .eq('month', m);
+      set({ monthlyBudgets: data || [] });
+    } catch (error) {
+      console.error('Error fetching monthly budgets:', error);
+    }
+  },
+
+  getBudgetSummary: (itemKey: string, year?: number, month?: number) => {
+    const now = new Date();
+    const y = year ?? now.getFullYear();
+    const m = month ?? now.getMonth() + 1;
+    const mb = get().monthlyBudgets.find(b => b.item_key === itemKey && b.year === y && b.month === m) || null;
+    const usedAmount = get().transactions
+      .filter(t => t.type === 'expense' && t.category === itemKey)
+      .filter(t => {
+        const d = new Date(t.date);
+        return d.getFullYear() === y && (d.getMonth() + 1) === m;
+      })
+      .reduce((s, t) => s + Number(t.amount || 0), 0);
+    const max = mb ? Number(mb.max_amount) : null;
+    const remaining = max !== null ? max - usedAmount : null;
+    return { budget: mb, usedAmount, remaining, exceeded: max !== null ? usedAmount > max : false };
   },
 
   fetchRecurringIncomes: async () => {

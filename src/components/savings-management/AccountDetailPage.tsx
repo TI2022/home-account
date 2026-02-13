@@ -356,9 +356,6 @@ export const AccountDetailPage = () => {
                     className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
                   >
                     <div className="flex items-center space-x-3">
-                      <div className={`w-3 h-3 rounded-full ${
-                        transaction.type === 'deposit' ? 'bg-green-500' : 'bg-red-500'
-                      }`} />
                       <div>
                         <div className="font-medium">
                           {transaction.memo || (transaction.type === 'deposit' ? '積立' : '使用')}
@@ -372,7 +369,7 @@ export const AccountDetailPage = () => {
                       <span className={`font-medium ${
                         transaction.type === 'deposit' ? 'text-green-600' : 'text-red-600'
                       }`}>
-                        {transaction.type === 'deposit' ? '+' : '-'}¥{formatAmount(transaction.amount)}
+                        ¥{formatAmount(transaction.amount)}
                       </span>
                       <Button
                         variant="ghost"

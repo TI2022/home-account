@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useTransactionStore } from '@/store/useTransactionStore';
 import { useSnackbar } from '@/hooks/use-toast';
+import { useCategoryStore } from '@/store/useCategoryStore';
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '@/types';
 import { format } from 'date-fns';
 import { Transaction } from '@/types';
@@ -40,8 +41,9 @@ export const QuickTransactionForm = ({
   testInitialFormData,
   testUseSimpleSelect
 }: QuickTransactionFormProps) => {
-  const { addTransaction, updateTransaction } = useTransactionStore();
+  const { addTransaction, updateTransaction, transactions } = useTransactionStore();
   const { showSnackbar } = useSnackbar();
+  const { categories: userCategories, fetchCategories: fetchUserCategories } = useCategoryStore();
   const [formData, setFormData] = useState({
     type: 'expense' as 'income' | 'expense',
     amount: '',
@@ -61,6 +63,8 @@ export const QuickTransactionForm = ({
   } | null>(null);
   const [successToastOpen, setSuccessToastOpen] = useState(false);
   const [errorToast, setErrorToast] = useState<string | null>(null);
+  // budget summary removed: budgets are managed independently of transactions now
+  
   const [lastAction, setLastAction] = useState<'add' | 'update' | null>(null);
   const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -132,8 +136,12 @@ export const QuickTransactionForm = ({
   // タイプ変更時のカテゴリー整合性チェック
   useEffect(() => {
     if (formData.category && formData.type) {
-      const categories = formData.type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
-      const categoryExists = categories.includes(formData.category);
+      // compute available categories (user-defined + built-in + transaction history)
+      const fromUser = (userCategories || []).filter(c => c.type === formData.type).map(c => c.name);
+      const fallbackCats = formData.type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+      const fromTx = Array.from(new Set((transactions || []).filter(t => t.type === formData.type && t.category).map(t => t.category)));
+      const categories = Array.from(new Set([...(fromUser || []), ...fallbackCats, ...fromTx]));
+      const categoryExists = (categories as readonly string[]).includes(formData.category);
 
       if (!categoryExists) {
         console.log('QuickTransactionForm: カテゴリーが現在のタイプに存在しない:', {
@@ -149,12 +157,24 @@ export const QuickTransactionForm = ({
     }
   }, [formData.type, formData.category, editingTransaction, externalEditingTransaction]);
 
+  // available categories for select UI (stable reference)
+  const availableCategories = useMemo(() => {
+    const fromUser = (userCategories || []).filter(c => c.type === formData.type).map(c => c.name);
+    const fromBuilt = formData.type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+    const fromTx = Array.from(new Set((transactions || []).filter(t => t.type === formData.type && t.category).map(t => t.category)));
+    return Array.from(new Set([...(fromUser || []), ...fromBuilt, ...fromTx]));
+  }, [userCategories, transactions, formData.type]);
+
   useEffect(() => {
     console.log('QuickTransactionForm mounted');
+    // load user categories once so forms prefer them
+    fetchUserCategories().catch(() => {});
     return () => {
       console.log('QuickTransactionForm unmounted');
     };
   }, []);
+
+  // budget summary effect removed
 
   // 外部からeditingTransactionが渡されたら内部stateに反映
   useEffect(() => {
@@ -242,6 +262,7 @@ export const QuickTransactionForm = ({
     setIsSubmitting(true);
     setLastSubmitted(submitData);
     try {
+      // budget check removed — budgets are now independent of transactions
       if (editingTransaction) {
         console.log('Editing transaction:', {
           original: editingTransaction,
@@ -458,7 +479,7 @@ export const QuickTransactionForm = ({
               data-testid="test-category-select"
             >
               <option value="">カテゴリーを選択</option>
-              {(formData.type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map((cat) => (
+              {((userCategories && userCategories.length > 0) ? userCategories.filter(c => c.type === formData.type).map(c => c.name) : (formData.type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES)).map((cat) => (
                 <option key={cat} value={String(cat)}>
                   {cat}
                 </option>
@@ -475,18 +496,17 @@ export const QuickTransactionForm = ({
               </SelectTrigger>
               <SelectContent>
                 {(() => {
-                  const categories = formData.type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
-                  const categoryExists = categories.includes(formData.category);
+                  const categoryExists = (availableCategories as readonly string[]).includes(formData.category);
                   console.log('QuickTransactionForm: [Select debug]', {
                     type: formData.type,
                     category: formData.category,
                     categoryExists,
                     editMode: !!editingTransaction,
-                    availableCategories: categories
+                    availableCategories
                   });
                   return null;
                 })()}
-                {(formData.type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map((cat) => (
+                {availableCategories.map((cat) => (
                   <SelectItem key={cat} value={String(cat)}>
                     {cat}
                   </SelectItem>
@@ -494,6 +514,7 @@ export const QuickTransactionForm = ({
               </SelectContent>
             </Select>
           )}
+          {/* Budget summary removed */}
         </div>
 
         {/* フォーム内のScenarioSelector部分を削除 */}
