@@ -4,8 +4,8 @@ import { useAppStore } from '@/store/useAppStore';
 import { Calendar, PiggyBank, BarChart3, Wallet } from 'lucide-react';
 
 // MainTabの型ガード
-const isMainTab = (tabId: string): tabId is 'calendar' | 'budget' | 'savings' => {
-  return ['calendar', 'budget', 'savings'].includes(tabId);
+const isMainTab = (tabId: string): tabId is 'calendar' | 'budget' | 'savings' | 'graph' => {
+  return ['calendar', 'budget', 'savings', 'graph'].includes(tabId);
 };
 
 // 積立関連画面の判定

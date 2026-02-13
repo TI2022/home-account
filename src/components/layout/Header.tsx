@@ -4,10 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useAppStore } from '@/store/useAppStore';
-import { Menu, LogOut, User, Palette, Plus, Settings, Tag } from 'lucide-react';
+import { Menu, LogOut, User, Palette, Plus, BarChart3, Settings, Tag } from 'lucide-react';
 
 // MainTab型（明示的に定義）
-type MainTab = 'home' | 'calendar' | 'add' | 'settings' | 'background' | 'savings' | 'budget';
+type MainTab = 'home' | 'calendar' | 'add' | 'settings' | 'background' | 'savings' | 'budget' | 'graph';
 
 export const Header = () => {
   const { signOut, user } = useAuthStore();
@@ -44,6 +44,7 @@ export const Header = () => {
   // 汎用ハンドラーを使用した個別ハンドラー
   const handleBackgroundSettings = handleMainTabTransition('background');
   const handleAddRecord = handleMainTabTransition('add');
+  const handleGraph = handleMainTabTransition('graph');
   const handleSettings = handleMainTabTransition('settings');
   const handleBudgetManagement = useCallback(() => {
     setIsMenuOpen(false);
@@ -153,6 +154,15 @@ export const Header = () => {
                 >
                   <Palette className="h-4 w-4 mr-3" />
                   背景設定
+                </Button>
+                
+                <Button
+                  variant="ghost"
+                  onClick={handleGraph}
+                  className="w-full justify-start text-cyan-600 hover:text-cyan-700 hover:bg-cyan-50"
+                >
+                  <BarChart3 className="h-4 w-4 mr-3" />
+                  グラフ
                 </Button>
                 
                 

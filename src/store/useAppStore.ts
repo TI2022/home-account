@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { format } from 'date-fns';
 
 // MainApp で管理するタブ（状態管理ベース）
-type MainTab = 'home' | 'calendar' | 'add' | 'settings' | 'background' | 'savings' | 'budget';
+type MainTab = 'home' | 'calendar' | 'add' | 'settings' | 'background' | 'savings' | 'budget' | 'graph';
 
 // アプリ全体の画面状態
 // 予算管理画面を追加
