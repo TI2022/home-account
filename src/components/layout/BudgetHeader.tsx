@@ -1,110 +1,36 @@
-import { useState, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useAppStore } from '@/store/useAppStore';
 import { Menu, LogOut, User, Palette, Plus, Settings, Tag } from 'lucide-react';
 
-// MainTab型（明示的に定義）
-type MainTab = 'home' | 'calendar' | 'add' | 'settings' | 'background' | 'savings' | 'budget';
-
-export const Header = () => {
+export const BudgetHeader: React.FC = () => {
   const { signOut, user } = useAuthStore();
-  const {
-    currentTab,
-    setCurrentTab,
-    currentScreen,
-    navigateToMain,
-    navigateToBudgetManagement,
-    navigateToCategoriesManagement
-  } = useAppStore();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { navigateToBudgetManagement, navigateToCategoriesManagement, setCurrentTab } = useAppStore();
 
   const handleSignOut = async () => {
     await signOut();
-    setIsMenuOpen(false);
   };
 
-  // メイン画面への遷移ハンドラー
-  const handleMainTabTransition = useCallback((targetTab: MainTab) => {
-    return () => {
-      setIsMenuOpen(false);
+  const handleMainTabTransition = (target: Parameters<typeof setCurrentTab>[0]) => {
+    return () => setCurrentTab(target);
+  };
 
-      if (currentScreen === 'savings-management') {
-        // 積立画面からメイン画面に戻る
-        navigateToMain(targetTab);
-      } else {
-        // メイン画面内での遷移
-        setCurrentTab(targetTab);
-      }
-    };
-  }, [currentScreen, navigateToMain, setCurrentTab]);
-
-  // 汎用ハンドラーを使用した個別ハンドラー
-  const handleBackgroundSettings = handleMainTabTransition('background');
-  const handleAddRecord = handleMainTabTransition('add');
-  const handleSettings = handleMainTabTransition('settings');
-  const handleBudgetManagement = useCallback(() => {
-    setIsMenuOpen(false);
-    // 予算管理画面へ遷移
+  const handleBudgetManagement = () => {
     navigateToBudgetManagement();
-  }, [navigateToBudgetManagement]);
+  };
 
-  const handleCategoriesManagement = useCallback(() => {
-    setIsMenuOpen(false);
-    // カテゴリ管理画面へ遷移
+  const handleCategoriesManagement = () => {
     navigateToCategoriesManagement();
-  }, [navigateToCategoriesManagement]);
-
-  const getPageTitle = () => {
-    // 積立管理画面の場合
-    switch (currentScreen) {
-      case 'categories-management':
-        return 'カテゴリ管理';
-      case 'savings-management':
-        return '積立管理';
-      case 'person-detail':
-        return '個人詳細';
-      case 'account-detail':
-        return '積立口座詳細';
-      case 'main':
-      default:
-        // メインアプリの場合
-        switch (currentTab) {
-          case 'home':
-            return 'ステータス';
-          case 'calendar':
-            return 'カレンダー';
-          case 'add':
-            return '収支の記録';
-          case 'settings':
-            return '収支設定';
-          case 'background':
-            return '背景設定';
-          case 'savings':
-            return '貯金';
-          case 'budget':
-            return '予算';
-          default:
-            return 'カレンダー';
-        }
-    }
   };
 
   return (
-    <header className="py-3 safe-area-pt bg-transparent" data-testid="header">
+    <header className="py-3 safe-area-pt bg-transparent" data-testid="budget-header">
       <div className="flex items-center justify-center relative">
-        <motion.h1
-          key={`${currentTab}-${currentScreen}`}
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className="text-xl font-bold text-gray-800"
-        >
-          {getPageTitle()}
-        </motion.h1>
-        <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+        <h1 className="text-xl font-bold text-gray-800">予算管理</h1>
+
+        <Sheet>
           <SheetTrigger asChild>
             <Button
               variant="ghost"
@@ -118,9 +44,8 @@ export const Header = () => {
             <SheetHeader>
               <SheetTitle className="text-left">メニュー</SheetTitle>
             </SheetHeader>
-            
+
             <div className="mt-6 space-y-6">
-              {/* User Info Section */}
               <div className="bg-gray-50 rounded-lg p-4">
                 <div className="flex items-center space-x-3">
                   <div className="bg-green-500 p-2 rounded-full">
@@ -133,38 +58,34 @@ export const Header = () => {
                 </div>
               </div>
 
-              {/* Menu Items */}
               <div className="space-y-2">
-                
                 <Button
                   variant="ghost"
-                  onClick={handleAddRecord}
+                  onClick={handleMainTabTransition('add')}
                   className="w-full justify-start text-green-600 hover:text-green-700 hover:bg-green-50"
                 >
                   <Plus className="h-4 w-4 mr-3" />
                   収支を記録
                 </Button>
-                
-                
+
                 <Button
                   variant="ghost"
-                  onClick={handleBackgroundSettings}
+                  onClick={handleMainTabTransition('background')}
                   className="w-full justify-start text-purple-600 hover:text-purple-700 hover:bg-purple-50"
                 >
                   <Palette className="h-4 w-4 mr-3" />
                   背景設定
                 </Button>
-                
-                
+
                 <Button
                   variant="ghost"
-                  onClick={handleSettings}
+                  onClick={handleMainTabTransition('settings')}
                   className="w-full justify-start text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                 >
                   <Settings className="h-4 w-4 mr-3" />
                   収支設定
                 </Button>
-                
+
                 <Button
                   variant="ghost"
                   onClick={handleBudgetManagement}
@@ -173,7 +94,7 @@ export const Header = () => {
                   <Settings className="h-4 w-4 mr-3" />
                   予算管理
                 </Button>
-                
+
                 <Button
                   variant="ghost"
                   onClick={handleCategoriesManagement}
@@ -182,7 +103,7 @@ export const Header = () => {
                   <Tag className="h-4 w-4 mr-3" />
                   カテゴリ管理
                 </Button>
-                
+
                 <div className="border-t border-gray-200 pt-4">
                   <Button
                     variant="ghost"
@@ -202,3 +123,5 @@ export const Header = () => {
     </header>
   );
 };
+
+export default BudgetHeader;

@@ -4,8 +4,8 @@ import { useAppStore } from '@/store/useAppStore';
 import { Calendar, PiggyBank, BarChart3, Wallet } from 'lucide-react';
 
 // MainTabの型ガード
-const isMainTab = (tabId: string): tabId is 'calendar' | 'graph' | 'savings' => {
-  return ['calendar', 'graph', 'savings'].includes(tabId);
+const isMainTab = (tabId: string): tabId is 'calendar' | 'budget' | 'savings' => {
+  return ['calendar', 'budget', 'savings'].includes(tabId);
 };
 
 // 積立関連画面の判定
@@ -19,12 +19,13 @@ export const TabNavigation = () => {
     setCurrentTab,
     currentScreen,
     navigateToSavingsManagement,
+    navigateToBudgetManagement,
     navigateToMain
   } = useAppStore();
 
   const tabs = [
     { id: 'calendar' as const, label: 'カレンダー', icon: Calendar },
-    { id: 'graph' as const, label: 'グラフ', icon: BarChart3 },
+    { id: 'budget' as const, label: '予算', icon: BarChart3 },
     { id: 'savings' as const, label: '貯金', icon: PiggyBank },
     { id: 'savings-management' as const, label: '積立', icon: Wallet },
   ];
@@ -52,11 +53,16 @@ export const TabNavigation = () => {
                   if (currentScreen !== 'savings-management') {
                     navigateToSavingsManagement();
                   }
+                } else if (tab.id === 'budget') {
+                  // 予算管理画面へ遷移
+                  if (currentScreen !== 'budget-management') {
+                    navigateToBudgetManagement();
+                  }
                 } else {
                   // メインアプリのタブをクリックした場合
                   if (isMainTab(tab.id)) {
-                    if (isSavingsRelatedScreen(currentScreen)) {
-                      // 積立関連画面からメイン画面に戻る
+                    if (currentScreen !== 'main') {
+                      // どのサブ画面（カテゴリ管理や予算管理など）からでもメイン画面へ戻す
                       navigateToMain(tab.id);
                     } else {
                       // メイン画面内でのタブ切り替え

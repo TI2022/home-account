@@ -2,10 +2,11 @@ import { create } from 'zustand';
 import { format } from 'date-fns';
 
 // MainApp で管理するタブ（状態管理ベース）
-type MainTab = 'home' | 'calendar' | 'add' | 'settings' | 'background' | 'savings' | 'graph';
+type MainTab = 'home' | 'calendar' | 'add' | 'settings' | 'background' | 'savings' | 'budget';
 
 // アプリ全体の画面状態
-type AppScreen = 'main' | 'savings-management' | 'person-detail' | 'account-detail';
+// 予算管理画面を追加
+type AppScreen = 'main' | 'savings-management' | 'person-detail' | 'account-detail' | 'budget-management' | 'categories-management';
 
 interface AppState {
   currentTab: MainTab;
@@ -23,6 +24,10 @@ interface AppState {
   navigateToSavingsManagement: () => void;
   navigateToPersonDetail: (personId: string) => void;
   navigateToAccountDetail: (personId: string, accountId: string) => void;
+  // 予算管理画面への遷移
+  navigateToBudgetManagement: () => void;
+  // カテゴリ管理画面への遷移
+  navigateToCategoriesManagement: () => void;
   // メイン画面への戻り
   navigateToMain: (tab?: MainTab) => void;
 }
@@ -41,6 +46,18 @@ export const useAppStore = create<AppState>((set) => ({
   // 積み立て管理画面への遷移
   navigateToSavingsManagement: () => set({
     currentScreen: 'savings-management',
+    selectedPersonId: null,
+    selectedAccountId: null
+  }),
+  // 予算管理画面への遷移
+  navigateToBudgetManagement: () => set({
+    currentScreen: 'budget-management',
+    selectedPersonId: null,
+    selectedAccountId: null
+  }),
+  // カテゴリ管理画面への遷移
+  navigateToCategoriesManagement: () => set({
+    currentScreen: 'categories-management',
     selectedPersonId: null,
     selectedAccountId: null
   }),

@@ -11,10 +11,12 @@ import { SettingsPage } from '@/components/settings/SettingsPage';
 import { BackgroundSettingsPage } from '@/components/background/BackgroundSettingsPage';
 import { Snackbar } from '@/components/ui/sonner';
 import { SavingsPage } from '@/components/savings/SavingsPage';
-import { GraphPage } from '@/components/graph/GraphPage';
 import { SavingsManagementPage } from '@/components/savings-management/SavingsManagementPage';
 import { PersonDetailPage } from '@/components/savings-management/PersonDetailPage';
 import { AccountDetailPage } from '@/components/savings-management/AccountDetailPage';
+import { BudgetsPage } from '@/components/budgets/BudgetsPage';
+import BudgetHeader from '@/components/layout/BudgetHeader';
+import CategoriesPage from '@/components/settings/CategoriesPage';
 import TermsPage from '@/pages/TermsPage';
 import { useAppStore } from '@/store/useAppStore';
 import { useSnackbar } from '@/hooks/use-toast';
@@ -75,6 +77,10 @@ function App() {
       return <MainApp />;
     case 'savings-management':
       return <SavingsManagementApp />;
+    case 'budget-management':
+      return <BudgetManagementApp />;
+    case 'categories-management':
+      return <CategoriesManagementApp />;
     case 'person-detail':
       return <PersonDetailApp />;
     case 'account-detail':
@@ -82,6 +88,20 @@ function App() {
     default:
       return <MainApp />;
   }
+}
+
+function BudgetManagementApp() {
+  const { open, message, variant } = useSnackbar();
+  return (
+    <div className="min-h-screen">
+      <BudgetHeader />
+      <main className="pt-0">
+        <BudgetsPage />
+      </main>
+      <TabNavigation />
+      <Snackbar open={open} message={message} variant={variant} />
+    </div>
+  );
 }
 
 function MainApp() {
@@ -108,8 +128,6 @@ function MainApp() {
         return <BackgroundSettingsPage />;
       case 'savings':
         return <SavingsPage />;
-      case 'graph':
-        return <GraphPage />;
       default:
         return <CalendarPage />;
     }
@@ -169,3 +187,17 @@ function AccountDetailApp() {
 }
 
 export default App;
+
+function CategoriesManagementApp() {
+  const { open, message, variant } = useSnackbar();
+  return (
+    <div className="min-h-screen">
+      <Header />
+      <main className="pt-0">
+        <CategoriesPage />
+      </main>
+      <TabNavigation />
+      <Snackbar open={open} message={message} variant={variant} />
+    </div>
+  );
+}
