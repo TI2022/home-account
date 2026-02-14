@@ -155,6 +155,7 @@ export const QuickTransactionForm = ({
         }
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- transactions/userCategories を入れると編集時に意図せずリセットされる
   }, [formData.type, formData.category, editingTransaction, externalEditingTransaction]);
 
   // available categories for select UI (stable reference)
@@ -172,6 +173,7 @@ export const QuickTransactionForm = ({
     return () => {
       console.log('QuickTransactionForm unmounted');
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- マウント時1回だけ実行
   }, []);
 
   // budget summary effect removed

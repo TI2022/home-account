@@ -32,5 +32,5 @@ function Badge({ className, variant, ...props }: BadgeProps) {
     <div className={cn(badgeVariants({ variant }), className)} {...props} />
   );
 }
-export { Badge, badgeVariants };
+export { Badge, badgeVariants }; // eslint-disable-line react-refresh/only-export-components -- スタイル用 variant を同一ファイルで export
 
