@@ -3,19 +3,28 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useAppStore } from '@/store/useAppStore';
-import { Menu, LogOut, User, Palette, Plus, Settings, Tag } from 'lucide-react';
+import { Menu, LogOut, User, Palette, Plus, BarChart3, Settings, Tag } from 'lucide-react';
 
 export const BudgetHeader: React.FC = () => {
   const { signOut, user } = useAuthStore();
-  const { navigateToBudgetManagement, navigateToCategoriesManagement, setCurrentTab } = useAppStore();
+  const { navigateToBudgetManagement, navigateToCategoriesManagement, setCurrentTab, navigateToMain, currentScreen } = useAppStore();
 
   const handleSignOut = async () => {
     await signOut();
   };
 
   const handleMainTabTransition = (target: Parameters<typeof setCurrentTab>[0]) => {
-    return () => setCurrentTab(target);
+    return () => {
+      // If we're not on main, navigate back to main so the selected tab is visible
+      if (currentScreen !== 'main') {
+        navigateToMain(target);
+      } else {
+        setCurrentTab(target);
+      }
+    };
   };
+
+  const handleGraph = handleMainTabTransition('graph');
 
   const handleBudgetManagement = () => {
     navigateToBudgetManagement();
@@ -84,6 +93,15 @@ export const BudgetHeader: React.FC = () => {
                 >
                   <Settings className="h-4 w-4 mr-3" />
                   収支設定
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  onClick={handleGraph}
+                  className="w-full justify-start text-cyan-600 hover:text-cyan-700 hover:bg-cyan-50"
+                >
+                  <BarChart3 className="h-4 w-4 mr-3" />
+                  グラフ
                 </Button>
 
                 <Button
