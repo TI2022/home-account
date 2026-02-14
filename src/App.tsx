@@ -11,11 +11,13 @@ import { SettingsPage } from '@/components/settings/SettingsPage';
 import { BackgroundSettingsPage } from '@/components/background/BackgroundSettingsPage';
 import { Snackbar } from '@/components/ui/sonner';
 import { SavingsPage } from '@/components/savings/SavingsPage';
+import { GraphPage } from '@/components/graph/GraphPage';
 import { SavingsManagementPage } from '@/components/savings-management/SavingsManagementPage';
 import { PersonDetailPage } from '@/components/savings-management/PersonDetailPage';
 import { AccountDetailPage } from '@/components/savings-management/AccountDetailPage';
 import { BudgetsPage } from '@/components/budgets/BudgetsPage';
-import BudgetHeader from '@/components/layout/BudgetHeader';
+import { BudgetDetailPage } from '@/components/budgets/BudgetDetailPage';
+// Use the standard Header for budget management to keep UI consistent
 import CategoriesPage from '@/components/settings/CategoriesPage';
 import TermsPage from '@/pages/TermsPage';
 import { useAppStore } from '@/store/useAppStore';
@@ -79,6 +81,8 @@ function App() {
       return <SavingsManagementApp />;
     case 'budget-management':
       return <BudgetManagementApp />;
+    case 'budget-detail':
+      return <BudgetDetailApp />;
     case 'categories-management':
       return <CategoriesManagementApp />;
     case 'person-detail':
@@ -94,9 +98,23 @@ function BudgetManagementApp() {
   const { open, message, variant } = useSnackbar();
   return (
     <div className="min-h-screen">
-      <BudgetHeader />
+      <Header />
       <main className="pt-0">
         <BudgetsPage />
+      </main>
+      <TabNavigation />
+      <Snackbar open={open} message={message} variant={variant} />
+    </div>
+  );
+}
+
+function BudgetDetailApp() {
+  const { open, message, variant } = useSnackbar();
+  return (
+    <div className="min-h-screen">
+      <Header />
+      <main className="pt-0">
+        <BudgetDetailPage />
       </main>
       <TabNavigation />
       <Snackbar open={open} message={message} variant={variant} />
@@ -118,6 +136,8 @@ function MainApp() {
     switch (currentTab) {
       case 'home':
         return <HomePage />;
+      case 'graph':
+        return <GraphPage />;
       case 'calendar':
         return <CalendarPage />;
       case 'add':

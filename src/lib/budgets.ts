@@ -42,6 +42,35 @@ export async function fetchBudgets(year: number, month: number, userId?: string)
   })) as MonthlyBudget[];
 }
 
+export async function fetchBudgetById(budgetId: string, userId?: string): Promise<MonthlyBudget | null> {
+  const uid = userId ?? useAuthStore.getState().user?.id;
+  if (!uid) return null;
+
+  const { data, error } = await supabase
+    .from('monthly_budgets')
+    .select('*')
+    .eq('id', budgetId)
+    .eq('user_id', uid)
+    .single();
+
+  if (error || !data) {
+    if (error) console.error('fetchBudgetById error', error);
+    return null;
+  }
+  const d = data as Record<string, unknown>;
+  return {
+    id: String(d['id']),
+    user_id: String(d['user_id']),
+    item_key: String(d['item_key']),
+    year: Number(d['year']),
+    month: Number(d['month']),
+    max_amount: Number(d['max_amount']),
+    used_amount: Number(d['used_amount'] ?? 0),
+    created_at: typeof d['created_at'] === 'string' ? String(d['created_at']) : undefined,
+    updated_at: typeof d['updated_at'] === 'string' ? String(d['updated_at']) : undefined,
+  } as MonthlyBudget;
+}
+
 export async function upsertBudget(budget: Partial<MonthlyBudget> & { item_key: string; year: number; month: number; max_amount: number; used_amount?: number; id?: string; user_id?: string }): Promise<MonthlyBudget | null> {
   const uid = budget.user_id ?? useAuthStore.getState().user?.id;
   if (!uid) return null;
@@ -82,6 +111,7 @@ export async function deleteBudget(id: string): Promise<boolean> {
 
 export default {
   fetchBudgets,
+  fetchBudgetById,
   upsertBudget,
   deleteBudget,
 };

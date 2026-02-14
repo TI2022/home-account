@@ -13,6 +13,11 @@ const isSavingsRelatedScreen = (screen: string): boolean => {
   return ['savings-management', 'person-detail', 'account-detail'].includes(screen);
 };
 
+// 予算管理・詳細画面の判定（ナビバーで予算タブをアクティブにするため）
+const isBudgetManagementScreen = (screen: string): boolean => {
+  return screen === 'budget-management' || screen === 'budget-detail';
+};
+
 export const TabNavigation = () => {
   const {
     currentTab,
@@ -45,7 +50,9 @@ export const TabNavigation = () => {
               className={`w-full h-16 rounded-none ${
                 isSavingsRelatedScreen(currentScreen)
                   ? (tab.id === 'savings-management' ? 'bg-pink-50 text-pink-600 border-t-2 border-pink-500' : 'text-gray-600 hover:text-pink-600 hover:bg-pink-50')
-                  : (currentTab === tab.id ? 'bg-pink-50 text-pink-600 border-t-2 border-pink-500' : 'text-gray-600 hover:text-pink-600 hover:bg-pink-50')
+                  : isBudgetManagementScreen(currentScreen)
+                    ? (tab.id === 'budget' ? 'bg-pink-50 text-pink-600 border-t-2 border-pink-500' : 'text-gray-600 hover:text-pink-600 hover:bg-pink-50')
+                    : (currentTab === tab.id ? 'bg-pink-50 text-pink-600 border-t-2 border-pink-500' : 'text-gray-600 hover:text-pink-600 hover:bg-pink-50')
               }`}
               onClick={() => {
                 if (tab.id === 'savings-management') {

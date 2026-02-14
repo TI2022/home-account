@@ -31,11 +31,11 @@ export const Header = () => {
     return () => {
       setIsMenuOpen(false);
 
-      if (currentScreen === 'savings-management') {
-        // 積立画面からメイン画面に戻る
+      // If we're not on the main app screen, navigate back to the main screen
+      // so the selected tab is visible. Otherwise just switch tab within main.
+      if (currentScreen !== 'main') {
         navigateToMain(targetTab);
       } else {
-        // メイン画面内での遷移
         setCurrentTab(targetTab);
       }
     };
@@ -61,6 +61,10 @@ export const Header = () => {
   const getPageTitle = () => {
     // 積立管理画面の場合
     switch (currentScreen) {
+      case 'budget-management':
+        return '予算管理';
+      case 'budget-detail':
+        return '予算の詳細';
       case 'categories-management':
         return 'カテゴリ管理';
       case 'savings-management':
@@ -77,6 +81,8 @@ export const Header = () => {
             return 'ステータス';
           case 'calendar':
             return 'カレンダー';
+          case 'graph':
+            return 'グラフ';
           case 'add':
             return '収支の記録';
           case 'settings':

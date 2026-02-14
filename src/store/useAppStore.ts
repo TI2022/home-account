@@ -6,7 +6,7 @@ type MainTab = 'home' | 'calendar' | 'add' | 'settings' | 'background' | 'saving
 
 // アプリ全体の画面状態
 // 予算管理画面を追加
-type AppScreen = 'main' | 'savings-management' | 'person-detail' | 'account-detail' | 'budget-management' | 'categories-management';
+type AppScreen = 'main' | 'savings-management' | 'person-detail' | 'account-detail' | 'budget-management' | 'budget-detail' | 'categories-management';
 
 interface AppState {
   currentTab: MainTab;
@@ -15,17 +15,22 @@ interface AppState {
   // 積み立て管理の詳細画面用の状態
   selectedPersonId: string | null;
   selectedAccountId: string | null;
+  // 予算詳細画面用
+  selectedBudgetId: string | null;
   setCurrentTab: (tab: MainTab) => void;
   setSelectedMonth: (month: string) => void;
   setCurrentScreen: (screen: AppScreen) => void;
   setSelectedPersonId: (personId: string | null) => void;
   setSelectedAccountId: (accountId: string | null) => void;
+  setSelectedBudgetId: (budgetId: string | null) => void;
   // 積み立て管理画面への遷移
   navigateToSavingsManagement: () => void;
   navigateToPersonDetail: (personId: string) => void;
   navigateToAccountDetail: (personId: string, accountId: string) => void;
   // 予算管理画面への遷移
   navigateToBudgetManagement: () => void;
+  navigateToBudgetDetail: (budgetId: string) => void;
+  navigateBackToBudgetManagement: () => void;
   // カテゴリ管理画面への遷移
   navigateToCategoriesManagement: () => void;
   // メイン画面への戻り
@@ -38,11 +43,13 @@ export const useAppStore = create<AppState>((set) => ({
   currentScreen: 'main',
   selectedPersonId: null,
   selectedAccountId: null,
+  selectedBudgetId: null,
   setCurrentTab: (tab) => set({ currentTab: tab }),
   setSelectedMonth: (month) => set({ selectedMonth: month }),
   setCurrentScreen: (screen) => set({ currentScreen: screen }),
   setSelectedPersonId: (personId) => set({ selectedPersonId: personId }),
   setSelectedAccountId: (accountId) => set({ selectedAccountId: accountId }),
+  setSelectedBudgetId: (budgetId) => set({ selectedBudgetId: budgetId }),
   // 積み立て管理画面への遷移
   navigateToSavingsManagement: () => set({
     currentScreen: 'savings-management',
@@ -53,7 +60,18 @@ export const useAppStore = create<AppState>((set) => ({
   navigateToBudgetManagement: () => set({
     currentScreen: 'budget-management',
     selectedPersonId: null,
+    selectedAccountId: null,
+    selectedBudgetId: null
+  }),
+  navigateToBudgetDetail: (budgetId) => set({
+    currentScreen: 'budget-detail',
+    selectedBudgetId: budgetId,
+    selectedPersonId: null,
     selectedAccountId: null
+  }),
+  navigateBackToBudgetManagement: () => set({
+    currentScreen: 'budget-management',
+    selectedBudgetId: null
   }),
   // カテゴリ管理画面への遷移
   navigateToCategoriesManagement: () => set({
