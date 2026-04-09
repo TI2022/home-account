@@ -35,6 +35,13 @@ export const BudgetsPage: React.FC = () => {
   const [budgetItems, setBudgetItems] = useState<Array<{ id: string; name: string }>>([]);
   const [addRowDialogOpen, setAddRowDialogOpen] = useState(false);
   const [selectedItemKeyForNewRow, setSelectedItemKeyForNewRow] = useState('');
+  const [copyDialogOpen, setCopyDialogOpen] = useState(false);
+  const [copyFrom, setCopyFrom] = useState(() => {
+    const now = new Date();
+    const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    return { year: prev.getFullYear(), month: prev.getMonth() + 1 };
+  });
+  const [isCopying, setIsCopying] = useState(false);
 
   const availableCategories = useMemo(() => {
     return (budgetItems || []).map(b => b.name);
@@ -82,6 +89,40 @@ export const BudgetsPage: React.FC = () => {
     setItems([{ item_key: selectedItemKeyForNewRow, year: yearMonth.year, month: yearMonth.month, max_amount: '', used_amount: '' }, ...items]);
     lastSavedRef.current = [undefined, ...lastSavedRef.current];
     setAddRowDialogOpen(false);
+  };
+
+  const openCopyDialog = () => {
+    // default: previous month of current target month
+    const base = new Date(yearMonth.year, yearMonth.month - 1, 1);
+    const prev = new Date(base.getFullYear(), base.getMonth() - 1, 1);
+    setCopyFrom({ year: prev.getFullYear(), month: prev.getMonth() + 1 });
+    setCopyDialogOpen(true);
+  };
+
+  const confirmCopy = async () => {
+    if (isCopying) return;
+    if (copyFrom.year === yearMonth.year && copyFrom.month === yearMonth.month) {
+      showSnackbar('コピー元とコピー先が同じ月度です', 'destructive');
+      return;
+    }
+
+    setIsCopying(true);
+    try {
+      const inserted = await budgetsLib.copyBudgetSettingsAddMissing({
+        fromYear: copyFrom.year,
+        fromMonth: copyFrom.month,
+        toYear: yearMonth.year,
+        toMonth: yearMonth.month,
+      });
+      setCopyDialogOpen(false);
+      await load();
+      showSnackbar(inserted > 0 ? `${inserted}件の項目を追加しました` : '追加できる項目はありませんでした');
+    } catch (e) {
+      console.error('copy budget settings failed', e);
+      showSnackbar('コピーに失敗しました', 'destructive');
+    } finally {
+      setIsCopying(false);
+    }
   };
 
   const createBudgetItem = async () => {
@@ -156,6 +197,7 @@ export const BudgetsPage: React.FC = () => {
       <div className="mb-4 flex space-x-2">
         <Button onClick={openAddRowDialog}>新規行を追加</Button>
         <Button variant="outline" onClick={createBudgetItem}>項目を新規作成</Button>
+        <Button variant="secondary" onClick={openCopyDialog}>他の月の設定をコピー</Button>
       </div>
 
       <Dialog open={addRowDialogOpen} onOpenChange={setAddRowDialogOpen}>
@@ -186,6 +228,43 @@ export const BudgetsPage: React.FC = () => {
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setAddRowDialogOpen(false)}>キャンセル</Button>
               <Button onClick={confirmAddRow} disabled={availableCategories.length === 0}>追加</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={copyDialogOpen} onOpenChange={setCopyDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>他の月の設定をコピー</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>コピー元（月度）</Label>
+              <input
+                type="month"
+                value={`${copyFrom.year}-${String(copyFrom.month).padStart(2, '0')}`}
+                onChange={(e) => {
+                  const [y, m] = e.target.value.split('-').map(Number);
+                  setCopyFrom({ year: y, month: m });
+                }}
+                className="w-full border rounded px-3 py-2"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>コピー先（月度）</Label>
+              <div className="w-full border rounded px-3 py-2 bg-gray-50 text-sm">
+                {yearMonth.year}-{String(yearMonth.month).padStart(2, '0')}
+              </div>
+              <p className="text-xs text-gray-600">
+                コピー先に既に存在する項目は変更しません。追加される行の使用額は 0 です。
+              </p>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setCopyDialogOpen(false)} disabled={isCopying}>キャンセル</Button>
+              <Button onClick={confirmCopy} disabled={isCopying}>
+                {isCopying ? 'コピー中...' : 'コピー実行'}
+              </Button>
             </div>
           </div>
         </DialogContent>

@@ -100,6 +100,31 @@ export async function upsertBudget(budget: Partial<MonthlyBudget> & { item_key: 
   return (data as MonthlyBudget) ?? null;
 }
 
+export async function copyBudgetSettingsAddMissing(params: {
+  fromYear: number;
+  fromMonth: number;
+  toYear: number;
+  toMonth: number;
+  userId?: string;
+}): Promise<number> {
+  const uid = params.userId ?? useAuthStore.getState().user?.id;
+  if (!uid) return 0;
+
+  const { data, error } = await supabase.rpc('copy_budget_settings_add_missing', {
+    from_year: params.fromYear,
+    from_month: params.fromMonth,
+    to_year: params.toYear,
+    to_month: params.toMonth,
+  });
+
+  if (error) {
+    console.error('copyBudgetSettingsAddMissing error', error);
+    return 0;
+  }
+
+  return Number(data ?? 0);
+}
+
 export async function deleteBudget(id: string): Promise<boolean> {
   const { error } = await supabase.from('monthly_budgets').delete().eq('id', id);
   if (error) {
@@ -113,5 +138,6 @@ export default {
   fetchBudgets,
   fetchBudgetById,
   upsertBudget,
+  copyBudgetSettingsAddMissing,
   deleteBudget,
 };
