@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -312,6 +312,23 @@ export const CalendarPage = () => {
   const [isSummaryFixed, setIsSummaryFixed] = useState(false);
   const [dialogMode, setDialogMode] = useState<'add' | 'edit' | 'copy'>('add');
 
+  const availableMonths = useMemo(() => {
+    const set = new Set<string>();
+    for (const t of transactions) {
+      if (showMock) {
+        if (!t.isMock) continue;
+      } else {
+        if (t.isMock) continue;
+      }
+      if (typeof t.date !== 'string') continue;
+      const ym = t.date.slice(0, 7);
+      if (ym.length === 7) set.add(ym);
+    }
+    // ensure current month is always selectable
+    set.add(format(currentMonth, 'yyyy-MM'));
+    return Array.from(set).sort((a, b) => b.localeCompare(a));
+  }, [transactions, showMock, currentMonth]);
+
   useEffect(() => {
     console.log('CalendarPage: fetchTransactions実行');
     fetchTransactions();
@@ -543,6 +560,50 @@ export const CalendarPage = () => {
         )}
         <Card className={`w-full max-w-4xl${isSummaryFixed ? ' mb-60' : ''}`}>
           <CardContent className="p-2 sm:p-4 w-full min-h-[450px] relative" style={{ overflowY: 'hidden' }}>
+            {/* 月度ジャンプ（左上） + 実際/予定切り替え（同一行。狭い場合は横スクロールで折り返さない） */}
+            <div className="mb-3 overflow-x-auto">
+              <div className="flex items-center gap-1 whitespace-nowrap">
+                <select
+                  value={format(currentMonth, 'yyyy-MM')}
+                  onChange={(e) => {
+                    const [yStr, mStr] = e.target.value.split('-');
+                    const y = Number(yStr);
+                    const m = Number(mStr);
+                    if (!y || !m) return;
+                    const next = new Date(y, m - 1, 1);
+                    setCurrentMonth(next);
+                    setSelectedDate(next);
+                  }}
+                  className="shrink-0 border-2 border-blue-300 rounded px-2 py-1 text-sm sm:text-base font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white shadow-sm"
+                  style={{ minWidth: '118px' }}
+                  aria-label="表示月を選択"
+                >
+                  {availableMonths.map((ym) => (
+                    <option key={ym} value={ym}>
+                      {format(new Date(ym + '-01'), 'yyyy年M月', { locale: ja })}
+                    </option>
+                  ))}
+                </select>
+                <div className="flex gap-1 ml-auto">
+                  <Button
+                    type="button"
+                    variant={!showMock ? 'default' : 'outline'}
+                    className={`shrink-0 px-2 py-1 text-sm font-bold ${!showMock ? 'bg-blue-500 text-white' : ''}`}
+                    onClick={() => setShowMock(false)}
+                  >
+                    実際の収支
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={showMock ? 'default' : 'outline'}
+                    className={`shrink-0 px-2 py-1 text-sm font-bold ${showMock ? 'bg-orange-400 text-white' : ''}`}
+                    onClick={() => setShowMock(true)}
+                  >
+                    予定の収支
+                  </Button>
+                </div>
+              </div>
+            </div>
             {/* カレンダー本体 */}
             <SwipeableCalendar
               selectedDate={selectedDate}
@@ -551,31 +612,6 @@ export const CalendarPage = () => {
               currentMonth={currentMonth}
               showMock={showMock}
             />
-            {/* 実際の収支・予定（シナリオ）ボタン群をインポートボタンの位置に移動 */}
-            <div style={{ position: 'absolute', bottom: 16, right: 16, zIndex: 10 }}>
-              <div className="flex flex-wrap gap-2 justify-end">
-                <Button
-                  type="button"
-                  variant={!showMock ? 'default' : 'outline'}
-                  className={`font-bold ${!showMock ? 'bg-blue-500 text-white' : ''}`}
-                  onClick={() => {
-                    setShowMock(false);
-                  }}
-                >
-                  実際の収支
-                </Button>
-                <Button
-                  type="button"
-                  variant={showMock ? 'default' : 'outline'}
-                  className={`font-bold ${showMock ? 'bg-orange-400 text-white' : ''}`}
-                  onClick={() => {
-                    setShowMock(true);
-                  }}
-                >
-                  予定の収支
-                </Button>
-              </div>
-            </div>
             {/* 楽天明細インポートボタンとダイアログを削除 */}
           </CardContent>
         </Card>
