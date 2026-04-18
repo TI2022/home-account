@@ -37,26 +37,46 @@ export default defineConfig({
     include: ['react', 'react-dom', 'react-router-dom'],
   },
   test: {
-    projects: [{
-      extends: true,
-      plugins: [
-      // The plugin will run tests for the stories defined in your Storybook config
-      // See options at: https://storybook.js.org/docs/next/writing-tests/integrations/vitest-addon#storybooktest
-      storybookTest({
-        configDir: path.join(dirname, '.storybook')
-      })],
-      test: {
-        name: 'storybook',
-        browser: {
-          enabled: true,
-          headless: true,
-          provider: 'playwright',
-          instances: [{
-            browser: 'chromium'
-          }]
+    // unit: Node/jsdom — pre-commit 用（Playwright 不要）
+    // storybook: Playwright ブラウザ — CI / 手動で `vitest run` 全体
+    projects: [
+      {
+        extends: true,
+        resolve: {
+          alias: {
+            '@': path.resolve(dirname, './src'),
+          },
         },
-        setupFiles: ['.storybook/vitest.setup.ts']
-      }
-    }]
-  }
+        test: {
+          name: 'unit',
+          environment: 'jsdom',
+          // QuickTransactionForm は Radix + 二重レイアウトで jsdom が不安定なため、
+          // Playwright なしの pre-commit では除外（フル vitest / CI で storybook プロジェクトを利用）
+          include: ['src/**/*.{test,spec}.{ts,tsx}'],
+          exclude: ['src/components/calendar/QuickTransactionForm.test.tsx'],
+          setupFiles: ['src/test/vitest-setup-unit.ts'],
+        },
+      },
+      {
+        extends: true,
+        plugins: [
+          // The plugin will run tests for the stories defined in your Storybook config
+          // See options at: https://storybook.js.org/docs/next/writing-tests/integrations/vitest-addon#storybooktest
+          storybookTest({
+            configDir: path.join(dirname, '.storybook'),
+          }),
+        ],
+        test: {
+          name: 'storybook',
+          browser: {
+            enabled: true,
+            headless: true,
+            provider: 'playwright',
+            instances: [{ browser: 'chromium' }],
+          },
+          setupFiles: ['.storybook/vitest.setup.ts'],
+        },
+      },
+    ],
+  },
 });

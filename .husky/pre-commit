@@ -6,6 +6,6 @@ npx lint-staged
 
 # Run tests if not in CI environment
 if [ -z "$CI" ]; then
-  echo "🧪 Running tests before commit..."
-  npm run test:run
+  echo "🧪 Running unit tests before commit (Playwright not required)..."
+  npm run test:run:unit
 fi
