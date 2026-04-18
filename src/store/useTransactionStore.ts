@@ -68,15 +68,29 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
   fetchTransactions: async () => {
     set({ loading: true });
     try {
-      const { data, error } = await supabase
-        .from('transactions')
-        .select('*')
-        .order('date', { ascending: false });
+      // PostgREST/Supabase は1リクエストあたりのデフォルト行数に上限があるため、
+      // 単発 select だと古い月の行が結果に含まれず、再取得後にストアから「消えた」ように見える。
+      // ページングで全件取り込む。
+      const pageSize = 1000;
+      const all: Transaction[] = [];
+      let from = 0;
+      for (;;) {
+        const { data, error } = await supabase
+          .from('transactions')
+          .select('*')
+          .order('date', { ascending: false })
+          .range(from, from + pageSize - 1);
 
-      if (error) throw error;
-      set({ transactions: data || [] });
+        if (error) throw error;
+        const batch = data ?? [];
+        all.push(...batch);
+        if (batch.length < pageSize) break;
+        from += pageSize;
+      }
+      set({ transactions: all });
     } catch (error) {
       console.error('Error fetching transactions:', error);
+      // 失敗時は既存の transactions を上書きしない（画面上の行が一斉に消えるのを防ぐ）
     } finally {
       set({ loading: false });
     }
