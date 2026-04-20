@@ -82,12 +82,12 @@ type CustomDayProps = Omit<PickersDayProps, 'onAnimationStart'>;
 // カスタムの日付セルコンポーネント
 const CustomDay = (props: CustomDayProps & { showMock?: boolean }) => {
   const { day, showMock, ...other } = props;
-  const { transactions } = useTransactionStore();
+  const { calendarTransactions } = useTransactionStore();
   const isToday = isSameDay(day, new Date());
 
   // Calculate daily totals for calendar display
   const getDayTotal = (date: Date) => {
-    const dayTransactions = transactions.filter(t => {
+    const dayTransactions = calendarTransactions.filter(t => {
       if (showMock) {
         if (!t.isMock) return false;
       } else {
@@ -297,7 +297,7 @@ export const CalendarPage = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
-  const { transactions, fetchTransactions, deleteTransaction, deleteTransactions } = useTransactionStore();
+  const { calendarTransactions, fetchCalendarTransactions, deleteTransaction, deleteTransactions } = useTransactionStore();
   const [showGuide, setShowGuide] = useState(false);
   const [dontShowNext, setDontShowNext] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
@@ -314,7 +314,7 @@ export const CalendarPage = () => {
 
   const availableMonths = useMemo(() => {
     const set = new Set<string>();
-    for (const t of transactions) {
+    for (const t of calendarTransactions) {
       if (showMock) {
         if (!t.isMock) continue;
       } else {
@@ -327,30 +327,29 @@ export const CalendarPage = () => {
     // ensure current month is always selectable
     set.add(format(currentMonth, 'yyyy-MM'));
     return Array.from(set).sort((a, b) => b.localeCompare(a));
-  }, [transactions, showMock, currentMonth]);
+  }, [calendarTransactions, showMock, currentMonth]);
 
   useEffect(() => {
-    console.log('CalendarPage: fetchTransactions実行');
-    fetchTransactions();
+    fetchCalendarTransactions(currentMonth.getFullYear(), currentMonth.getMonth() + 1, showMock);
     if (localStorage.getItem('calendarGuideShown') !== '1') {
       setShowGuide(true);
     }
-  }, [fetchTransactions]);
+  }, [fetchCalendarTransactions, currentMonth, showMock]);
 
   // トランザクション変更をログ
   useEffect(() => {
     console.log('CalendarPage: トランザクション更新', {
-      total: transactions.length,
+      total: calendarTransactions.length,
       showMock,
       currentMonth: format(currentMonth, 'yyyy-MM')
     });
-  }, [transactions, showMock, currentMonth]);
+  }, [calendarTransactions, showMock, currentMonth]);
 
 
   // Get transactions for the current month
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
-  const monthTransactions = transactions.filter(t => {
+  const monthTransactions = calendarTransactions.filter(t => {
     const transactionDate = new Date(t.date);
     if (showMock) {
       // 予定タブ: isMock=trueのみ
@@ -362,7 +361,7 @@ export const CalendarPage = () => {
     const inPeriod = transactionDate >= monthStart && transactionDate <= monthEnd;
     
     // デバッグログ（最初の数件のみ）
-    if (transactions.indexOf(t) < 3) {
+    if (calendarTransactions.indexOf(t) < 3) {
       console.log('カレンダー月次フィルタ:', {
         transaction: { date: t.date, type: t.type, amount: t.amount, category: t.category, isMock: t.isMock },
         showMock,
@@ -379,14 +378,14 @@ export const CalendarPage = () => {
   
   console.log('CalendarPage: 月次トランザクション', {
     month: format(currentMonth, 'yyyy-MM'),
-    total: transactions.length,
+    total: calendarTransactions.length,
     filtered: monthTransactions.length,
     showMock
   });
 
 
   // Get transactions for selected date
-  const selectedDateTransactions = transactions
+  const selectedDateTransactions = calendarTransactions
     .filter(t => {
       if (showMock) {
         if (!t.isMock) return false;
@@ -420,7 +419,6 @@ export const CalendarPage = () => {
     if (window.confirm('この収支を削除してもよろしいですか？')) {
       try {
         await deleteTransaction(transactionId);
-        fetchTransactions();
       } catch {
         alert('削除に失敗しました');
       }
@@ -466,7 +464,6 @@ export const CalendarPage = () => {
       setSelectedIds([]);
       setIsBulkSelectMode(false);
       showSnackbar('選択した収支を削除しました', 'default');
-      fetchTransactions();
     } catch {
       showSnackbar('一括削除に失敗しました', 'destructive');
     }
@@ -910,7 +907,6 @@ export const CalendarPage = () => {
                             } as Omit<import('@/types').Transaction, 'id' | 'user_id' | 'created_at' | 'updated_at'>;
                             try {
                               await useTransactionStore.getState().addTransaction(newTransaction);
-                              useTransactionStore.getState().fetchTransactions();
                               showSnackbar('トランザクションを複製しました', 'default');
                             } catch {
                               showSnackbar('複製に失敗しました', 'destructive');
