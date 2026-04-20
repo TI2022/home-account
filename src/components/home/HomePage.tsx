@@ -66,7 +66,7 @@ const MemoizedHomePage = () => {
 
   // コールバック関数のメモ化
   const handleRefresh = useCallback(() => {
-    fetchTransactions();
+    fetchTransactions({ force: true });
   }, [fetchTransactions]);
 
   return (
