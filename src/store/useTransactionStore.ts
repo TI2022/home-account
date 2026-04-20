@@ -17,6 +17,10 @@ export interface MonthlyBudgetLocal {
 
 interface TransactionState {
   transactions: Transaction[];
+  calendarTransactions: Transaction[];
+  calendarTransactionsByKey: Record<string, Transaction[]>;
+  _calendarLastFetchTime: Record<string, number>;
+  _calendarCurrentKey: string | null;
   budgets: Budget[];
   monthlyBudgets: MonthlyBudgetLocal[];
   recurringIncomes: RecurringIncome[];
@@ -27,7 +31,8 @@ interface TransactionState {
     recurringIncomes: number;
     transactions: number;
   };
-  fetchTransactions: () => Promise<void>;
+  fetchTransactions: (opts?: { force?: boolean }) => Promise<void>;
+  fetchCalendarTransactions: (year: number, month: number, showMock: boolean, opts?: { force?: boolean }) => Promise<void>;
   fetchBudgets: () => Promise<void>;
   fetchRecurringIncomes: () => Promise<void>;
   fetchRecurringExpenses: () => Promise<void>;
@@ -54,6 +59,10 @@ interface TransactionState {
 
 export const useTransactionStore = create<TransactionState>((set, get) => ({
   transactions: [],
+  calendarTransactions: [],
+  calendarTransactionsByKey: {},
+  _calendarLastFetchTime: {},
+  _calendarCurrentKey: null,
   budgets: [],
   recurringIncomes: [],
   recurringExpenses: [],
@@ -65,9 +74,16 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
     transactions: 0,
   },
 
-  fetchTransactions: async () => {
+  fetchTransactions: async (opts?: { force?: boolean }) => {
     set({ loading: true });
     try {
+      const now = Date.now();
+      const lastFetch = get()._lastFetchTime.transactions;
+      const CACHE_DURATION = 30_000; // 30秒キャッシュ（画面遷移やfocus連打の無駄fetchを抑止）
+      if (!opts?.force && now - lastFetch < CACHE_DURATION && get().transactions.length > 0) {
+        return;
+      }
+
       // PostgREST/Supabase は1リクエストあたりのデフォルト行数に上限があるため、
       // 単発 select だと古い月の行が結果に含まれず、再取得後にストアから「消えた」ように見える。
       // ページングで全件取り込む。
@@ -87,10 +103,63 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
         if (batch.length < pageSize) break;
         from += pageSize;
       }
-      set({ transactions: all });
+      set({
+        transactions: all,
+        _lastFetchTime: { ...get()._lastFetchTime, transactions: now },
+      });
     } catch (error) {
       console.error('Error fetching transactions:', error);
       // 失敗時は既存の transactions を上書きしない（画面上の行が一斉に消えるのを防ぐ）
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  fetchCalendarTransactions: async (year: number, month: number, showMock: boolean, opts?: { force?: boolean }) => {
+    const key = `${year}-${String(month).padStart(2, '0')}:${showMock ? 'mock' : 'actual'}`;
+    const now = Date.now();
+    const last = get()._calendarLastFetchTime[key] ?? 0;
+    const CACHE_DURATION = 15_000; // カレンダーの月移動/再描画時の連打抑止
+    if (!opts?.force && now - last < CACHE_DURATION && (get().calendarTransactionsByKey[key]?.length ?? 0) > 0) {
+      set({ calendarTransactions: get().calendarTransactionsByKey[key] });
+      return;
+    }
+
+    set({ loading: true });
+    try {
+      const start = `${year}-${String(month).padStart(2, '0')}-01`;
+      const endDate = new Date(year, month, 0); // month is 1-based here
+      const end = `${year}-${String(month).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`;
+
+      const pageSize = 1000;
+      const all: Transaction[] = [];
+      let from = 0;
+      for (;;) {
+        const { data, error } = await supabase
+          .from('transactions')
+          .select('*')
+          .eq('isMock', showMock)
+          .gte('date', start)
+          .lte('date', end)
+          .order('date', { ascending: false })
+          .range(from, from + pageSize - 1);
+
+        if (error) throw error;
+        const batch = data ?? [];
+        all.push(...batch);
+        if (batch.length < pageSize) break;
+        from += pageSize;
+      }
+
+      set({
+        calendarTransactions: all,
+        calendarTransactionsByKey: { ...get().calendarTransactionsByKey, [key]: all },
+        _calendarLastFetchTime: { ...get()._calendarLastFetchTime, [key]: now },
+        _calendarCurrentKey: key,
+      });
+    } catch (error) {
+      console.error('Error fetching calendar transactions:', error);
+      // 失敗時は既存の calendarTransactions を上書きしない
     } finally {
       set({ loading: false });
     }
@@ -232,7 +301,22 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
       console.log('Supabase挿入成功:', data);
 
       const currentTransactions = get().transactions;
-      set({ transactions: [data, ...currentTransactions] });
+      const ym = typeof (data as Transaction).date === 'string' ? (data as Transaction).date.slice(0, 7) : '';
+      const isMock = !!(data as Transaction).isMock;
+      const key = ym && ym.length === 7 ? `${ym}:${isMock ? 'mock' : 'actual'}` : null;
+      const currentByKey = get().calendarTransactionsByKey || {};
+      const nextByKey = key
+        ? { ...currentByKey, [key]: [(data as Transaction), ...(currentByKey[key] ?? [])] }
+        : currentByKey;
+      const nextCalendar = key && get()._calendarCurrentKey === key
+        ? [(data as Transaction), ...(get().calendarTransactions ?? [])]
+        : get().calendarTransactions;
+
+      set({
+        transactions: [(data as Transaction), ...currentTransactions],
+        calendarTransactions: nextCalendar,
+        calendarTransactionsByKey: nextByKey,
+      });
       
       console.log('=== addTransaction 完了 ===');
     } catch (error) {
@@ -520,7 +604,16 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
       const updatedTransactions = currentTransactions.map(t => 
         t.id === transaction.id ? data : t
       );
-      set({ transactions: updatedTransactions });
+      const updatedCalendar = (get().calendarTransactions || []).map(t =>
+        t.id === transaction.id ? (data as Transaction) : t
+      );
+      const updatedByKey = Object.fromEntries(
+        Object.entries(get().calendarTransactionsByKey || {}).map(([k, arr]) => [
+          k,
+          (arr || []).map(t => (t.id === transaction.id ? (data as Transaction) : t)),
+        ])
+      );
+      set({ transactions: updatedTransactions, calendarTransactions: updatedCalendar, calendarTransactionsByKey: updatedByKey });
     } catch (error) {
       console.error('Error updating transaction:', error);
       console.error('Error details:', error);
@@ -539,7 +632,14 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
 
       const currentTransactions = get().transactions;
       const filteredTransactions = currentTransactions.filter(t => t.id !== id);
-      set({ transactions: filteredTransactions });
+      const filteredCalendar = (get().calendarTransactions || []).filter(t => t.id !== id);
+      const filteredByKey = Object.fromEntries(
+        Object.entries(get().calendarTransactionsByKey || {}).map(([k, arr]) => [
+          k,
+          (arr || []).filter(t => t.id !== id),
+        ])
+      );
+      set({ transactions: filteredTransactions, calendarTransactions: filteredCalendar, calendarTransactionsByKey: filteredByKey });
     } catch (error) {
       console.error('Error deleting transaction:', error);
       throw error;
@@ -657,6 +757,14 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
       set({
         transactions: currentTransactions.filter(t => !ids.includes(t.id)),
       });
+      const filteredCalendar = (get().calendarTransactions || []).filter(t => !ids.includes(t.id));
+      const filteredByKey = Object.fromEntries(
+        Object.entries(get().calendarTransactionsByKey || {}).map(([k, arr]) => [
+          k,
+          (arr || []).filter(t => !ids.includes(t.id)),
+        ])
+      );
+      set({ calendarTransactions: filteredCalendar, calendarTransactionsByKey: filteredByKey });
     } catch (error) {
       console.error('Error deleting transactions:', error);
       throw error;
